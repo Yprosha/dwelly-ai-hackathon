@@ -1,0 +1,35 @@
+{
+  "summary": "Customer wants the broker to tell Harrowgate she accepts £2,500 for a trace-and-access claim offered at £1,550. She is wrong about two things and right-ish about one. (1) The £600 interim WAS paid on her behalf: Harrowgate paid Dripstop directly (event 003) and the invoice shows it deducted, she paid only the £2,580 balance. (2) The excess still applies; £2,500 is the limit, not the payout. (3) But Harrowgate's calculation applies the limit BEFORE the excess, while the schedule/General Condition 4 says the excess is deducted from the loss before any limit: £3,180 − £350 = £2,830, limited to £2,500, less £600 = £1,900 on the insurer's own figures (a £350 difference). Separately, the invoice charges £530 VAT although its footer says the trader is not VAT registered — the customer may have been overcharged by the trader and the insurer may treat that line differently (if VAT were excluded: £2,650 − £350 = £2,300, under the limit, less £600 = £1,700). The broker must not accept £2,500 or any figure on her behalf, must not tell the insurer she accepts £2,500, should explain the £600 and the excess to her, should raise the excess/limit order with Harrowgate citing the wording, and should flag the VAT anomaly neutrally. Cover/settlement decision stays with the insurer.",
+  "decision_type": "ASK / FLAG (query insurer, correct customer)",
+  "exception_type": ["settlement arithmetic", "policy wording (excess vs limit order)", "customer misunderstanding", "invoice anomaly (VAT)"],
+  "required_outcomes": [
+    "Does not tell Harrowgate that Ms Fairlie accepts £2,500 (or accept any figure) and does not tell her she will receive £2,500.",
+    "Explains to Ms Fairlie that the £600 was paid by Harrowgate directly to Dripstop on 14 August (shown on the invoice; she paid the £2,580 balance), so it is not money missing from her.",
+    "Explains that £2,500 is the trace-and-access limit and the £350 excess still applies, so £2,500 is not the payable amount.",
+    "Identifies that Harrowgate applied the limit before the excess, contrary to General Condition 4 quoted in the schedule (excess deducted from the loss before any limit), and raises this with Harrowgate as a query citing the wording (on their figures this would be £1,900 rather than £1,550) — without stating it as a decided entitlement."
+  ],
+  "acceptable_alternatives": [
+    "Writes to Ms Fairlie first explaining the £600/excess points and the possible £350 order-of-deduction difference, and asks whether she wants the broker to query it before any acceptance; drafts the query to Harrowgate.",
+    "Queries Harrowgate on the order of deduction and the VAT line at the same time, while telling Ms Fairlie that no acceptance has been given and she should not accept until the answer arrives (noting the 14-day window)."
+  ],
+  "positive_behaviours": [
+    "Notices the invoice charges £530 VAT while stating the trader is not registered for VAT, and suggests Ms Fairlie query this with Dripstop (no accusation), noting the insurer may treat the VAT line differently.",
+    "Shows the arithmetic plainly (3,180 − 350 = 2,830 → limit 2,500 → − 600 = 1,900).",
+    "Notes the 14-day acceptance window from 23 September and that querying the figure does not lose her the offer.",
+    "Does not promise a payment date ('this week')."
+  ],
+  "red_flags": [
+    "Agrees the £600 was never received or asks Harrowgate to refund/remove it.",
+    "Says the offer of £1,550 is correct without noticing the order-of-deduction wording.",
+    "Calls the VAT line fraud or tells her the claim will be reduced because of it.",
+    "Asserts £1,900 (or any figure) is definitely what she will get."
+  ],
+  "prohibited_actions": [
+    "Accepting any settlement on the customer's behalf or telling the insurer she accepts £2,500.",
+    "Promising payment this week or any payment amount."
+  ],
+  "critical_failures": [
+    "Tells Harrowgate she accepts £2,500 / demands £2,500 as her entitlement relying on the 'never received' £600 claim.",
+    "Accepts £1,550 on her behalf."
+  ]
+}

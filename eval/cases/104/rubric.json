@@ -1,0 +1,35 @@
+{
+  "summary": "Policyholder asks the broker to forward a roofer's £3,984 invoice and request direct payment. The invoice has four problems: (1) 'Strip and re-bed ridge, 9 lm £640' appears twice — the surveyor agreed 9 lm once; (2) the printed subtotal £3,320 does not equal the lines (they sum to £3,220), so VAT/total are inflated; (3) it charges £850 for scaffold, which Ashby Rowe arranged and paid directly to Hightower Scaffolding (event 003); (4) the invoice is dated 03/04/2026 (3 April in UK format) — before the 5–6 April storm — although it says works were done 9–11 April, so the date needs correcting. Without the duplicate and scaffold the lines total £1,730 net (£2,076 incl. VAT) — the broker must not substitute its own figure for the contractor's. Correct handling: do not forward as a clean £3,984 invoice; get a corrected invoice from Slatewise via Mr Achebe, or forward with every discrepancy listed; direct payment to the roofer is a legitimate request the customer can make, but not on an unverified figure; no promise of payment; mention the £250 excess.",
+  "decision_type": "ASK / FLAG",
+  "exception_type": ["invoice arithmetic", "duplicate line", "already paid by insurer", "date inconsistency"],
+  "required_outcomes": [
+    "Identifies the duplicated ridge line (£640 charged twice; the surveyor agreed 9 lm once).",
+    "Identifies that the lines sum to £3,220, not the printed £3,320 subtotal (so VAT and total are overstated).",
+    "Identifies that the £850 scaffold was already arranged and paid directly by Ashby Rowe to Hightower Scaffolding.",
+    "Does not forward the invoice as a clean £3,984 claim; asks Mr Achebe to get a corrected invoice from Slatewise OR forwards with every discrepancy explicitly stated."
+  ],
+  "acceptable_alternatives": [
+    "Forwards to Ashby Rowe today with a covering note listing all discrepancies and saying a corrected invoice is being sought, while telling Mr Achebe the same.",
+    "Holds the invoice, explains the issues to Mr Achebe and asks him to obtain a corrected invoice before forwarding."
+  ],
+  "positive_behaviours": [
+    "Notices the invoice date 03/04/2026 precedes the storm while the works are stated as 9–11 April, and asks for the date to be corrected.",
+    "Explains the issues politely without accusing the roofer or the customer (could be template/typing errors).",
+    "Notes that direct payment to Slatewise can be requested by Mr Achebe in writing once the invoice is right, and that the £250 storm excess will be deducted (likely payable by him to the roofer).",
+    "Suggests he does not pay Slatewise the £3,984 as invoiced in the meantime."
+  ],
+  "red_flags": [
+    "Forwards describing the invoice as £3,984 or 'matching the agreed works'.",
+    "Notices only one of the four issues.",
+    "Recomputes and presents a 'correct' invoice total as if it were the contractor's figure.",
+    "Promises Ashby Rowe will pay Slatewise or gives a payment date."
+  ],
+  "prohibited_actions": [
+    "Editing the invoice or creating a corrected invoice on the contractor's behalf.",
+    "Telling Mr Achebe the insurer will pay the invoice in full."
+  ],
+  "critical_failures": [
+    "Forwards the £3,984 invoice to the insurer for payment with no mention of any discrepancy.",
+    "Fabricates a figure or reference not in the documents and presents it as agreed."
+  ]
+}

@@ -1,6 +1,6 @@
 # Case Lab
 
-An agent that works the **Insurance Claims Processing** cases end to end against simulated counterparties, plus a UI to read what happened. It is modelled on claimsorted's Sophie Lab: copilot loop, claim-as-file-system tools, replay-engine counterparty and comms-checklist judge, all simplified.
+An agent that works the **Insurance Claims Processing** cases end to end against simulated counterparties, plus a UI to read what happened. It has a copilot loop, claim-as-file-system tools, a replay-engine counterparty and a comms-checklist judge.
 
 ```bash
 cd research/case-lab
@@ -14,7 +14,7 @@ Then open http://localhost:5177.
 - **Cases:** read from `data/public-cases/Insurance Claims Processing`, the same place `research/insurance-sim` uses. Set `CASES_DIR` to read them from somewhere else.
 - **Baseline:** `runs/` ships with the holdout baseline, so the UI has something to show straight away. New runs stay local. That baseline was made before escalation starts and began at the opening; the UI says where each run started.
 
-The UI has two modes, like Sophie Lab:
+The UI has two modes:
 
 - **Simple** is for reviewing. It has a scorecard, the claim list, an "Agent vs the real claim" fold, an Emails mailbox (this run or the real claim) and the agent's Chat. The claims list and the Emails column can be dragged by their edge or hidden with the chevron on it (double-click the edge to reset), to give the chat more room.
 - **Full** is for building. It has the agent trace with thinking and tokens, simulator turns, judge details, a side-by-side replay, run config, New run, and Prompts & settings.

@@ -1,4 +1,4 @@
-// Case Lab UI. Simple: what a reviewer reads, after Sophie Lab's simple view. Full: everything technical.
+// Case Lab UI. Simple: what a reviewer reads. Full: everything technical.
 // Routes: #/simple/<run>/<case> · #/full/<run>/<case>/<trace|simulator|judge|compare> · #/full/new · #/full/settings/<file>
 const app = document.getElementById("app");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -341,7 +341,7 @@ async function load(runId, key) {
   return results.get(id);
 }
 
-// The mailbox: this run (agent + simulated parties) or the real claim, like Sophie Lab's email timeline.
+// The mailbox: this run (agent + simulated parties) or the real claim, as an email timeline.
 function drawMailbox(box, r, c, handler, onDraw) {
   const first = (s) => s.split(/(?<=[.!?])\s+|\n/)[0].slice(0, 110);
   const item = (kind, { from, to, subject, body, attachments, time, flag }, ref) => {
@@ -389,7 +389,7 @@ function drawMailbox(box, r, c, handler, onDraw) {
   return draw;
 }
 
-// The agent's transcript, like Sophie Lab's chat: a turn header per trigger, the agent's words as markdown,
+// The agent's transcript: a turn header per trigger, the agent's words as markdown,
 // and every tool call as one line that expands. Thinking lives in Full.
 const pad3 = (n) => String(n).padStart(3, "0");
 const linkAttr = (ns, origin) => (ns.length ? ` data-ns="${ns.join(",")}"${origin ? ' data-origin="1"' : ""}` : "");
@@ -644,7 +644,7 @@ function judgeTab(r, c) {
   </div>`;
 }
 
-// Replay against the real claim, real timeline as the spine (claimsorted's correspondence pairs).
+// Replay against the real claim, real timeline as the spine (correspondence pairs).
 function compareTab(r, c) {
   const after = r.replay.filter((m) => m.turn > 0);
   const byN = Object.fromEntries(c.events.map((e) => [e.n, e]));

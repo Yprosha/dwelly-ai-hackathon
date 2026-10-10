@@ -105,7 +105,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
           documents: fresh.length ? `\nNow also on file:\n${fresh.map((d) => `/documents/${d}`).join("\n")}` : "",
         });
       } else if (silent) { res.stop = "silence"; break; }
-      else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice, like claimsorted's silence signal
+      else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice
     }
     if (s.runJudge && !c.synthetic) res.judge = await judge(ctx, res); // the judge compares with the real future, which a synthetic case has not got
     if (s.runReviewer && res.answer) res.review = await review(ctx, res);

@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "overview": {
+      "type": "object",
+      "properties": { "verdict": { "type": "string", "enum": ["correct", "incorrect"] }, "reason": { "type": "string" } },
+      "required": ["verdict", "reason"],
+      "additionalProperties": false
+    },
+    "next_action": {
+      "type": "object",
+      "properties": { "verdict": { "type": "string", "enum": ["correct", "incorrect"] }, "reason": { "type": "string" } },
+      "required": ["verdict", "reason"],
+      "additionalProperties": false
+    },
+    "decision": { "type": "string", "enum": ["correct", "incorrect"] },
+    "summary": { "type": "string", "description": "One or two sentences." }
+  },
+  "required": ["overview", "next_action", "decision", "summary"],
+  "additionalProperties": false
+}

@@ -102,6 +102,8 @@ const bindRunSelect = (mode) => { document.getElementById("runsel").onchange = (
 // "Next action at escalation". End to end: the judge's verdict on the whole replay with the simulated parties.
 // Runs judged before that verdict existed fall back to a derived one: escalation matched, every broker action
 // covered, no violations.
+// Correct escalations: the reviewer's decision on the answer when the run has one, else the judge's first action.
+const escOf = (s) => (s.correct !== undefined ? s.correct : s.firstAction ? s.firstAction === "match" : undefined);
 const e2eOf = (s) => s.e2e ?? (s.firstAction ? s.firstAction === "match" && s.acts[0] === s.acts[1] && !s.violations : undefined);
 const e2eVerdict = (j) => (j.end_to_end ? { ok: j.end_to_end.verdict === "correct", reason: j.end_to_end.reason }
   : { ok: j.first_action.verdict === "match" && j.acts.every((a) => a.covered) && !j.violations.length && !j.extras.some((x) => x.problem), reason: "Derived from the other rows: this run's judge gave no end-to-end verdict." });
@@ -118,8 +120,9 @@ const stat = (label, a, b) => { const r = pct(a, b); return `<span>${label}<b cl
 
 function scoreSimple(run) {
   const { cs, judged, fin, cov, tot, e2e, derived } = counts(run);
+  const graded = cs.filter((c) => escOf(c) !== undefined);
   return [
-    stat("Correct escalations", judged.filter((c) => c.firstAction === "match").length, judged.length),
+    stat("Correct escalations", graded.filter(escOf).length, graded.length),
     stat(`Solved end to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Broker actions covered", cov, tot),
     stat("No red flags", judged.filter((c) => !c.violations).length, judged.length),
@@ -153,8 +156,13 @@ async function renderSimple(runs, run, key, tab) {
   const realSent = c.events.filter((e) => e.n > r.takeover && handler.includes(e.from) && !isNote(e.channel)).length;
   const agentSent = r.replay.filter((m) => m.author === "agent" && m.kind === "message").length;
   const covered = j ? j.acts.filter((a) => a.covered).length : 0;
+  const ans = r.answer, rv = r.review?.output;
+  const verdictRow = (label, text, part, real) => ({ label, real: esc(real ?? "—"), tone: part ? (part.verdict === "correct" ? "match" : "miss") : "",
+    agent: esc(text) + (part ? `<div class="muted">${esc(part.reason)}</div>` : ""), diff: part?.verdict === "incorrect" && label.toLowerCase() });
   const rows = [
-    j && { label: "Escalation", tone: j.first_action.verdict, agent: esc(j.first_action.reason), real: esc(c.answer["Next action at escalation"] ?? "—"), diff: j.first_action.verdict !== "match" && "escalation" },
+    ans && verdictRow("Overview", ans.overview, rv?.overview, c.answer.Overview),
+    ans && verdictRow("Next action", ans.next_action, rv?.next_action, c.answer["Next action at escalation"]),
+    !ans && j && { label: "Escalation", tone: j.first_action.verdict, agent: esc(j.first_action.reason), real: esc(c.answer["Next action at escalation"] ?? "—"), diff: j.first_action.verdict !== "match" && "escalation" },
     j && { label: "End to end", tone: e2eVerdict(j).ok ? "match" : "miss", agent: `${e2eVerdict(j).ok ? "Correct" : "Not correct"}<div class="muted">${esc(e2eVerdict(j).reason)}</div>`, real: "—", diff: !e2eVerdict(j).ok && "end to end" },
     j && { label: "Broker actions", tone: covered === j.acts.length ? "match" : covered ? "partial" : "miss", agent: `${covered} of ${j.acts.length}${j.acts.some((a) => !a.covered) ? `<div class="muted">Missed: ${esc(j.acts.filter((a) => !a.covered).map((a) => a.act).join("; "))}</div>` : ""}`, real: String(j.acts.length), diff: covered < j.acts.length && "actions" },
     { label: "Emails sent", tone: agentSent === realSent ? "match" : "partial", agent: String(agentSent), real: String(realSent), diff: agentSent !== realSent && "emails sent" },
@@ -172,7 +180,7 @@ async function renderSimple(runs, run, key, tab) {
     <div class="panetop">
       <div class="claimhead"><h1>Case ${esc(caseNo(key))} · ${esc(c.title)}</h1><a href="#/full/${run.id}/${key}">Technical details</a></div>
       ${startLine(run, r, c)}
-      <details class="vs"><summary>Agent vs the real claim ${headline}</summary>
+      <details class="vs"${ans ? " open" : ""}><summary>Agent vs the real claim ${rv ? `<span class="decision ${rv.decision === "correct" ? "ok" : "bad"}" title="${esc(rv.summary)}">${rv.decision === "correct" ? "Correct" : "Incorrect"}</span>` : ""} ${headline}</summary>
         <table class="cmp"><thead><tr><th></th><th>Agent</th><th>The real claim</th></tr></thead>
         <tbody>${rows.map((x) => `<tr><td><span class="dot ${x.tone}"></span>${x.label}</td><td>${x.agent}</td><td>${x.real}</td></tr>`).join("")}</tbody></table>
       </details>
@@ -240,9 +248,11 @@ function startLine(run, r, c) {
 
 function claimRows(run, current, tab) {
   return `<div class="top">${Object.keys(run.cases).length} claims<span class="legend">escalation · end to end</span></div>` + Object.entries(run.cases).map(([key, s]) => {
-    const dot = s.status === "pending" || s.status === "running" ? "wait" : s.status === "error" ? "error" : s.firstAction ?? "";
+    const x = escOf(s);
+    const dot = s.status === "pending" || s.status === "running" ? "wait" : s.status === "error" ? "error"
+      : x === undefined ? "" : x ? "match" : s.correct === undefined && s.firstAction === "partial" ? "partial" : "miss";
     const e = s.failed ? false : e2eOf(s); // a run that failed its script check was not solved end to end
-    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${s.failed ? `failed: ${OFF[s.failed] ?? s.failed}` : e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
+    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.correct !== undefined ? `escalation: reviewer says ${s.correct ? "correct" : "incorrect"}` : s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${s.failed ? `failed: ${OFF[s.failed] ?? s.failed}` : e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
   }).join("");
 }
 
@@ -258,12 +268,12 @@ function drawMailbox(box, r, c, handler, onDraw) {
   const item = (kind, { from, to, subject, body, attachments, time, flag }, ref) => {
     const title = subject || first(body);
     const rest = subject ? body : body.slice(first(body).length).trim();
-    return { kind, html: `<article class="mail ${kind}${flag ? " offense" : ""}" tabindex="0" ${ref.n ? `data-n="${ref.n}"` : `data-e="${ref.e}"`}>
+    return { kind, html: `<article class="mail ${kind}${flag && !flag.soft ? " offense" : ""}" tabindex="0" ${ref.n ? `data-n="${ref.n}"` : `data-e="${ref.e}"`}>
       <div class="ic">${ICON[kind]}</div>
       <div>
         <span class="mid">${ref.n ? "#" + pad3(ref.n) : "event " + ref.e}</span>
-        <div class="t1"><b>${kind === "sent" ? "Sent" : kind === "note" ? "Note" : "Inbox"}</b>${esc(title)}${flag ? `<span class="flag">${esc(flag.label)}</span>` : ""}</div>
-        ${flag ? `<div class="why">${esc(flag.reason)}</div>` : ""}
+        <div class="t1"><b>${kind === "sent" ? "Sent" : kind === "note" ? "Note" : "Inbox"}</b>${esc(title)}${flag ? `<span class="flag${flag.soft ? " soft" : ""}">${esc(flag.label)}</span>` : ""}</div>
+        ${flag ? `<div class="why${flag.soft ? " soft" : ""}">${esc(flag.reason)}</div>` : ""}
         <div class="ft">From: <span>${esc(from)}</span></div>
         <div class="ft">To: <span>${esc(to)}</span></div>
         ${rest ? `<div class="pv">${esc(rest)}</div>` : ""}
@@ -273,7 +283,7 @@ function drawMailbox(box, r, c, handler, onDraw) {
   const runItems = r.replay.map((m) => ({ after: m.turn > 0, ...item(m.kind === "note" ? "note" : m.author === "agent" || m.author === "handler" ? "sent" : "inbox", {
     from: m.author === "agent" ? `Agent (as ${handler[0] ?? "the broker"})` : m.from, to: m.to, subject: m.subject, body: m.body, attachments: m.attachments,
     time: m.ts ? day(m.ts) : m.author === "world" && m.match !== "verbatim" ? "Simulated reply" : "",
-    flag: OFF[m.verdict] && { label: OFF[m.verdict], reason: m.reason },
+    flag: OFF[m.verdict] ? { label: OFF[m.verdict], reason: m.reason } : m.quotes?.length ? { label: "Partly unavailable", reason: m.reason, soft: true } : undefined,
   }, { n: m.n }) }));
   const realItems = c.events.map((e) => ({ after: e.n > r.takeover, ...item(isNote(e.channel) ? "note" : handler.includes(e.from) ? "sent" : "inbox", {
     from: e.from, to: e.to, body: e.body, attachments: c.attachments.filter((a) => a.firstEvent === e.n).map((a) => a.name), time: day(e.ts),
@@ -319,12 +329,20 @@ function council(a) {
 }
 
 function chat(run, r) {
-  const silence = run.kit.prompts["agent.silence.md"];
+  const silence = run.kit.prompts["agent.silence.md"], answerAsk = run.kit.prompts["agent.answer.md"];
   const results = new Map();
   for (const m of r.agent.messages) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result") results.set(b.tool_use_id, b);
   const out = [];
-  let turn = 0;
+  let turn = 0, answering = false;
   for (const m of r.agent.messages) {
+    if (m.role === "user" && m.content === answerAsk) { answering = true; continue; }
+    if (m.role === "assistant" && answering) {
+      answering = false;
+      let a = r.answer;
+      try { a = JSON.parse(m.content.find((b) => b.type === "text")?.text ?? ""); } catch {}
+      if (a) out.push(`<details class="step answer" open><summary><span class="si">${ICON.note}</span><span class="sl"><b>Wrote the answer</b></span><span class="sx"></span><span class="chev">›</span></summary><div class="sb"><div class="md"><p><b>Overview</b></p>${md(a.overview)}<p><b>Next action at escalation</b></p>${md(a.next_action)}</div></div></details>`);
+      continue;
+    }
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
       const own = ownInput(r, turn, m.content), adv = adviceOf(r, turn);
@@ -354,11 +372,11 @@ function step(b, res, r) {
     : /^\/messages\/\d+$/.test(path) ? [Number(path.slice(10))]
     : r.replay.filter((m) => m.attachments.includes(path.replace(/^\/documents\//, ""))).slice(0, 1).map((m) => m.n);
   const msg = b.name === "send_message" && origin ? r.replay[Number(saved[1]) - 1] : undefined; // the email this call sent
-  const off = OFF[msg?.verdict];
-  const row = (kind, icon, label, preview, body) => `<details class="step ${kind}"${linkAttr(ns, origin)}><summary><span class="si">${icon}</span><span class="sl">${label}${refChips(ns)}${failed ? '<span class="fail">failed</span>' : ""}${off ? `<span class="flag">${off}</span>` : ""}</span><span class="sx">${esc(preview)}</span><span class="chev">›</span></summary><div class="sb">${failed ? `<pre class="plain bad">${esc(result)}</pre>` : body}</div></details>`;
+  const off = OFF[msg?.verdict], partly = !off && msg?.quotes?.length > 0; // red: ended the run; amber: answered in part
+  const row = (kind, icon, label, preview, body) => `<details class="step ${kind}"${linkAttr(ns, origin)}><summary><span class="si">${icon}</span><span class="sl">${label}${refChips(ns)}${failed ? '<span class="fail">failed</span>' : ""}${off ? `<span class="flag">${off}</span>` : partly ? `<span class="flag soft">Partly unavailable</span>` : ""}</span><span class="sx">${esc(preview)}</span><span class="chev">›</span></summary><div class="sb">${failed ? `<pre class="plain bad">${esc(result)}</pre>` : body}</div></details>`;
   const attached = (x.attachments ?? []).length ? `<div class="meta">Attached: ${x.attachments.map(esc).join(", ")}</div>` : "";
   if (b.name === "send_message") return row("email", ICON.sent, `<b>Sent ${esc((x.channel || "email").toLowerCase())}</b> to ${esc(x.to)}`, x.subject || firstLine(x.body),
-    `${off ? `<div class="why">${esc(off)}: ${esc(msg.reason)}</div>` : ""}<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
+    `${off || partly ? `<div class="why${partly ? " soft" : ""}">${esc(off || "Partly unavailable")}: ${esc(msg.reason)}</div>` : ""}<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
   if (b.name === "add_note") return row("note", ICON.note, "<b>Added a note</b>", firstLine(x.body), `<div class="md">${md(x.body)}</div>`);
   if (b.name === "close_case") return row("close", ICON.done, "<b>Closed the case</b>", firstLine(x.outcome), `<div class="md">${md(x.outcome)}</div>`);
   if (b.name === "read_case") return row("read", ICON.file, `Read <code>${esc(x.path)}</code>`, "", /^\/messages\//.test(x.path) ? `<pre class="plain">${esc(result)}</pre>` : `<div class="md">${md(result)}</div>`);
@@ -384,7 +402,7 @@ function scoreFull(run) {
   const { cs, judged, fin, cov, tot, e2e, derived } = counts(run);
   return [
     `<span>Finished<b>${fin.length}</b><span class="n">/${cs.length}</span></span>`,
-    stat("Escalations", judged.filter((c) => c.firstAction === "match").length, judged.length),
+    stat("Escalations", cs.filter((c) => escOf(c)).length, cs.filter((c) => escOf(c) !== undefined).length),
     stat(`End to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Acts covered", cov, tot),
     `<span>Violations<b class="${judged.some((c) => c.violations) ? "bad" : "ok"}">${judged.reduce((t, c) => t + (c.violations || 0), 0)}</b></span>`,
@@ -407,7 +425,7 @@ function subnav(active, run) {
 function keyRows(run, current, tab) {
   return Object.entries(run.cases).map(([key, s]) => {
     const right = s.status === "pending" ? "queued" : s.status === "running" ? "running…" : s.status === "error" ? '<span class="bad">error</span>'
-      : `<span class="${s.firstAction === "match" ? "ok" : s.firstAction === "partial" ? "meh" : "bad"}">${s.firstAction ?? "–"}</span>${e2eOf(s) === undefined ? "" : ` <span class="${e2eOf(s) ? "ok" : "bad"}">e2e</span>`} ${s.acts ? s.acts.join("/") : ""}${s.violations ? ` <span class="bad">!${s.violations}</span>` : ""}${s.failed ? ` <span class="bad">${s.failed === "over_request" ? "OR" : "XE"}</span>` : ""} <span class="muted">${money(s.cost)}</span>`;
+      : `${s.correct !== undefined ? `<span class="${s.correct ? "ok" : "bad"}" title="reviewer decision">${s.correct ? "✓" : "✗"}</span> ` : ""}<span class="${s.firstAction === "match" ? "ok" : s.firstAction === "partial" ? "meh" : "bad"}">${s.firstAction ?? "–"}</span>${e2eOf(s) === undefined ? "" : ` <span class="${e2eOf(s) ? "ok" : "bad"}">e2e</span>`} ${s.acts ? s.acts.join("/") : ""}${s.violations ? ` <span class="bad">!${s.violations}</span>` : ""}${s.failed ? ` <span class="bad">${s.failed === "over_request" ? "OR" : "XE"}</span>` : ""} <span class="muted">${money(s.cost)}</span>`;
     return `<a href="#/full/${run.id}/${key}/${tab}" class="${key === current ? "on" : ""}" title="${esc(titles[key] ?? "")}"><span>${esc(caseNo(key))}</span><span>${right}</span></a>`;
   }).join("");
 }
@@ -428,11 +446,11 @@ async function renderFull(runs, run, key, tab) {
   if (!sum || sum.status === "pending" || sum.status === "running") { pane.innerHTML = `<p class="muted">${esc(key)} is ${esc(sum?.status ?? "missing")}.</p>`; return; }
   const { result: r, case: c } = await load(run.id, key);
   const turns = Math.max(0, ...r.agent.calls.map((x) => x.turn));
-  const tabs = [["trace", "Agent trace"], ["simulator", "Simulator"], ["judge", "Judge"], ["compare", "Side by side"]];
+  const tabs = [["trace", "Agent trace"], ["simulator", "Simulator"], ["judge", "Judge"], ["reviewer", "Reviewer"], ["compare", "Side by side"]];
   pane.innerHTML = `
     <div class="round">${esc(key)} · ended: ${esc(r.stop)} · handler: ${esc((r.handler ?? []).join(", ") || "?")} · took over after event ${r.takeover}/${c.events.length} (${startKind(r)}) · ${turns} agent turns · ${money(r.cost)} · ${dur(r.ms)}${r.error ? ` · <span class="bad">${esc(r.error)}</span>` : ""}</div>
     <nav class="tabs">${tabs.map(([t, l]) => `<a href="#/full/${run.id}/${key}/${t}" class="${t === tab ? "on" : ""}">${l}</a>`).join("")}</nav>
-    <div>${tab === "simulator" ? simTab(r) : tab === "judge" ? judgeTab(r, c) : tab === "compare" ? compareTab(r, c) : traceTab(run, r)}</div>`;
+    <div>${tab === "simulator" ? simTab(r) : tab === "judge" ? judgeTab(r, c) : tab === "reviewer" ? reviewerTab(r, c) : tab === "compare" ? compareTab(r, c) : traceTab(run, r)}</div>`;
   pane.querySelectorAll(".raw pre").forEach((p) => (p.onclick = () => p.classList.add("open")));
 }
 
@@ -448,6 +466,7 @@ function traceTab(run, r) {
   for (const m of r.agent.messages) {
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
+      if (m.content === run.kit.prompts["agent.answer.md"]) { turn--; out.push(`<div class="turn"><span class="lbl">Answer</span><span class="muted">agent.answer.md</span></div>`); continue; }
       out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : ownInput(r, turn, m.content) === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
       const adv = adviceOf(r, turn);
       if (adv) out.push(`<div class="round">advisers before this turn · ${adv.proposals.filter((p) => p.status === "ok").length}/${adv.proposals.length} proposals · ${money(adv.proposals.reduce((t, p) => t + p.cost, 0))} · their proposals are appended to the input above</div>`,
@@ -482,6 +501,21 @@ function simTab(r) {
       ${o.messages.length ? `<div>${o.messages.map((x) => `<div><span class="chip ${x.match}">${esc(x.match.replace(/_/g, " "))}</span> ${esc(x.from)} → ${esc(x.to)} <span class="muted">events ${x.follows_events.join(", ") || "none"}</span></div>`).join("")}</div>` : ""}
       <details class="box"><summary>Prompt sent to the simulator</summary><div class="io"><pre>${esc(w.prompt)}</pre></div></details>`;
   }).join("")}</div>`;
+}
+
+function reviewerTab(r, c) {
+  if (!r.answer) return `<p class="muted">This run wrote no answer.</p>`;
+  const v = r.review?.output;
+  const chip = (x) => `<span class="chip ${x === "correct" ? "match" : "bad"}">${x}</span>`;
+  const row = (label, mine, ref, part) => `<tr><td>${label}</td><td>${esc(mine)}</td><td class="muted">${esc(ref ?? "")}</td><td>${part ? `${chip(part.verdict)} <span class="muted">${esc(part.reason)}</span>` : ""}</td></tr>`;
+  return `<div class="trace">
+    ${v ? `<div><span class="lbl">Decision</span> ${chip(v.decision)}<div class="say">${esc(v.summary)}</div></div>` : `<p class="muted">Not reviewed in this run.</p>`}
+    <table class="t"><thead><tr><th></th><th>Agent's answer</th><th>Reference</th><th>Verdict</th></tr></thead><tbody>
+      ${row("Overview", r.answer.overview, c.answer.Overview, v?.overview)}
+      ${row("Next action", r.answer.next_action, c.answer["Next action at escalation"], v?.next_action)}
+    </tbody></table>
+    ${r.review ? `<details class="box"><summary>Prompt sent to the reviewer · ${money(r.review.call.cost)}</summary><div class="io"><pre>${esc(r.review.prompt)}</pre></div></details>` : ""}
+  </div>`;
 }
 
 function judgeTab(r, c) {
@@ -560,7 +594,7 @@ async function renderNew() {
     api("/api/files?path=config/settings.json").then(JSON.parse),
     api("/api/files?path=config/advisers.json").then(JSON.parse).catch(() => ({})),
   ]);
-  const roles = ["agent", "simulator", "judge", "extractor"];
+  const roles = ["agent", "simulator", "judge", "reviewer", "extractor"];
   app.innerHTML = `${plainHeader("New run")}<div class="full">${subnav("new")}
     <form class="form" id="f">
       <label>Label <input id="label" value="baseline" required></label>
@@ -584,6 +618,7 @@ async function renderNew() {
           <label>Max tool rounds per agent turn<input id="maxToolRounds" type="number" min="1" value="${settings.maxToolRounds}"></label>
           <label>Claims in parallel<input id="concurrency" type="number" min="1" value="${settings.concurrency}"></label>
           <label><span><input id="runJudge" type="checkbox" ${settings.runJudge ? "checked" : ""}> Run the judge</span></label>
+          <label><span><input id="runReviewer" type="checkbox" ${settings.runReviewer ? "checked" : ""}> Run the reviewer</span></label>
           <label><span><input id="failOR" type="checkbox" ${settings.failOn?.includes("over_request") ? "checked" : ""}> Fail on an over-request</span></label>
           <label><span><input id="failXE" type="checkbox" ${settings.failOn?.includes("extra_message") ? "checked" : ""}> Fail on an extra email</span></label>
         </div>
@@ -611,7 +646,7 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
-          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, advisers: [...f.querySelectorAll("input[name=adviser]:checked")].map((x) => x.value),
+          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, runReviewer: $("runReviewer").checked, advisers: [...f.querySelectorAll("input[name=adviser]:checked")].map((x) => x.value),
             failOn: [$("failOR").checked && "over_request", $("failXE").checked && "extra_message"].filter(Boolean) },
         }),
       });
@@ -643,6 +678,11 @@ const HINTS = {
   "agent.kickoff.md": "First message to the agent. Variables: {{case_file}} {{messages}} {{documents}}",
   "agent.update.md": "Sent when new messages arrive. Variables: {{messages}} {{documents}}",
   "agent.silence.md": "Sent once when nobody replies.",
+  "agent.answer.md": "Asked right after the agent's first turn: its Overview and Next action at escalation (the deliverable, saved to runs/<id>/answers/).",
+  "answer.schema.json": "Structured output for the answer.",
+  "reviewer.system.md": "System prompt for the reviewer, which decides whether the answer is correct.",
+  "reviewer.user.md": "Variables: {{case_file}} {{history}} {{overview}} {{next_action}} {{actions}} {{reference_overview}} {{reference_next_action}}",
+  "reviewer.schema.json": "Structured output the reviewer returns: per-part verdicts and the decision.",
   "tools.json": "The agent's tools. Keep the names; descriptions and schemas are yours to change.",
   "simulator.system.md": "System prompt for the simulated parties.",
   "simulator.user.md": "Variables: {{case_file}} {{real_events}} {{documents}} {{replay}} {{pending}}",

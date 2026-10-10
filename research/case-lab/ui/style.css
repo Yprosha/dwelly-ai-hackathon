@@ -155,6 +155,12 @@ details.step[data-ns].lk > summary { background: var(--accent-soft); box-shadow:
 
 .flag { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: var(--error-soft); color: var(--error); font-size: 12px; font-weight: 600; vertical-align: 1px; white-space: nowrap; }
 .why { color: var(--error); font-size: 13px; margin-top: 2px; }
+.decision { font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 99px; }
+.decision.ok { background: var(--success-soft); color: var(--success); }
+.decision.bad { background: var(--error-soft); color: var(--error); }
+details.step.answer .si { background: var(--accent-soft); color: var(--accent); }
+.flag.soft { background: var(--warning-soft); color: var(--warning-ink); }
+.why.soft { color: var(--warning-ink); }
 .mail.offense { border-color: var(--error); }
 
 /* chat transcript: one column, every row = 28px icon + content, so all edges line up */

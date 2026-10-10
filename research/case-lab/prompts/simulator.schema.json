@@ -37,7 +37,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Verbatim sentences that make it an over_request or extra_message; empty when on_track."
+            "description": "Verbatim requests the real case cannot answer (on any verdict); for an extra_message, the sentences that make it one. Empty when everything is answerable."
           },
           "reason": {
             "type": "string",

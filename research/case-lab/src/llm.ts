@@ -17,13 +17,13 @@ export function loadEnv() {
 }
 
 export type Settings = {
-  agent: string; simulator: string; judge: string; extractor: string; // model preset names from config/models.json
+  agent: string; simulator: string; judge: string; reviewer: string; extractor: string; // model preset names from config/models.json
   caseCard: "none" | "record" | "full"; // what the agent is told from index.md: only who it is / + broker, insurer, property / the whole card
   startAt: "escalation" | "opening"; // escalation: the agent takes over at the case's escalation point (config/escalation.json); opening: at the start
   seedEvents: number; // 0: follow startAt; N: hand the agent the first N real events verbatim, whatever startAt says
   maxWorldTurns: number; maxToolRounds: number; concurrency: number;
   advisers?: string[]; // names from config/advisers.json that propose next steps before the agent's turns; empty or absent: no council
-  runJudge: boolean; hiddenDetails: string[];
+  runJudge: boolean; runReviewer: boolean; hiddenDetails: string[];
   failOn: string[]; // simulator verdicts that end a run as failed: over_request, extra_message
 };
 
@@ -68,7 +68,7 @@ let client: Anthropic | undefined; // lazy: entrypoints load .env first
 
 export async function call(
   kit: Kit,
-  role: "agent" | "simulator" | "judge" | "extractor" | "adviser",
+  role: "agent" | "simulator" | "judge" | "reviewer" | "extractor" | "adviser",
   req: { system: string; messages: Anthropic.Beta.BetaMessageParam[]; tools?: unknown[]; toolChoiceNone?: boolean; schema?: object; preset?: string },
 ): Promise<{ message: Anthropic.Beta.BetaMessage; call: Call }> {
   const preset = req.preset ?? kit.settings[role as "agent"]; // advisers bring their own preset (config/advisers.json)

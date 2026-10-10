@@ -2,7 +2,7 @@
 // The conversation is append-only (thinking blocks are passed back untouched), so it doubles as the trace.
 import type Anthropic from "@anthropic-ai/sdk";
 import { fsTool, pad, push, visibleDocs, type Ctx } from "./casefs.ts";
-import { call, jsonPrompt, promptOf, type Call, type Kit } from "./llm.ts";
+import { call, jsonOf, jsonPrompt, promptOf, type Call, type Kit } from "./llm.ts";
 
 export type AgentState = {
   system: string;
@@ -12,6 +12,19 @@ export type AgentState = {
 };
 
 export const newAgent = (kit: Kit): AgentState => ({ system: promptOf(kit, "agent.system.md"), messages: [], calls: [] });
+
+export type Answer = { overview: string; next_action: string };
+
+// The deliverable: the agent's Overview and Next action at escalation, written in the same conversation right after
+// its first turn, so it is decided at the escalation point and before any simulated reply.
+export async function writeAnswer(ctx: Ctx, st: AgentState, turn: number): Promise<Answer> {
+  const { kit } = ctx;
+  st.messages.push({ role: "user", content: promptOf(kit, "agent.answer.md") });
+  const { message, call: meta } = await call(kit, "agent", { system: st.system, messages: st.messages, tools: jsonPrompt(kit, "tools.json"), toolChoiceNone: true, schema: jsonPrompt(kit, "answer.schema.json") });
+  st.calls.push({ ...meta, turn, round: 0 });
+  st.messages.push({ role: "assistant", content: message.content });
+  return jsonOf<Answer>(message);
+}
 
 export async function agentTurn(ctx: Ctx, st: AgentState, input: string, turn: number) {
   const { kit } = ctx;

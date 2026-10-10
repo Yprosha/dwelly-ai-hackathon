@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "overview": { "type": "string" },
+    "next_action": { "type": "string", "description": "The next action at escalation." }
+  },
+  "required": ["overview", "next_action"],
+  "additionalProperties": false
+}

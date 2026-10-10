@@ -38,16 +38,18 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
    - The case is exposed as files: `/case`, `/messages/NNN`, and `/documents/NAME` (attachments as text).
    - The agent is not shown the case card (`index.md`): it was written after the case closed, and its title, request summary and details give away things the handler did not have in the history yet. `/case` only says who the agent is. `caseCard` in settings can add the broker, insurer and property on record (`record`) or the whole card (`full`); the simulator and the judge always get the whole card.
    - PDFs and images are transcribed by Claude on first read and cached in `cache/extracted/`.
+   - **The answer.** Right after its first turn, still at the escalation point and before any reply, the agent writes its answer the way the case file records it: **Overview** and **Next action at escalation** (`prompts/agent.answer.md`). Each answer is saved as `runs/<id>/answers/<key>.md`.
 3. **World turn.** The simulator plays everyone except the handler. It follows the real history, adapts it to what the agent actually wrote, and stays silent when the real parties had nothing left to say.
    - The simulator reads the text of the real attachments, so a party can answer questions about a document it sent or received.
    - Code drops sentences with figures that appear nowhere in the real case, its documents included. Only real attachments get through.
-   - The simulator also judges each email the agent sends against the real case: `on_track`, `over_request` (it asks for something the real broker never asked for and the real case never contains) or `extra_message` (the real broker never sent anything like it). A verdict listed in `failOn` in `config/settings.json` ends the run as failed. Over-asking costs you, as it would with a real customer.
+   - The simulator also judges each email the agent sends against the real case: `on_track`, `over_request` (nothing it asks for is in the real case; when part of it is, the counterparty answers that part, says the rest isn't available, and the UI marks the email "Partly unavailable") or `extra_message` (the real broker never sent anything like it). A verdict listed in `failOn` in `config/settings.json` ends the run as failed. Over-asking costs you, as it would with a real customer.
 4. Steps 2 and 3 repeat until the agent closes the case, an email fails the check above, nobody replies twice in a row, or `maxWorldTurns` is reached.
-5. **Judge.** It compares the replay with the real case, and reads the documents the agent held, so a figure taken from an attachment is not mistaken for an invented one. Two verdicts are the headline metrics of a run:
-   - **Correct escalations**: the agent's first action against the case's "Next action at escalation";
+5. **Reviewer.** It decides whether the agent did the right thing at the escalation point. It compares the answer, and what the agent actually did there, with the case's own Overview and Next action at escalation, and returns `correct` or `incorrect` with reasons (`prompts/reviewer.*`). Its decision is the **Correct escalations** headline metric; a run without a reviewer falls back to the judge's first action.
+6. **Judge.** It compares the replay with the real case, and reads the documents the agent held, so a figure taken from an attachment is not mistaken for an invented one. Its end-to-end verdict is the other headline metric:
    - **Solved end to end**: the whole replay, from the takeover until the dialogue with the simulated parties ends, is correct and follows the real case.
 
    It also reports:
+   - the first action against the case's "Next action at escalation";
    - each act of correspondence the real handler made, and whether the agent covered it;
    - extras the agent did;
    - violations.

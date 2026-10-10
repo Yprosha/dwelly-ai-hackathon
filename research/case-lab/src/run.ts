@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
-import { agentTurn, newAgent, type AgentState } from "./agent.ts";
+import { agentTurn, newAgent, writeAnswer, type AgentState, type Answer } from "./agent.ts";
 import { advise, checkAdvisers, type Advice } from "./council.ts";
 import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type Offense, type WorldTurn } from "./simulator.ts";
@@ -14,6 +14,13 @@ export type Judgement = {
   extras: { party: string; act: string; problem: boolean; note: string }[];
   violations: { quote: string; explanation: string }[];
   end_to_end?: { verdict: "correct" | "incorrect"; reason: string }; // the whole replay; absent in runs judged before this verdict existed
+  summary: string;
+};
+
+export type Review = {
+  overview: { verdict: "correct" | "incorrect"; reason: string };
+  next_action: { verdict: "correct" | "incorrect"; reason: string };
+  decision: "correct" | "incorrect";
   summary: string;
 };
 
@@ -31,6 +38,8 @@ export type CaseResult = {
   advice?: Advice[]; // what the advisers proposed before each agent turn (absent in runs made before the council)
   world: WorldTurn[];
   judge?: { output: Judgement; prompt: string; call: Call };
+  answer?: Answer; // the agent's Overview and Next action at escalation
+  review?: { output: Review; prompt: string; call: Call }; // the reviewer's decision on that answer
   extract: Call[];
   cost: number;
   ms: number;
@@ -39,7 +48,7 @@ export type CaseResult = {
 export type CaseSummary = {
   status: "pending" | "running" | "done" | "error";
   stop?: string; error?: string; cost?: number; sent?: number; closed?: boolean; failed?: string;
-  firstAction?: string; acts?: [number, number]; violations?: number;
+  firstAction?: string; acts?: [number, number]; violations?: number; correct?: boolean;
   e2e?: boolean; // the judge's end-to-end verdict: the whole replay is correct and follows the real case
 };
 
@@ -80,6 +89,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       const before = replay.length;
       const docsBefore = visibleDocs(ctx);
       await agentTurn(ctx, agent, input + (advice?.text ?? ""), turn);
+      if (turn === 1) res.answer = await writeAnswer(ctx, agent, turn);
       if (agent.closed) { res.stop = "closed"; break; }
       if (turn > s.maxWorldTurns) { res.stop = "turn limit"; break; }
       const w = await worldTurn(ctx, replay.slice(before), turn);
@@ -98,6 +108,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice, like claimsorted's silence signal
     }
     if (s.runJudge) res.judge = await judge(ctx, res);
+    if (s.runReviewer && res.answer) res.review = await review(ctx, res);
   } catch (e) {
     res.status = "error";
     res.error = e instanceof Error ? e.message : String(e);
@@ -105,7 +116,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
   }
   res.handler = ctx.handler; // set by the first world turn
   const advisers = res.advice!.flatMap((a) => a.proposals.flatMap((p) => p.calls));
-  res.cost = [...agent.calls, ...advisers, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
+  res.cost = [...agent.calls, ...advisers, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
   res.ms = Date.now() - t0;
   return res;
 }
@@ -113,14 +124,18 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
 // The judge sees what the agent could rely on: the events before the takeover, the replay, and the text of every
 // document the agent held by the end (as extracted for the agent). Without the documents it takes a figure or a
 // name the agent read in an attachment for an invented one.
+// Judge and reviewer see the whole case card; this tells them when the agent did not.
+function cardNote(kit: Kit): string {
+  const card = kit.settings.caseCard ?? "full";
+  return card === "full" ? "" : `\n\n(The agent was not shown this case card. It was told only who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}; everything else it knew came from the events before the takeover.)`;
+}
+
 export async function judge(ctx: Ctx, res: CaseResult) {
   const { kit, c } = ctx;
   const docs: string[] = [];
   for (const name of visibleDocs(ctx)) docs.push(`### /documents/${name}\n\n${await docText(ctx, name)}`);
-  const card = kit.settings.caseCard ?? "full";
-  const unseen = card === "full" ? "" : `\n\n(The agent was not shown this case card. It was told only who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}; everything else it knew came from the events before the takeover.)`;
   const prompt = render(promptOf(kit, "judge.user.md"), {
-    case_file: caseFile(kit, c) + unseen,
+    case_file: caseFile(kit, c) + cardNote(kit),
     answer_key: Object.entries(c.answer).map(([h, b]) => `### ${h}\n\n${b}`).join("\n\n") || "(none)",
     context_events: c.events.filter((e) => e.n <= res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
     real_events: c.events.filter((e) => e.n > res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
@@ -132,12 +147,33 @@ export async function judge(ctx: Ctx, res: CaseResult) {
   return { output: jsonOf<Judgement>(r.message), prompt, call: r.call };
 }
 
+// The reviewer: did the agent's answer at the escalation point (and what it did there) match the case's own?
+async function review(ctx: Ctx, res: CaseResult) {
+  const { kit, c } = ctx;
+  const a = res.answer!;
+  const docs: string[] = []; // what the agent held when it wrote the answer: the documents of the handover
+  for (const name of visibleDocs({ ...ctx, replay: res.replay.filter((m) => m.turn === 0) })) docs.push(`### /documents/${name}\n\n${await docText(ctx, name)}`);
+  const prompt = render(promptOf(kit, "reviewer.user.md"), {
+    case_file: caseFile(kit, c) + cardNote(kit),
+    documents: docs.join("\n\n") || "(none)",
+    history: c.events.filter((e) => e.n <= res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
+    overview: a.overview,
+    next_action: a.next_action,
+    actions: res.replay.filter((m) => m.author === "agent" && m.turn === 1).map(renderReplay).join("\n\n") || "(nothing: it ended its turn without acting)",
+    reference_overview: c.answer["Overview"] ?? "(none)",
+    reference_next_action: c.answer["Next action at escalation"] ?? "(none)",
+  });
+  const r = await call(kit, "reviewer", { system: promptOf(kit, "reviewer.system.md"), messages: [{ role: "user", content: prompt }], schema: jsonPrompt(kit, "reviewer.schema.json") });
+  return { output: jsonOf<Review>(r.message), prompt, call: r.call };
+}
+
 const summarize = (r: CaseResult): CaseSummary => ({
   status: r.status, stop: r.stop, error: r.error, cost: r.cost,
   sent: r.replay.filter((m) => m.author === "agent" && m.kind === "message").length,
   closed: Boolean(r.agent.closed),
   failed: r.failure?.verdict,
   firstAction: r.judge?.output.first_action.verdict,
+  correct: r.review ? r.review.output.decision === "correct" : undefined,
   acts: r.judge ? [r.judge.output.acts.filter((a) => a.covered).length, r.judge.output.acts.length] : undefined,
   violations: r.judge?.output.violations.length,
   e2e: r.judge?.output.end_to_end ? r.judge.output.end_to_end.verdict === "correct" : undefined,
@@ -173,6 +209,10 @@ export function startRun(opts: { label?: string; keys: string[]; overrides?: Par
     save();
     const r = await runCase(kit, c);
     fs.writeFileSync(path.join(dir, "cases", `${c.key}.json`), JSON.stringify(r, null, 2));
+    if (r.answer) { // the answer as the case file would record it
+      fs.mkdirSync(path.join(dir, "answers"), { recursive: true });
+      fs.writeFileSync(path.join(dir, "answers", `${c.key}.md`), `# ${c.title}\n\n## Overview\n\n${r.answer.overview}\n\n## Next action at escalation\n\n${r.answer.next_action}\n`);
+    }
     meta.cases[c.key] = summarize(r);
     save();
     onCase?.(c.key, meta.cases[c.key]);

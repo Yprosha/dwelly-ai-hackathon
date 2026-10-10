@@ -64,7 +64,7 @@ def case_input(case_dir):
     return "\n\n".join(parts)
 
 
-def llm(system, user, max_tokens=1500, retries=6):
+def llm(system, user, max_tokens=4000, retries=6):  # 1500 truncated verdicts on long rubrics
     if os.environ.get("ANTHROPIC_API_KEY"):
         url, model = "https://api.anthropic.com/v1/messages", os.environ.get("JUDGE_MODEL", "claude-opus-5")
         headers = {"x-api-key": os.environ["ANTHROPIC_API_KEY"]}

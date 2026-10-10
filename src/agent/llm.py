@@ -28,9 +28,9 @@ def cost_usd(model, usage):
             + u.get('cache_read_input_tokens', 0) * pin * 0.1 + u.get('output_tokens', 0) * pout) / 1e6
 
 
-def call(client, prefix, model, system, messages, tools, thinking=True, max_tokens=16000):
-    """One Messages call. Returns (response, info dict for the trace)."""
-    kw = {}
+def call(client, prefix, model, system, messages, tools, thinking=True, max_tokens=16000, tool_choice=None):
+    """One Messages call. Returns (response, info dict for the trace). A forced tool_choice requires thinking off."""
+    kw = {'tool_choice': tool_choice} if tool_choice else {}
     if thinking and 'haiku' not in model:
         kw['thinking'] = {'type': 'adaptive'}
     t0 = time.time()

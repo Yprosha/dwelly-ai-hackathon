@@ -38,11 +38,17 @@ def answer_md(case, env, meta):
     committed = [a for a in env.actions if a['status'] == 'committed']
     out = [f"# Case {case['id']} - Answer\n"]
     if f:
-        out.append(f"**Decision:** {LABEL.get(f.get('decision_type'), f.get('decision_type'))}  \n"
+        steps = f.get('next_steps') or []
+        steps = [s for s in (steps.splitlines() if isinstance(steps, str) else steps) if str(s).strip()]
+        out.append(f"## Final outcome\n\n{f.get('final_outcome') or 'Not stated.'}\n\n## Next steps\n\n"
+                   + ('\n'.join(f'{n}. {s}' for n, s in enumerate(steps, 1)) or 'None stated.') + '\n')
+        out.append(f"## Decision\n\n**Decision:** {LABEL.get(f.get('decision_type'), f.get('decision_type'))}  \n"
                    f"**Confidence:** {f.get('confidence')}\n\n## Situation\n\n{f.get('situation', '')}\n")
     else:
         why = meta.get('error') or meta.get('stopped') or 'agent did not complete'
-        out.append(f"**Decision:** ESCALATE TO HUMAN (system fallback - the agent did not complete this case)  \n"
+        out.append("## Final outcome\n\nNot determined: the automated run did not complete, so the case is handed to a human "
+                   "handler unchanged.\n\n## Next steps\n\n1. NOW - a human handler reviews the case from the start.\n")
+        out.append(f"## Decision\n\n**Decision:** ESCALATE TO HUMAN (system fallback - the agent did not complete this case)  \n"
                    f"**Confidence:** 0\n\n## Situation\n\nThe automated run failed: {why}. No action was committed. "
                    "A human handler must review this case from the start; any drafts the agent staged are listed below "
                    "for reference only.\n")

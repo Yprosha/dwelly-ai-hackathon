@@ -4,7 +4,7 @@ import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, type AgentState } from "./agent.ts";
 import { advise, checkAdvisers, type Advice } from "./council.ts";
-import { agentBrief, caseFile, extract, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
+import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
 
@@ -108,18 +108,13 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
   return res;
 }
 
-const MAX_DOC = 12_000; // per document, in the judge's prompt
-
 // The judge sees what the agent could rely on: the events before the takeover, the replay, and the text of every
 // document the agent held by the end (as extracted for the agent). Without the documents it takes a figure or a
 // name the agent read in an attachment for an invented one.
 export async function judge(ctx: Ctx, res: CaseResult) {
   const { kit, c } = ctx;
   const docs: string[] = [];
-  for (const name of visibleDocs(ctx)) {
-    const text = await extract(ctx, name);
-    docs.push(`### /documents/${name}\n\n${text.length > MAX_DOC ? text.slice(0, MAX_DOC) + "\n... [truncated]" : text}`);
-  }
+  for (const name of visibleDocs(ctx)) docs.push(`### /documents/${name}\n\n${await docText(ctx, name)}`);
   const card = kit.settings.caseCard ?? "full";
   const unseen = card === "full" ? "" : `\n\n(The agent was not shown this case card. It was told only who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}; everything else it knew came from the events before the takeover.)`;
   const prompt = render(promptOf(kit, "judge.user.md"), {

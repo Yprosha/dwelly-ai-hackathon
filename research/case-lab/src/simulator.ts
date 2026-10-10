@@ -1,7 +1,7 @@
 // The outside world: every party except the handler, replayed from the real history (claimsorted's replay engine),
 // with code-side guards borrowed from its dossier engine: real event ids only, real attachments only, no invented figures.
 import type { Case, Event } from "./cases.ts";
-import { caseFile, eventAttachments, push, type Ctx, type Msg } from "./casefs.ts";
+import { caseFile, docText, eventAttachments, push, type Ctx, type Msg } from "./casefs.ts";
 import { call, jsonOf, jsonPrompt, promptOf, render, type Call } from "./llm.ts";
 
 type SimOutput = {
@@ -48,11 +48,27 @@ export function seed({ c, replay, handler }: Ctx, n: number) {
   for (const e of c.events.slice(0, n)) push(replay, { ...verbatim(c, e), author: handler.includes(e.from) ? "handler" : "world", turn: 0 });
 }
 
+// The real attachments as text, each with the real event that first carried it. The simulated parties answer
+// questions about their own documents from this, and a figure found in a real document counts as grounded.
+async function realDocs(ctx: Ctx): Promise<{ rendered: string; texts: string[] }> {
+  const { c } = ctx;
+  const rendered: string[] = [], texts: string[] = [];
+  for (const a of c.attachments) {
+    const text = await docText(ctx, a.name);
+    const e = c.events.find((x) => x.n === a.firstEvent);
+    texts.push(text);
+    rendered.push(`### ${a.name} · ${e ? `first sent at event ${e.n}, from ${e.from} to ${e.to}` : "on the case file, mentioned in no event"}\n\n${text}`);
+  }
+  return { rendered: rendered.join("\n\n") || "(none)", texts };
+}
+
 export async function worldTurn(ctx: Ctx, pending: Msg[], turn: number): Promise<WorldTurn> {
   const { kit, c, replay } = ctx;
+  const docs = await realDocs(ctx);
   const prompt = render(promptOf(kit, "simulator.user.md"), {
     case_file: caseFile(kit, c),
     real_events: c.events.map((e) => renderEvent(c, e)).join("\n\n"),
+    documents: docs.rendered,
     replay: replay.map(renderReplay).join("\n\n") || "(empty: the case is just starting)",
     pending: pending.map(renderReplay).join("\n\n") || "(nothing)",
   });
@@ -74,7 +90,7 @@ export async function worldTurn(ctx: Ctx, pending: Msg[], turn: number): Promise
     let msg: Omit<Msg, "n" | "turn">;
     if (o.match === "verbatim" && follows.length === 1) msg = verbatim(c, event(follows[0]));
     else {
-      const support = [caseFile(kit, c), ...follows.map((n) => event(n).body), ...replay.map((m) => m.body)];
+      const support = [caseFile(kit, c), ...follows.map((n) => event(n).body), ...replay.map((m) => m.body), ...docs.texts];
       const g = ground(o.body, support);
       if (!g.body && follows.length > 0) msg = { ...verbatim(c, event(follows[0])), stripped: g.stripped }; // nothing left: fall back to the real message
       else if (!g.body) continue;

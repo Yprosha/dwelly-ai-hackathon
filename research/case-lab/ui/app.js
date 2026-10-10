@@ -633,7 +633,7 @@ const HINTS = {
   "agent.silence.md": "Sent once when nobody replies.",
   "tools.json": "The agent's tools. Keep the names; descriptions and schemas are yours to change.",
   "simulator.system.md": "System prompt for the simulated parties.",
-  "simulator.user.md": "Variables: {{case_file}} {{real_events}} {{replay}} {{pending}}",
+  "simulator.user.md": "Variables: {{case_file}} {{real_events}} {{documents}} {{replay}} {{pending}}",
   "simulator.schema.json": "Structured output the simulator returns.",
   "judge.system.md": "System prompt for the judge.",
   "judge.user.md": "Variables: {{case_file}} {{answer_key}} {{context_events}} {{real_events}} {{replay}} {{documents}} {{agent_outcome}}",

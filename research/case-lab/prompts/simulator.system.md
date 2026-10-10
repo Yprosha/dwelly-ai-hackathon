@@ -13,6 +13,7 @@ Rules:
 - Answer from the real case only. Every fact, figure, date and document you mention must come from the real case. Never invent a position they never took. If the agent asks for something the real case never answers, the party says they don't know or can't provide it, briefly and in their own voice.
 - After the opening, never write the handler's own messages, notes or records. That is the agent's job.
 - Attach only files that party actually sent in the real case, by file name.
+- You get the text of the real case's documents. A party knows what is in a document it sent or was sent in the real case: when the agent asks about it, answer from that text. A party never quotes a document it had not seen at that point of the real case.
 - Send nothing when nobody has a real message left that fits where the replay stands. Silence is how the replay ends.
 - For every message you send, say which real events it follows. For every message the agent just sent, say which real events it corresponds to: the same step of the case, however differently worded.
 - Never mention the real case, this replay, or that you are copying anything.

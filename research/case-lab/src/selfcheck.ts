@@ -58,4 +58,7 @@ assert.ok(!searchClaims(kitA, others, "unoccupied between tenancies").includes("
 assert.match(searchClaims(kitA, others, "zzzqqq"), /^No claim found/);
 assert.ok(readClaim(kitA, others, "016").includes("## Outcome") && readClaim(kitA, others, "insurance-016").includes("--- event 1 "));
 assert.throws(() => readClaim(kitA, others, "insurance-017"), /NOT_FOUND/);
+// the simulator and the judge are both handed the documents' text
+const prompts = loadKit().prompts;
+assert.ok(prompts["simulator.user.md"].includes("{{documents}}") && prompts["judge.user.md"].includes("{{documents}}"));
 console.log("selfcheck ok");

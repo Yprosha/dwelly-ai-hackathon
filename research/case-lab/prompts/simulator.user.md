@@ -4,6 +4,10 @@
 
 {{real_events}}
 
+## THE REAL CASE'S DOCUMENTS (attachments as text)
+
+{{documents}}
+
 ## THIS REPLAY SO FAR
 
 {{replay}}

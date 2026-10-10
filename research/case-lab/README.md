@@ -39,7 +39,8 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
    - The agent is not shown the case card (`index.md`): it was written after the case closed, and its title, request summary and details give away things the handler did not have in the history yet. `/case` only says who the agent is. `caseCard` in settings can add the broker, insurer and property on record (`record`) or the whole card (`full`); the simulator and the judge always get the whole card.
    - PDFs and images are transcribed by Claude on first read and cached in `cache/extracted/`.
 3. **World turn.** The simulator plays everyone except the handler. It follows the real history, adapts it to what the agent actually wrote, and stays silent when the real parties had nothing left to say.
-   - Code drops sentences with figures that appear nowhere in the real case. Only real attachments get through.
+   - The simulator reads the text of the real attachments, so a party can answer questions about a document it sent or received.
+   - Code drops sentences with figures that appear nowhere in the real case, its documents included. Only real attachments get through.
 4. Steps 2 and 3 repeat until the agent closes the case, nobody replies twice in a row, or `maxWorldTurns` is reached.
 5. **Judge.** It compares the replay with the real case, and reads the documents the agent held, so a figure taken from an attachment is not mistaken for an invented one. Two verdicts are the headline metrics of a run:
    - **Correct escalations**: the agent's first action against the case's "Next action at escalation";

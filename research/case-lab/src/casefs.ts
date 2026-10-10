@@ -110,6 +110,13 @@ export async function extract({ kit, c, extract: calls }: Ctx, name: string): Pr
   return text;
 }
 
+// A document's text for the judge's or the simulator's prompt (the agent reads documents through read_case).
+const MAX_DOC = 12_000;
+export async function docText(ctx: Ctx, name: string): Promise<string> {
+  const text = await extract(ctx, name);
+  return text.length > MAX_DOC ? text.slice(0, MAX_DOC) + "\n... [truncated]" : text;
+}
+
 const MAX_READ = 30_000; // ponytail: no read windows or #L anchors; add them if documents get long
 
 export async function fsTool(ctx: Ctx, name: string, input: any): Promise<string> {

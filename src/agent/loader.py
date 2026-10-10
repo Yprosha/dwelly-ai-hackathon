@@ -96,9 +96,12 @@ def load_case(path, cut_at_event=None):
     # in dev replay, only show attachments already mentioned in the kept text (no peeking ahead); the index's own
     # "## Attachments" listing names every file of the finished case, so it does not count as a mention
     seen = ATTACH_SECTION.sub('', body)
+    withheld = []
     for rel, p, ext in case.pop('_binaries', []):
-        if cut_at_event and p.name not in seen:
-            case['notes'].append(f'{rel}: dev replay, attachment not yet referenced, withheld')
+        if cut_at_event and p.name not in seen:  # withheld, and its name hidden too (as if it had not arrived yet)
+            withheld.append(p.name)
+            case['files'] = [f for f in case['files'] if not f.startswith(rel + ' ')]
+            case['text'] = '\n'.join(l for l in case['text'].splitlines() if not (l.lstrip().startswith('-') and p.name in l))
             continue
         data = base64.b64encode(p.read_bytes()).decode()
         if ext == '.pdf':
@@ -106,6 +109,8 @@ def load_case(path, cut_at_event=None):
         else:
             case['blocks'].append({'type': 'image', 'source': {'type': 'base64', 'media_type': IMAGE_EXT[ext], 'data': data}})
         case['blocks'].append({'type': 'text', 'text': f'(attachment above: {rel})'})
+    if withheld:
+        case['notes'].append(f'dev replay: {len(withheld)} attachment(s) not yet referenced in the kept history withheld')
     if not texts and not case['blocks']:
         case['notes'].append('no readable content found in case')
     return case

@@ -153,7 +153,7 @@ async function poll(ref) {
 function showResult(r) {
   const acts = (r.actions || []).map(a => {
     if (a.kind === 'message') return `<div class="action message"><b>Message to ${esc(a.to)} (${esc(a.role)}, ${esc(a.channel)})${a.approval ? ' · needs approval' : ''}</b>${esc(a.body)}</div>`;
-    if (a.kind === 'escalation') return `<div class="action escalation"><b>Escalation · ${esc(a.urgency)} → ${esc(a.route_to)}</b>${esc(a.reason)}${a.body ? '\n\n' + esc(a.body) : ''}</div>`;
+    if (a.kind === 'escalation') return `<div class="action escalation"><b>Escalation · ${esc(a.urgency)}${a.route_to ? ' → ' + esc(a.route_to) : ''}</b>${esc(a.reason)}${a.body ? '\n\n' + esc(a.body) : ''}</div>`;
     if (a.kind === 'note') return `<div class="action"><b>Internal note</b>${esc(a.body)}</div>`;
     return `<div class="action"><b>No action</b>${esc(a.body)}${a.next ? '\nNext: ' + esc(a.next) : ''}</div>`;
   }).join('');

@@ -23,7 +23,8 @@ h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
 .card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
 
 /* leaderboard */
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:14px}
+.modebar{display:flex;align-items:center;gap:10px;margin-top:24px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
 .cfg{padding:20px;position:relative}
 .cfg.best{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .cfg .tag{position:absolute;top:16px;right:16px;font-size:11px;font-weight:600;color:#fff;background:var(--accent);padding:2px 8px;border-radius:99px}
@@ -31,6 +32,7 @@ h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
 .cfg .prompt{color:var(--ink-3);font-size:12.5px}
 .hero{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1;margin:18px 0 2px;font-variant-numeric:tabular-nums}
 .hero-l{color:var(--ink-2);font-size:12.5px}
+.hero2{font-size:12.5px;color:var(--ink-2);margin-top:8px}.hero2 b{color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
 .stack{display:flex;gap:2px;height:8px;margin:16px 0 10px}
 .stack i{display:block;height:100%}
 .stack i:first-child{border-radius:4px 0 0 4px}.stack i:last-child{border-radius:0 4px 4px 0}
@@ -57,7 +59,7 @@ table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
 .seg button.on{background:var(--accent);color:#fff}
 .seg button:focus-visible{outline:2px solid var(--seq-4)}
 .mx{padding:6px 0}
-.mrow{display:grid;grid-template-columns:minmax(220px,1fr) repeat(4,150px);align-items:center;padding:0 18px;min-height:38px}
+.mrow{display:grid;grid-template-columns:minmax(220px,1fr) repeat(var(--nc,4),128px);align-items:center;padding:0 18px;min-height:38px}
 .mrow.head{font-size:12px;color:var(--ink-3);font-weight:600;min-height:44px;border-bottom:1px solid var(--border)}
 .mrow.cat{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);min-height:34px;padding-top:10px;background:var(--surface)}
 .mrow.case{border-radius:8px;cursor:pointer}
@@ -72,6 +74,16 @@ table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
 .dot:hover,.dot:focus-visible{background:#e8ecf4}
 .dot.cur{background:#dbe3f5}
 .dot.dim{opacity:.13}
+.dot.n i{background:none!important;box-shadow:inset 0 0 0 1.5px var(--border-strong)}
+.dot.e{position:relative;background:var(--seq-1)}
+.dot.e i{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
+.dot.e::before{content:'ESC';position:absolute;top:-8px;left:0;right:0;text-align:center;font-size:7.5px;line-height:1;font-weight:700;letter-spacing:.04em;color:var(--accent)}
+.seg button.tg.on{background:var(--seq-1);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.escb{border:1.5px solid var(--accent);background:var(--seq-1);border-radius:10px;padding:12px 14px;margin-bottom:6px;font-size:13.5px}
+.escb .t{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:4px}
+.escb .m{font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.escn{display:flex;align-items:center;gap:10px;justify-content:space-between;font-size:12.5px;color:var(--ink-2);background:var(--bg);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+.chip.act{background:var(--seq-1);border-color:var(--seq-3);color:var(--accent)}
 .hidden{display:none}
 
 /* tooltip */
@@ -105,14 +117,10 @@ table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
 .judge b{color:var(--ink-3);font-weight:600}
 
 @media (max-width:900px){
-  .cards{grid-template-columns:repeat(2,1fr)}
-  .mrow{grid-template-columns:1fr repeat(4,minmax(54px,auto));gap:6px;padding:0 10px}
-  .wrap{padding:28px 16px 60px}
-}
-@media (max-width:560px){
-  .cards{grid-template-columns:1fr}
+  .mrow{grid-template-columns:150px repeat(var(--nc,4),112px);gap:6px;padding:0 10px}
   .heat-wrap,.mx-wrap{overflow-x:auto}
-  .mrow{min-width:560px}
+  .mx{width:max-content;min-width:100%}
+  .wrap{padding:28px 16px 60px}
 }
 </style>
 </head>
@@ -121,9 +129,12 @@ table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
   <h1>Simulation runs</h1>
   <p class="sub" id="sub"></p>
 
+  <div class="modebar">Headline metric
+    <div class="seg" id="mode"><button data-m="esc" class="on">Escalation point</button><button data-m="all">All steps</button></div>
+  </div>
   <div class="cards" id="cards"></div>
 
-  <h2>Full match by case type</h2>
+  <h2 id="heat-h">Full match by case type</h2>
   <div class="card heat-wrap"><table class="heat" id="heat"></table></div>
 
   <h2>Every decision</h2>
@@ -131,11 +142,14 @@ table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
     <div class="seg" id="filter">
       <button data-f="all" class="on">All</button><button data-f="miss">Not a match</button><button data-f="harm">Harmful</button><button data-f="split">Models disagree</button>
     </div>
+    <div class="seg"><button class="tg" id="escOnly" aria-pressed="false">Escalation only</button></div>
     <div class="leg">
       <span><i class="sw" style="background:var(--good)"></i>Match</span>
       <span><i class="sw" style="background:var(--warn)"></i>Partly right</span>
       <span><i class="sw" style="background:var(--bad)"></i>Wrong</span>
       <span><i class="sw" style="background:var(--bad);outline:2px solid var(--bad);outline-offset:1px;border-radius:1px"></i>Harmful</span>
+      <span><i class="sw" style="background:var(--ink-3);border-radius:50%;box-shadow:0 0 0 1.5px var(--surface),0 0 0 3px var(--accent)"></i><b style="font-size:9px;color:var(--accent)">ESC</b> Escalation point (scored)</span>
+      <span><i class="sw" style="border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--border-strong)"></i>Not run</span>
     </div>
   </div>
   <div class="card mx-wrap"><div class="mx" id="mx"></div></div>
@@ -148,67 +162,82 @@ table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
 const D = /*DATA*/null;
 const C = D.configs, $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const status = p => p.j_harmful ? 'h' : ['b','w','g'][p.j_match];
-const COLOR = {g:'var(--good)', w:'var(--warn)', b:'var(--bad)', h:'var(--bad)'};
-const LABEL = {g:'✓ Match', w:'~ Partly right', b:'✕ Wrong', h:'⚠ Harmful'};
-const PILL = {g:'g', w:'w', b:'b', h:'b'};
+const status = p => !p || p.j_match == null ? 'n' : p.j_harmful ? 'h' : ['b','w','g'][p.j_match];
+const COLOR = {g:'var(--good)', w:'var(--warn)', b:'var(--bad)', h:'var(--bad)', n:'none'};
+const LABEL = {g:'✓ Match', w:'~ Partly right', b:'✕ Wrong', h:'⚠ Harmful', n:'– Not run'};
+const PILL = {g:'g', w:'w', b:'b', h:'b', n:''};
 const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+const avg = xs => xs.length ? (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(1) : '—';
+const inRange = (k, r) => String(r || '').split(',').some(x => { const [a, b = a] = x.split('-').map(Number); return k >= a && k <= b; });
+document.documentElement.style.setProperty('--nc', C.length);
 
 // flatten decisions
 const all = [];
 D.cats.forEach(cat => cat.rows.forEach(row => row.pts.forEach((pt, i) => all.push({cat, row, pt, i}))));
+const escAll = all.filter(d => d.pt.esc);
 
-// stats per config
-const stats = C.map(c => {
-  const ps = all.map(d => d.pt.p[c.id]);
-  const n = ps.length, g = ps.filter(p => status(p) === 'g').length, w = ps.filter(p => p.j_match === 1 && !p.j_harmful).length;
+function stats(cid, ds) {
+  const ps = ds.map(d => d.pt.p[cid]).filter(p => status(p) !== 'n');
+  const n = ps.length, g = ps.filter(p => status(p) === 'g').length, w = ps.filter(p => status(p) === 'w').length;
   const h = ps.filter(p => p.j_harmful).length, b = n - g - w - h;
   const auto = ps.filter(p => p.autonomy === 'auto_send');
-  return {n, g, w, b, h, auto: auto.length, autoOk: auto.filter(p => status(p) === 'g').length};
-});
-const best = stats.reduce((bi, s, i, a) => s.g > a[bi].g ? i : bi, 0);
-$('#sub').textContent = `${all.length} broker decisions across ${D.cats.reduce((n, c) => n + c.rows.length, 0)} insurance cases. Each model saw the history up to a decision, proposed the next action, and Opus 5 graded it against what the broker actually did.`;
+  return {n, g, w, b, h, auto: auto.length, autoOk: auto.filter(p => status(p) === 'g').length, ps};
+}
+$('#sub').textContent = `${all.length} broker decisions across ${D.cats.reduce((n, c) => n + c.rows.length, 0)} insurance cases. Each model saw the history up to a decision, proposed the next action, and Opus 5 graded it against what the broker actually did. The escalation point (one per case) is the step that is scored; the other steps show whether a model generalises.`;
 
-$('#cards').innerHTML = C.map((c, i) => {
-  const s = stats[i], seg = [['g', s.g], ['w', s.w], ['b', s.b], ['h', s.h]].filter(x => x[1]);
-  return `<div class="card cfg ${i === best ? 'best' : ''}">
-    ${i === best ? '<span class="tag">Best</span>' : ''}
-    <div class="model">${c.model}</div><div class="prompt">${c.prompt}</div>
-    <div class="hero">${pct(s.g, s.n)}%</div><div class="hero-l">match the broker</div>
-    <div class="stack">${seg.map(([k, v]) => `<i style="flex:${v};background:${COLOR[k]}"></i>`).join('')}</div>
-    <div class="leg"><span><b>${s.g}</b> match</span><span><b>${s.w}</b> partly</span><span><b>${s.b}</b> wrong</span><span><b>${s.h}</b> harmful</span></div>
-    <div class="kv"><div>Wants to auto-send<b>${pct(s.auto, s.n)}%</b></div><div style="text-align:right">…and is right<b>${pct(s.autoOk, s.auto)}%</b></div></div>
-  </div>`;
-}).join('');
+let mode = 'esc';
+function drawTop() {
+  const pool = mode === 'esc' ? escAll : all, other = mode === 'esc' ? all : escAll;
+  const S = C.map(c => stats(c.id, pool)), O = C.map(c => stats(c.id, other));
+  const best = S.reduce((bi, s, i, a) => pct(s.g, s.n) > pct(a[bi].g, a[bi].n) ? i : bi, 0);
+  $('#cards').innerHTML = C.map((c, i) => {
+    const s = S[i], o = O[i], seg = [['g', s.g], ['w', s.w], ['b', s.b], ['h', s.h]].filter(x => x[1]);
+    const sc = k => avg(s.ps.map(p => p.scores && p.scores[k]).filter(v => v != null));
+    return `<div class="card cfg ${i === best ? 'best' : ''}">
+      ${i === best ? '<span class="tag">Best</span>' : ''}
+      <div class="model">${esc(c.model)}</div><div class="prompt">${esc(c.prompt)}</div>
+      <div class="hero">${s.n ? pct(s.g, s.n) + '%' : '—'}</div><div class="hero-l">match the broker ${mode === 'esc' ? `at the escalation point · ${s.n} cases` : `· all ${s.n} steps`}</div>
+      <div class="hero2">${mode === 'esc' ? 'All steps' : 'Escalation point'} <b>${o.n ? pct(o.g, o.n) + '%' : '—'}</b> <span style="color:var(--ink-3)">of ${o.n}</span></div>
+      <div class="stack">${seg.map(([k, v]) => `<i style="flex:${v};background:${COLOR[k]}"></i>`).join('')}</div>
+      <div class="leg"><span><b>${s.g}</b> match</span><span><b>${s.w}</b> partly</span><span><b>${s.b}</b> wrong</span><span><b>${s.h}</b> harmful</span></div>
+      ${c.agent
+        ? `<div class="kv"><div>Next steps<b>${sc('next steps')}</b></div><div>Outcome<b>${sc('outcome')}</b></div><div style="text-align:right">Judgement<b>${sc('judgement')}</b></div></div>`
+        : `<div class="kv"><div>Wants to auto-send<b>${pct(s.auto, s.n)}%</b></div><div style="text-align:right">…and is right<b>${pct(s.autoOk, s.auto)}%</b></div></div>`}
+    </div>`;
+  }).join('');
 
-// heatmap: sequential blue, value printed in each cell
-const seq = v => v >= 90 ? ['--seq-5', '#fff'] : v >= 75 ? ['--seq-4', '#fff'] : v >= 60 ? ['--seq-3', 'var(--ink)'] : v >= 45 ? ['--seq-2', 'var(--ink)'] : ['--seq-1', 'var(--ink)'];
-$('#heat').innerHTML = `<thead><tr><th>Case type</th>${C.map(c => `<th style="text-align:center">${c.model}<small>${c.prompt}</small></th>`).join('')}</tr></thead><tbody>` +
-  D.cats.map(cat => {
-    const ds = all.filter(d => d.cat === cat);
-    return `<tr><th>${cat.name}<small>${ds.length}</small></th>${C.map(c => {
-      const v = pct(ds.filter(d => status(d.pt.p[c.id]) === 'g').length, ds.length), [bg, fg] = seq(v);
-      return `<td style="background:var(${bg});color:${fg}" title="${c.model} · ${c.prompt}: ${v}% of ${ds.length} decisions match">${v}%</td>`;
-    }).join('')}</tr>`;
-  }).join('') + '</tbody>';
+  // heatmap: sequential blue, value printed in each cell
+  const seq = v => v >= 90 ? ['--seq-5', '#fff'] : v >= 75 ? ['--seq-4', '#fff'] : v >= 60 ? ['--seq-3', 'var(--ink)'] : v >= 45 ? ['--seq-2', 'var(--ink)'] : ['--seq-1', 'var(--ink)'];
+  $('#heat-h').textContent = mode === 'esc' ? 'Full match by case type · escalation point' : 'Full match by case type · all steps';
+  $('#heat').innerHTML = `<thead><tr><th>Case type</th>${C.map(c => `<th style="text-align:center">${esc(c.model)}<small>${esc(c.prompt)}</small></th>`).join('')}</tr></thead><tbody>` +
+    D.cats.map(cat => {
+      const ds = pool.filter(d => d.cat === cat);
+      return `<tr><th>${cat.name}<small>${ds.length}</small></th>${C.map(c => {
+        const s = stats(c.id, ds);
+        if (!s.n) return `<td style="color:var(--ink-3)" title="not run">—</td>`;
+        const v = pct(s.g, s.n), [bg, fg] = seq(v);
+        return `<td style="background:var(${bg});color:${fg}" title="${esc(c.model)} · ${esc(c.prompt)}: ${v}% of ${s.n} ${mode === 'esc' ? 'escalation points' : 'decisions'} match">${v}%</td>`;
+      }).join('')}</tr>`;
+    }).join('') + '</tbody>';
+}
 
 // matrix
-let filter = 'all', cur = null;
+let filter = 'all', escOnly = false, cur = null;
 const keep = d => {
-  const ss = C.map(c => status(d.pt.p[c.id]));
-  return filter === 'all' || (filter === 'miss' && ss.some(s => s !== 'g')) || (filter === 'harm' && ss.includes('h')) || (filter === 'split' && new Set(ss).size > 1);
+  const ss = C.map(c => status(d.pt.p[c.id])).filter(s => s !== 'n');
+  return (!escOnly || d.pt.esc) && (filter === 'all' || (filter === 'miss' && ss.some(s => s !== 'g')) || (filter === 'harm' && ss.includes('h')) || (filter === 'split' && new Set(ss).size > 1));
 };
 function drawMatrix() {
-  let h = `<div class="mrow head"><div>Case</div>${C.map(c => `<div>${c.model} <span style="font-weight:400">· ${c.prompt.replace(' prompt', '')}</span></div>`).join('')}</div>`;
+  let h = `<div class="mrow head"><div>Case</div>${C.map(c => `<div>${esc(c.model)} <span style="font-weight:400">· ${esc(c.prompt.replace(' prompt', ''))}</span></div>`).join('')}</div>`;
   D.cats.forEach(cat => {
-    const rows = cat.rows.filter(r => r.pts.some((pt, i) => keep({pt})));
+    const rows = cat.rows.filter(r => r.pts.some(pt => keep({pt})));
     if (!rows.length) return;
     h += `<div class="mrow cat"><div>${cat.name}</div></div>`;
     rows.forEach(r => {
       h += `<div class="mrow case ${cur && cur.row === r ? 'sel' : ''}" data-case="${r.id}"><div class="nm"><span>${r.id}</span>${esc(r.title)}</div>` +
         C.map(c => `<div class="dots">${r.pts.map((pt, i) => {
           const s = status(pt.p[c.id]);
-          return `<button class="dot ${s === 'h' ? 'h' : ''} ${keep({pt}) ? '' : 'dim'} ${cur && cur.pt === pt ? 'cur' : ''}" data-case="${r.id}" data-i="${i}" data-c="${c.id}" aria-label="${c.model} ${c.prompt}, case ${r.id} decision ${i + 1}: ${LABEL[s]}"><i style="background:${COLOR[s]}"></i></button>`;
+          return `<button class="dot ${s === 'h' || s === 'n' ? s : ''} ${pt.esc ? 'e' : ''} ${keep({pt}) ? '' : 'dim'} ${cur && cur.pt === pt ? 'cur' : ''}" data-case="${r.id}" data-i="${i}" data-c="${c.id}" aria-label="${esc(c.model)} ${esc(c.prompt)}, case ${r.id} decision ${i + 1}${pt.esc ? ' (escalation point)' : ''}: ${LABEL[s]}"><i style="background:${COLOR[s]}"></i></button>`;
         }).join('')}</div>`).join('') + `</div>`;
     });
   });
@@ -222,43 +251,58 @@ document.addEventListener('mouseover', e => {
   const b = e.target.closest('.dot');
   if (!b) { tip.style.opacity = 0; return; }
   const d = find(b.dataset.case, +b.dataset.i), p = d.pt.p[b.dataset.c], c = C.find(x => x.id === b.dataset.c);
-  tip.innerHTML = `<b>${LABEL[status(p)]}</b> · ${c.model} · ${c.prompt}<br>Case ${d.row.id}, decision ${d.i + 1} of ${d.row.pts.length}<br><span style="opacity:.75">${esc(p.action_type)} → ${esc(p.recipient)}</span>`;
+  tip.innerHTML = `<b>${LABEL[status(p)]}</b> · ${esc(c.model)} · ${esc(c.prompt)}<br>Case ${d.row.id}, decision ${d.i + 1} of ${d.row.pts.length}${d.pt.esc ? ' · <b>escalation point</b>' : ''}` +
+    (p ? `<br><span style="opacity:.75">${esc(p.action_type)} → ${esc(p.recipient)}</span>` : '');
   const r = b.getBoundingClientRect();
-  tip.style.left = Math.min(innerWidth - 310, r.left) + 'px'; tip.style.top = (r.bottom + 8) + 'px'; tip.style.opacity = 1;
+  tip.style.left = Math.max(8, Math.min(innerWidth - 310, r.left)) + 'px'; tip.style.top = (r.bottom + 8) + 'px'; tip.style.opacity = 1;
 });
 
 // drawer
 function open(d) {
   cur = d; tip.style.opacity = 0;
-  const {row, pt, i, cat} = d;
-  $('#dh').innerHTML = `<div class="crumb">${cat.name} · case ${row.id} · decision ${i + 1} of ${row.pts.length} (event ${pt.k} of ${pt.n})</div><h3>${esc(row.title)}</h3>
-    <div class="dnav"><button class="btn" id="prev">← Prev</button><button class="btn" id="next">Next →</button><button class="btn x" id="close">Close · Esc</button></div>`;
-  $('#db').innerHTML = `<div class="lbl">Last message</div><div class="msg"><div class="who">${esc(pt.prev.from)} → ${esc(pt.prev.to)}</div>${esc(pt.prev.body)}</div>
+  const {row, pt, i, cat} = d, E = row.esc;
+  $('#dh').innerHTML = `<div class="crumb">${cat.name} · case ${row.id} · decision ${i + 1} of ${row.pts.length} (event ${pt.k} of ${pt.n})${pt.esc ? ' · <b style="color:var(--accent)">escalation point</b>' : ''}</div><h3>${esc(row.title)}</h3>
+    <div class="dnav"><button class="btn" id="prev">← Prev</button><button class="btn" id="next">Next →</button><span style="font-size:12px;color:var(--ink-3)">${escOnly ? 'escalation only' : ''}</span><button class="btn x" id="close">Close · Esc</button></div>`;
+  const banner = pt.esc
+    ? `<div class="escb"><div class="t">Escalation point · the scored step</div>${esc(E.trigger)}
+        <div class="m">Action carried out in event${String(E.action_events).includes('-') ? 's' : ''} <b>${esc(E.action_events)}</b>. Later: ${esc(E.later_events)}</div></div>`
+    : `<div class="escn"><span>${inRange(pt.k, E.action_events) ? `This step carries out the escalation action (events ${esc(E.action_events)}).` : 'Not the escalation point.'} Escalation is at event ${E.esc_after + 1}.</span><button class="btn" id="toEsc">Go to escalation →</button></div>`;
+  $('#db').innerHTML = banner + `<div class="lbl" style="margin-top:16px">Last message</div><div class="msg"><div class="who">${esc(pt.prev.from)} → ${esc(pt.prev.to)}</div>${esc(pt.prev.body)}</div>
     <div class="lbl">What the broker actually did</div><div class="msg gold"><div class="who">${esc(pt.gold.channel)} → ${esc(pt.gold.to)}</div>${esc(pt.gold.body)}</div>
     <div class="lbl">What each model proposed</div>` + C.map(c => {
       const p = pt.p[c.id], s = status(p);
-      return `<div class="prop"><div class="ph"><span class="m">${c.model}</span><span class="pp">${c.prompt}</span><span class="pill ${PILL[s]}">${LABEL[s]}</span></div>
-        <div class="chips"><span class="chip">${esc(p.action_type)}</span><span class="chip">→ ${esc(p.recipient)}</span><span class="chip">${esc((p.autonomy || '').replace(/_/g, ' '))}</span><span class="chip">confidence ${p.confidence ?? '—'}</span></div>
+      const head = `<div class="ph"><span class="m">${esc(c.model)}</span><span class="pp">${esc(c.prompt)}</span><span class="pill ${PILL[s]}">${LABEL[s]}</span></div>`;
+      if (!p) return `<div class="prop">${head}<div class="judge" style="border:0;margin:6px 0 0;padding:0">Not run at this step.</div></div>`;
+      const chips = c.agent
+        ? [`<span class="chip">${esc(p.action_type)}</span>`, ...Object.entries(p.scores || {}).map(([k, v]) => `<span class="chip act">${k} ${v ?? '—'}/10</span>`), p.invented ? '<span class="chip" style="color:#a32626">invented facts</span>' : '']
+        : [`<span class="chip">${esc(p.action_type)}</span>`, `<span class="chip">→ ${esc(p.recipient)}</span>`, `<span class="chip">${esc((p.autonomy || '').replace(/_/g, ' '))}</span>`, `<span class="chip">confidence ${p.confidence ?? '—'}</span>`];
+      return `<div class="prop">${head}<div class="chips">${chips.join('')}</div>
         <div class="txt">${esc(p.message)}</div><div class="judge"><b>Judge:</b> ${esc(p.j_why)}</div></div>`;
     }).join('');
   $('#db').scrollTop = 0;
   $('#drawer').classList.add('open');
   $('#prev').onclick = () => step(-1); $('#next').onclick = () => step(1); $('#close').onclick = close;
+  if ($('#toEsc')) $('#toEsc').onclick = () => open(escAll.find(x => x.row === row));
   drawMatrix();
 }
 function close() { cur = null; $('#drawer').classList.remove('open'); drawMatrix(); }
 function step(dir) {
   const list = all.filter(keep);
-  const j = list.indexOf(cur);
-  if (list.length) open(list[(j + dir + list.length) % list.length]);
+  if (!list.length) return;
+  let j = list.indexOf(cur);
+  if (j < 0) { j = all.indexOf(cur); const nx = list.findIndex(d => all.indexOf(d) > j); j = (nx < 0 ? list.length : nx) - (dir > 0 ? 1 : 0); }
+  open(list[(j + dir + list.length) % list.length]);
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('.dot');
   if (b) return open(find(b.dataset.case, +b.dataset.i));
   const r = e.target.closest('.mrow.case');
-  if (r) return open(all.find(d => d.row.id === r.dataset.case));
+  if (r) return open((escOnly ? escAll : all).find(d => d.row.id === r.dataset.case));
   const f = e.target.closest('#filter button');
   if (f) { filter = f.dataset.f; document.querySelectorAll('#filter button').forEach(x => x.classList.toggle('on', x === f)); drawMatrix(); }
+  if (e.target.closest('#escOnly')) { escOnly = !escOnly; $('#escOnly').classList.toggle('on', escOnly); $('#escOnly').setAttribute('aria-pressed', escOnly); cur ? open(cur) : drawMatrix(); }
+  const m = e.target.closest('#mode button');
+  if (m) { mode = m.dataset.m; document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === m)); drawTop(); }
 });
 document.addEventListener('keydown', e => {
   if (!cur) return;
@@ -266,6 +310,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') { e.preventDefault(); step(1); }
   if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'k') { e.preventDefault(); step(-1); }
 });
+drawTop();
 drawMatrix();
 </script>
 </body>

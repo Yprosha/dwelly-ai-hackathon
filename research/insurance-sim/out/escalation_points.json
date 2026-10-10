@@ -1,0 +1,402 @@
+[
+ {
+  "case": "001",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client asked for letting quotation without any risk details",
+  "action_events": "2-4",
+  "later_events": "Insurer accepts quotation request; no price issued yet"
+ },
+ {
+  "case": "002",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Oliver asks to proceed while start-date field blank",
+  "action_events": "3",
+  "later_events": "Oliver confirms 1 April 2026; application updated, sent to insurer"
+ },
+ {
+  "case": "003",
+  "n": 5,
+  "esc_after": 3,
+  "trigger": "Insurer offer received; client hasn't seen terms yet",
+  "action_events": "4",
+  "later_events": "Florence confirms receipt, will review, no decision made"
+ },
+ {
+  "case": "004",
+  "n": 6,
+  "esc_after": 3,
+  "trigger": "Team specified submission route and recording instructions for acceptance",
+  "action_events": "4",
+  "later_events": "Insurer confirms receipt, processing next; Sophie updates Theo"
+ },
+ {
+  "case": "005",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Insurer flags construction year missing from the application",
+  "action_events": "2-4",
+  "later_events": "Rory relays qualified estimate; insurer acknowledges receipt"
+ },
+ {
+  "case": "006",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Broker had no record of insurer issuing documents",
+  "action_events": "3-4",
+  "later_events": "Client told of data checks; he acknowledges update"
+ },
+ {
+  "case": "007",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Client lost her policy copy and requested a replacement",
+  "action_events": "2-5",
+  "later_events": "Ruby confirms the resent policy copy opens clearly"
+ },
+ {
+  "case": "008",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "File review found no certificate despite policy in place",
+  "action_events": "3-4",
+  "later_events": "Certificate forwarded to Adam, who confirmed receipt"
+ },
+ {
+  "case": "009",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Client reports issued policy shows incorrect flat number",
+  "action_events": "2-3",
+  "later_events": "Insurer reissues policy; Josh forwards it; Emma confirms receipt"
+ },
+ {
+  "case": "010",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client asked to insure a second property separately",
+  "action_events": "2-3",
+  "later_events": "Separate quotation request registered; insurer confirms receipt only"
+ },
+ {
+  "case": "011",
+  "n": 5,
+  "esc_after": 2,
+  "trigger": "Renewal offer with deadline received; Beth not yet informed",
+  "action_events": "3",
+  "later_events": "Beth confirms receipt, intends to review; Owen notes no acceptance"
+ },
+ {
+  "case": "012",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Finn accepted offer INS-012 and asked Katie to relay it",
+  "action_events": "3",
+  "later_events": "Insurer confirms renewal; Katie relays it; Finn acknowledges"
+ },
+ {
+  "case": "013",
+  "n": 7,
+  "esc_after": 4,
+  "trigger": "Insurer replied with status but no cover confirmation",
+  "action_events": "5-6",
+  "later_events": "Nora acknowledges receipt of the status update"
+ },
+ {
+  "case": "014",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Insurer required Jamie's confirmation of recorded property details",
+  "action_events": "2",
+  "later_events": "Jamie confirms; relayed to insurer, which acknowledges receipt"
+ },
+ {
+  "case": "015",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Client reported tenancy ended, unsure what insurer needs",
+  "action_events": "2-4",
+  "later_events": "Insurer confirms receipt, will review; broker relays to client"
+ },
+ {
+  "case": "016",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Tenant already moved in but exact move-in date still missing",
+  "action_events": "3-5",
+  "later_events": "Note records notification only; no policy term change stated"
+ },
+ {
+  "case": "017",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client reports property will be empty between tenancies",
+  "action_events": "2-4",
+  "later_events": "Insurer confirms receipt only, no vacancy terms set"
+ },
+ {
+  "case": "018",
+  "n": 5,
+  "esc_after": 2,
+  "trigger": "Note flags correspondence-only change, escalate distinction before insurer update",
+  "action_events": "3",
+  "later_events": "Insurer confirms update; broker relays confirmation to Dylan"
+ },
+ {
+  "case": "019",
+  "n": 7,
+  "esc_after": 1,
+  "trigger": "Client requested quotation-only terms for higher buildings sum insured",
+  "action_events": "2-5",
+  "later_events": "Proposal passed to Zoe; she reviews, authorises no amendment"
+ },
+ {
+  "case": "020",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Sale reported with cancellation request but no completion date",
+  "action_events": "2-4",
+  "later_events": "Insurer declines backdating, policy active; Meg relays to Ethan"
+ },
+ {
+  "case": "021",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Insurer reports scheduled instalment failed, needs secure payment",
+  "action_events": "2",
+  "later_events": "Ella pays securely; Rob obtains and relays settled-status confirmation"
+ },
+ {
+  "case": "022",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Customer reports transferred premium missing from insurer's payment log",
+  "action_events": "2-4",
+  "later_events": "Insurer confirms payment allocated; Jen relays result to Noah"
+ },
+ {
+  "case": "023",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Neil has no invoice on file; must request from insurer",
+  "action_events": "3-5",
+  "later_events": "Molly confirms receiving invoice for her records"
+ },
+ {
+  "case": "024",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client reports payment recorded but no receipt issued",
+  "action_events": "2-3",
+  "later_events": "Faye forwards receipt; Ryan confirms it is correct"
+ },
+ {
+  "case": "025",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Insurer reported \u00a3286.40 outstanding balance with 10-day deadline",
+  "action_events": "2-4",
+  "later_events": "Insurer confirms payment received; broker relays settled status to George"
+ },
+ {
+  "case": "026",
+  "n": 7,
+  "esc_after": 1,
+  "trigger": "Client asks to change payment method, needs insurer's approved procedure",
+  "action_events": "2-4",
+  "later_events": "Penny submits securely; insurer confirms update; Zak informs her"
+ },
+ {
+  "case": "027",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client can't tell which of two policies the bill covers",
+  "action_events": "2-4",
+  "later_events": "Bella emails Chris confirming the insured property address"
+ },
+ {
+  "case": "028",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Purpose of each identical \u00a3286.40 debit unverified by broker",
+  "action_events": "3",
+  "later_events": "Insurer confirms advance July instalment; Pat informs Lydia, who acknowledges"
+ },
+ {
+  "case": "029",
+  "n": 6,
+  "esc_after": 3,
+  "trigger": "Leak start time, source and extent still unknown",
+  "action_events": "4-5",
+  "later_events": "Daisy relays registration, asks Harvey for confirmed details"
+ },
+ {
+  "case": "030",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Insurer requested the date damage was first noticed",
+  "action_events": "3-5",
+  "later_events": "Insurer adds 6 May; record supplemented, no cover decision"
+ },
+ {
+  "case": "031",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Customer reports storm roof damage, timing unknown",
+  "action_events": "2-4",
+  "later_events": "Insurer registers claim CLM-031; cause and cover under assessment"
+ },
+ {
+  "case": "032",
+  "n": 7,
+  "esc_after": 1,
+  "trigger": "Landlord reports broken window with unknown time and cause",
+  "action_events": "2-5",
+  "later_events": "Claim submitted to Wrenfield; no response or decision recorded"
+ },
+ {
+  "case": "033",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Landlord reports tenant's missing belongings, lacking list and discovery date",
+  "action_events": "3-5",
+  "later_events": "Broker confirms submission to client; no insurer registration or decision"
+ },
+ {
+  "case": "034",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Client supplied damage description and asked insurer be notified",
+  "action_events": "3-4",
+  "later_events": "Insurer registers claim CLM-034; broker relays confirmation to client"
+ },
+ {
+  "case": "035",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Sarah reports heating failure and water near radiator",
+  "action_events": "2-4",
+  "later_events": "Ian tells Sarah claim submitted; no insurer acknowledgment or decision"
+ },
+ {
+  "case": "036",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client reports door damage but cannot identify which property/policy",
+  "action_events": "2",
+  "later_events": "Henry confirms address and security; Mia links notification, confirms"
+ },
+ {
+  "case": "037",
+  "n": 5,
+  "esc_after": 1,
+  "trigger": "Client sent contractor estimate needing submission to insurer",
+  "action_events": "2-3",
+  "later_events": "Insurer acknowledges receipt only; broker relays to client"
+ },
+ {
+  "case": "038",
+  "n": 5,
+  "esc_after": 2,
+  "trigger": "Images missing from insurer's file for open claim CLM-038",
+  "action_events": "3",
+  "later_events": "Insurer confirms images on file; Lena relays to Wade"
+ },
+ {
+  "case": "039",
+  "n": 6,
+  "esc_after": 3,
+  "trigger": "Broker verified reference CLM-039 against claim and address",
+  "action_events": "4",
+  "later_events": "Tilly confirms receipt; broker files note, no decision given"
+ },
+ {
+  "case": "040",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Insurer specified two missing views needed for the claim",
+  "action_events": "3",
+  "later_events": "Alfie sends synthetic views; forwarded; insurer confirms receipt, no decision"
+ },
+ {
+  "case": "041",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Insurer offered two inspection slots needing Millie's access choice",
+  "action_events": "2",
+  "later_events": "Millie picks Tuesday; insurer confirms slot; Millie notified"
+ },
+ {
+  "case": "042",
+  "n": 7,
+  "esc_after": 2,
+  "trigger": "Insurer not yet informed of Mark's confirmed slot",
+  "action_events": "3-7",
+  "later_events": "Nothing further; organiser holds agreed appointment for coordination"
+ },
+ {
+  "case": "043",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Lucy chases for CLM-043 update; no recent status held",
+  "action_events": "2-5",
+  "later_events": "Lucy acknowledges the update and pending inspection report"
+ },
+ {
+  "case": "044",
+  "n": 6,
+  "esc_after": 2,
+  "trigger": "Insurer rejected work description, demanded actual contractor invoice",
+  "action_events": "3-5",
+  "later_events": "Insurer acknowledges receipt only; no cover or payment confirmed"
+ },
+ {
+  "case": "045",
+  "n": 6,
+  "esc_after": 4,
+  "trigger": "Insurer supplied exact confirmed decision wording to relay",
+  "action_events": "5",
+  "later_events": "Clara confirms receipt of the insurer's decision"
+ },
+ {
+  "case": "046",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Insurer gave amount and only an expected transfer date",
+  "action_events": "2-5",
+  "later_events": "Oscar acknowledges amount and that receipt is unconfirmed"
+ },
+ {
+  "case": "047",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Client reports expected payment missing; broker cannot confirm dispatch",
+  "action_events": "2-4",
+  "later_events": "Peter relays processing status; Isabel acknowledges update"
+ },
+ {
+  "case": "048",
+  "n": 7,
+  "esc_after": 1,
+  "trigger": "Reported possibly active leak with unknown source and extent",
+  "action_events": "2-5",
+  "later_events": "Handler confirms receipt; plumber isolates supply, source still unassessed"
+ },
+ {
+  "case": "049",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Neighbour's letter alleges property-linked water damage \u2014 third-party liability claim",
+  "action_events": "2-4",
+  "later_events": "Insurer acknowledges receipt only; client told not to respond"
+ },
+ {
+  "case": "050",
+  "n": 6,
+  "esc_after": 1,
+  "trigger": "Insurer requested the estimate author's work contact details",
+  "action_events": "2-5",
+  "later_events": "Insurer confirms receipt of work handle; estimate still under review"
+ }
+]

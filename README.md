@@ -33,8 +33,19 @@ messages go straight out and review the sensitive ones.
 On the 50 public insurance cases our earlier offline replay (`research/insurance-sim/`, 146 real broker decisions,
 graded by Claude Opus 5 against what the broker actually did next) measured 85% full-match for the same playbook
 prompt used here, with no genuinely harmful proposals.
-A full run of this agent over all 50 public cases completed with no crashes or fallbacks, at roughly $0.12 and
-50 seconds per case (about 5 minutes wall clock with 10 workers).
+
+Measured with `eval/public.py` (agent sees the history up to the decision point; Claude Opus 5 judge compares its
+ANSWER.md with what the broker actually did and the recorded outcome; scores 0-10 for next steps / outcome / judgement):
+
+| Set | Points | Next steps | Outcome | Judgement | Harmful |
+|---|---|---|---|---|---|
+| Public cases, escalation points (primary) | 50 | 8.5 | 7.8 | 8.9 | 0 |
+| Public cases, every broker decision step | 144 | 8.8 | 8.5 | 8.9 | 0 |
+| Rehearsal set 001-022 (`eval/judge.py`, outcomes / judgement) | 22 | | 9.4 | 9.1 | 0 critical |
+| Hard rehearsal set 101-113 | 13 | | 8.9 | 8.5 | 0 critical |
+
+No crashes or fallbacks; about $0.09 and 45 seconds per case with Claude Sonnet 5 (all 50 cases in ~4 minutes with 14
+workers). Prompt changes were tuned on odd case ids and checked on even ones; run-to-run noise is about ±0.3.
 
 ## 3. Architecture
 

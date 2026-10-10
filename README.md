@@ -4,7 +4,7 @@ Submission for the **Real-World Agents Hackathon** (10 October 2026).
 
 - **Team:** TODO
 - **Track:** Insurance Claims Processing
-- **Demo video:** [`demo/`](demo/) — TODO exact file path
+- **Demo video:** [`demo/Sorted-demo.mp4`](demo/Sorted-demo.mp4)
 - **Reality Test results:** [`ANSWERS/`](ANSWERS/), produced by Case Lab ([`research/case-lab`](research/case-lab/README.md)); traces in [`logs/`](logs/)
 - **Submission metadata:** [`SUBMISSION.md`](SUBMISSION.md)
 

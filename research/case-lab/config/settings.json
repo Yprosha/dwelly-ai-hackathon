@@ -12,6 +12,7 @@
   "maxToolRounds": 40,
   "concurrency": 6,
   "subagents": true,
+  "panel": [],
   "runJudge": true,
   "runReviewer": true,
   "failOn": [

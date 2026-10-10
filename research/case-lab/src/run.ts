@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, writeAnswer, type AgentState, type Answer } from "./agent.ts";
+import { checkPanel, sitPanel, type Advice } from "./panel.ts";
 import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type Offense, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
@@ -34,6 +35,7 @@ export type CaseResult = {
   handler: string[]; // names the handler's side goes by in the real case (from the simulator)
   replay: Msg[];
   agent: AgentState;
+  advice?: Advice[]; // what the preset panel proposed before agent turns (absent in runs without a panel)
   world: WorldTurn[];
   judge?: { output: Judgement; prompt: string; call: Call };
   answer?: Answer; // the agent's Overview and Next action at escalation
@@ -81,9 +83,12 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     });
     let silent = false;
     for (let turn = 1; ; turn++) {
+      // the preset panel sits first: its proposals go to the agent with this turn's input, and the agent decides
+      const advice = await sitPanel(ctx, turn);
+      if (advice) (res.advice ??= []).push(advice);
       const before = replay.length;
       const docsBefore = visibleDocs(ctx);
-      await agentTurn(ctx, agent, input, turn);
+      await agentTurn(ctx, agent, input + (advice?.text ?? ""), turn);
       if (turn === 1) res.answer = await writeAnswer(ctx, agent, turn);
       if (agent.closed) { res.stop = "closed"; break; }
       if (c.synthetic) { res.stop = "answer only"; break; } // no real future to replay: the answer is the result
@@ -110,7 +115,8 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     res.stop ||= "error";
   }
   res.handler = ctx.handler; // set by the first world turn
-  res.cost = [...agent.calls, ...agent.subagents.flatMap((s) => s.calls), ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
+  const panel = (res.advice ?? []).flatMap((a) => a.proposals.flatMap((p) => p.calls));
+  res.cost = [...agent.calls, ...agent.subagents.flatMap((s) => s.calls), ...panel, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
   res.ms = Date.now() - t0;
   return res;
 }
@@ -187,6 +193,7 @@ export function selectKeys(sel: { split?: string; tracks?: string[]; keys?: stri
 
 export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings> }, onCase?: (key: string, s: CaseSummary) => void) {
   const kit = loadKit(opts.overrides);
+  checkPanel(kit);
   const cases = opts.keys.map(getCase);
   if (!cases.length) throw new Error("no cases selected");
   const label = opts.label?.trim() || "run";

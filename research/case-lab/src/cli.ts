@@ -1,8 +1,8 @@
 // npm run run -- --split holdout|dev|all [--cases insurance-032,...] [--label baseline]
 //                 [--agent opus-5.5] [--simulator opus-5.5] [--judge opus-5.5] [--no-judge] [--concurrency 6] [--seed 0]
-//                 [--no-subagents]
+//                 [--no-subagents] [--panel all|researcher,conservative,...]
 import { parseArgs } from "node:util";
-import { loadEnv, type Settings } from "./llm.ts";
+import { loadEnv, readJson, type Settings } from "./llm.ts";
 import { selectKeys, startRun } from "./run.ts";
 
 loadEnv();
@@ -11,7 +11,7 @@ const { values: a } = parseArgs({
   options: {
     split: { type: "string" }, cases: { type: "string" }, label: { type: "string" },
     agent: { type: "string" }, simulator: { type: "string" }, judge: { type: "string" },
-    "no-judge": { type: "boolean" }, concurrency: { type: "string" }, seed: { type: "string" }, "no-subagents": { type: "boolean" },
+    "no-judge": { type: "boolean" }, concurrency: { type: "string" }, seed: { type: "string" }, "no-subagents": { type: "boolean" }, panel: { type: "string" },
   },
 });
 const overrides: Partial<Settings> = {};
@@ -22,6 +22,7 @@ if (a["no-judge"]) overrides.runJudge = false;
 if (a.concurrency) overrides.concurrency = Number(a.concurrency);
 if (a.seed) overrides.seedEvents = Number(a.seed);
 if (a["no-subagents"]) overrides.subagents = false;
+if (a.panel) overrides.panel = a.panel === "all" ? Object.keys(readJson("config/panel.json")) : a.panel.split(",");
 
 const keys = selectKeys({ split: a.split, keys: a.cases?.split(",") });
 const { id, done } = startRun({ label: a.label, keys, overrides }, (key, s) =>

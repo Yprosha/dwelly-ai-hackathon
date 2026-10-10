@@ -5,6 +5,7 @@ import { agentBrief, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { ground, seed } from "./simulator.ts";
 import { loadEnv, loadKit, promptOf } from "./llm.ts";
 import { otherClaims, readClaim, searchClaims } from "./subagent.ts";
+import { checkPanel } from "./panel.ts";
 
 loadEnv();
 
@@ -62,6 +63,11 @@ assert.ok(!searchClaims(others, "unoccupied between tenancies").includes("insura
 assert.match(searchClaims(others, "zzzqqq"), /^No claim found/);
 assert.ok(readClaim(kitA, others, "016").includes("## Outcome") && readClaim(kitA, others, "insurance-016").includes("--- event 1 "));
 assert.throws(() => readClaim(kitA, others, "insurance-017"), /NOT_FOUND/);
+// the preset panel: every member in config/panel.json has its prompt, and the templates take what sitPanel fills
+assert.ok(Object.keys(kitA.panel).length > 0 && !kitA.settings.panel?.length);
+checkPanel(loadKit({ panel: Object.keys(kitA.panel) }));
+assert.throws(() => checkPanel(loadKit({ panel: ["nobody"] })), /unknown panel member/);
+assert.ok(promptOf(kitA, "panel.task.md").includes("{{lens}}") && promptOf(kitA, "agent.panel.md").includes("{{proposals}}"));
 // the simulator and the judge are both handed the documents' text
 const prompts = loadKit().prompts;
 assert.ok(prompts["simulator.user.md"].includes("{{documents}}") && prompts["judge.user.md"].includes("{{documents}}"));

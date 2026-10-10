@@ -1,0 +1,7 @@
+{
+  "researcher": { "title": "Web researcher", "prompt": "panelist.researcher.md", "when": "first" },
+  "conservative": { "title": "Conservative risk assessor", "prompt": "panelist.conservative.md", "when": "first" },
+  "creative": { "title": "Creative problem-solver", "prompt": "panelist.creative.md", "when": "first" },
+  "precedent": { "title": "Precedent analyst", "prompt": "panelist.precedent.md", "when": "first" },
+  "simplifier": { "title": "Simplifier", "prompt": "panelist.simplifier.md", "when": "first" }
+}

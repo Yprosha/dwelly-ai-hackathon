@@ -69,6 +69,27 @@ The agent can hand any task to a sub-agent with the `run_subagent` tool. It writ
 - A sub-agent gets up to 25 model rounds, 10 web searches and 6 page fetches per round; one that fails or is still working after 15 minutes comes back to the agent as a tool error.
 - In the UI, Simple shows each call as a **Sub-agent** step in the agent chat: its task, its work drawn like the agent's (case files, other claims, web searches with the pages they found), its report, cost and time. Full → Agent trace lists the same with its tool calls. Runs made with the earlier advisory council still show their **Advisers** folds and traces.
 
+## Preset panel
+
+Instead of leaving it to the agent, the harness can launch a fixed set of sub-agents itself, each with a brief of its own. Their proposals are appended to the agent's input for that turn (`prompts/agent.panel.md`); the agent decides and only the agent acts. Off by default: set `panel` in `config/settings.json`, or pass `--panel` on the command line.
+
+```bash
+npm run run -- --cases insurance-017,insurance-030 --panel all --no-subagents --label panel
+```
+
+| Sub-agent | Angle |
+|---|---|
+| `researcher` | UK rules and guidance (FCA, Financial Ombudsman, ABI, gov.uk) and what UK insurers' wordings say on the clause in question |
+| `conservative` | what could go wrong, the smallest safe set of steps |
+| `creative` | the move a routine handler would miss |
+| `precedent` | how the other claims in the database were handled |
+| `simplifier` | the shortest plan that still does the job, and what to leave out |
+
+- `config/panel.json` says who can sit, with which prompt file and when (`first`: only when the agent picks the case up; `every`: before each of its turns). `prompts/panel.task.md` is the task they all get, `prompts/panelist.*.md` the angles.
+- They run as ordinary sub-agents: the `subagent` model preset, the same tools and limits. One that fails or times out is shown as "no proposal" and the turn goes on without it.
+- `--panel` and `--no-subagents` are independent: with both, only the panel runs; without `--no-subagents` the agent can still launch sub-agents of its own.
+- In the UI a sitting is the **Advisers** fold under the turn header in the agent chat, with **trace ›** on each sub-agent; Full → Agent trace lists their proposals, tool calls, cost and time.
+
 ## Where things live
 
 | Path | What |
@@ -77,9 +98,10 @@ The agent can hand any task to a sub-agent with the `run_subagent` tool. It writ
 | `config/models.json` | Model presets, sent to the Messages API as-is (model, max_tokens, thinking, effort, betas). |
 | `config/settings.json` | Defaults for new runs: the preset per role, loop limits, judge on or off. |
 | `config/splits.json` | Insurance dev split (40 claims) and holdout split (10, every 5th claim). |
+| `config/panel.json` | The preset panel: per sub-agent its title, prompt file and when it sits. `settings.json` → `panel` picks who sits on a run. |
 | `config/escalation.json` | Each claim's escalation point: the agent sees real events 1..`after`. Editable in the UI like the other config. |
 | `runs/<id>/` | `run.json` (summary, plus a snapshot of the settings, presets and prompts used) and `cases/<key>.json` (replay, agent transcript, simulator turns, judge). Only the holdout baseline is committed. |
-| `src/` | `cases.ts` parser, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `subagent.ts` sub-agents, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
+| `src/` | `cases.ts` parser, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `subagent.ts` sub-agents, `panel.ts` the preset panel, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
 | `ui/` | One page, plain JS, no build step. |
 
 You can edit prompts and config in the UI under **Full → Prompts & settings**. Changes apply to the next run, with no restart needed. `npm run check` runs the self-check, and `npm run typecheck` runs the TypeScript compiler.

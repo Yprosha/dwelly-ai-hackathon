@@ -1,5 +1,5 @@
 // Parses the public insurance cases (<CASES_DIR>/<id>/{index.md,history.md,attachments/}) into plain objects, plus
-// the hard and complex synthetic eval cases (<EVAL_CASES_DIR>/<id>, ids 101+), whose history ends at the escalation point.
+// synthetic eval cases (<EVAL_CASES_DIR>/<id>), whose history ends at the escalation point.
 // CASES_DIR follows the repo convention: data/public-cases/Insurance Claims Processing unless set.
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +7,7 @@ import path from "node:path";
 const casesDir = () => process.env.CASES_DIR ?? path.resolve(import.meta.dirname, "../../../data/public-cases/Insurance Claims Processing");
 const evalDir = () => process.env.EVAL_CASES_DIR ?? path.resolve(import.meta.dirname, "../../../eval/cases");
 
-export type Event = { n: number; ts: string; channel: string; from: string; to: string; stage?: string; body: string };
+export type Event = { n: number; ts: string; channel: string; from: string; to: string; subject?: string; stage?: string; body: string };
 export type Attachment = { name: string; firstEvent: number | null }; // first event whose body mentions the file
 export type Case = {
   key: string; // "insurance-032"
@@ -47,7 +47,7 @@ function events(md: string): Event[] {
     const meta = Object.fromEntries(Object.entries(fields(lines.slice(0, i).join("\n"))).map(([k, v]) => [k.toLowerCase(), v]));
     const m = head.match(/^## (\S+ \S+) UTC — event (\d+)/);
     if (!m) throw new Error(`bad event header: ${head}`);
-    return { n: Number(m[2]), ts: m[1], channel: meta.channel ?? "", from: meta.from ?? "", to: meta.to ?? "", stage: meta.stage, body: lines.slice(i).join("\n").trim() };
+    return { n: Number(m[2]), ts: m[1], channel: meta.channel ?? "", from: meta.from ?? "", to: meta.to ?? "", subject: meta.subject, stage: meta.stage, body: lines.slice(i).join("\n").trim() };
   });
 }
 
@@ -125,8 +125,8 @@ export function allCases(): Case[] {
   if (cache) return cache;
   const root = casesDir();
   if (!fs.existsSync(root)) throw new Error(`No cases at ${root}. Put the public Insurance Claims Processing cases there or set CASES_DIR.`);
-  const ev = evalDir(); // the hard (1xx) and complex (2xx) synthetic sets; the easy 0xx rehearsal set stays out
-  const syn = fs.existsSync(ev) ? fs.readdirSync(ev).filter((id) => /^\d+$/.test(id) && Number(id) >= 101).sort().map((id) => synthetic(ev, id)) : [];
+  const ev = evalDir(); // all rehearsal cases: 0xx, hard 1xx and complex 2xx
+  const syn = fs.existsSync(ev) ? fs.readdirSync(ev).filter((id) => /^\d+$/.test(id)).sort().map((id) => synthetic(ev, id)) : [];
   return (cache = [...fs.readdirSync(root).filter((id) => /^\d+$/.test(id)).sort().map((id) => parse(root, id)), ...syn]);
 }
 

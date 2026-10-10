@@ -2,7 +2,7 @@
 // The conversation is append-only (thinking blocks are passed back untouched), so it doubles as the trace.
 import type Anthropic from "@anthropic-ai/sdk";
 import { fsTool, pad, push, visibleDocs, type Ctx } from "./casefs.ts";
-import { call, jsonOf, jsonPrompt, promptOf, type Call, type Kit } from "./llm.ts";
+import { call, jsonOf, jsonPrompt, promptOf, render, type Call, type Kit } from "./llm.ts";
 import { runSubagent, type SubagentRun } from "./subagent.ts";
 
 export type AgentState = {
@@ -87,7 +87,7 @@ async function runTool(ctx: Ctx, st: AgentState, u: Anthropic.Beta.BetaToolUseBl
     const s = await runSubagent(ctx, u.id, turn, input.instruction);
     st.subagents.push(s);
     if (s.error) throw new Error(`Sub-agent failed: ${s.error}`);
-    return s.report;
+    return render(promptOf(ctx.kit, "subagent.result.md"), { report: s.report });
   }
   return fsTool(ctx, name, input);
 }

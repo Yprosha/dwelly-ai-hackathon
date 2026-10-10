@@ -148,6 +148,6 @@ export function readClaim(kit: Kit, others: Case[], id: string): string {
   const found = others.filter((o) => o.key === want || o.key.endsWith(`-${want}`));
   if (found.length !== 1) throw new Error(`NOT_FOUND: no claim "${want}". Use an id from the list.`);
   const o = found[0];
-  const events = o.events.map((e) => `--- event ${e.n} · ${e.ts} UTC · ${e.channel} ---\nfrom: ${e.from}\nto: ${e.to}\n\n${e.body}`);
+  const events = o.events.map((e) => `--- event ${e.n} · ${e.ts} UTC · ${e.channel} ---\nfrom: ${e.from}\nto: ${e.to}${e.subject ? `\nsubject: ${e.subject}` : ""}\n\n${e.body}`);
   return [caseFile(kit, o), ...Object.entries(o.answer).map(([h, b]) => `## ${h}\n\n${b}`), "## History", ...events].join("\n\n").slice(0, 20_000);
 }

@@ -121,7 +121,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
 // Judge and reviewer see the whole case card; this tells them when the agent did not.
 function cardNote(kit: Kit): string {
   const card = kit.settings.caseCard ?? "full";
-  return card === "full" ? "" : `\n\n(The agent was not shown this case card. It was told only who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}; everything else it knew came from the events before the takeover.)`;
+  return card === "full" ? "" : `\n\n(The agent was given the Initial request and who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}. It was not shown the rest of this case card; its remaining evidence came from the history and documents available at takeover.)`;
 }
 
 export async function judge(ctx: Ctx, res: CaseResult) {

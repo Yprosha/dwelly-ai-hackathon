@@ -5,7 +5,7 @@
   "reviewer": "opus-5.5",
   "extractor": "opus-5.5-low",
   "subagent": "opus-5.5-xhigh",
-  "caseCard": "none",
+  "caseCard": "record",
   "startAt": "escalation",
   "seedEvents": 0,
   "maxWorldTurns": 8,

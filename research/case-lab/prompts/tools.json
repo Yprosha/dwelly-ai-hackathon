@@ -69,7 +69,7 @@
   },
   {
     "name": "run_subagent",
-    "description": "Hand a task to a sub-agent and get its reply. It sees this case as it stands and can search the other claims in the brokerage's database and the web; it cannot act on the case. You decide whether and when one helps and what it does: for example a reviewer for a draft, a policy-wording searcher, a web precedent search, a simplifier. Several calls in one response run in parallel.",
+    "description": "Hand a task to a sub-agent and get its reply. It sees this case as it stands, can search the web and other clients' past claims, and cannot act. For complex or uncertain cases, ask one reviewer to derive the required actions from the case without your plan, and another to check your complete proposed action set. Research should address a named uncertainty. Several calls in one response run in parallel; wait for relevant results and check them against the case before dependent actions.",
     "input_schema": {
       "type": "object",
       "properties": { "instruction": { "type": "string", "description": "The task, self-contained: the sub-agent sees the case but not your thinking." } },

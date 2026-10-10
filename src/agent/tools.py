@@ -21,7 +21,8 @@ CHECKLIST = """SELF-CHECK before committing. Re-read every staged action against
 12. Not doing too much: no premature chasing, no duplicate of a step already done, no unnecessary messages.
 13. Not doing too little: every step you can take now (before waiting on someone) is staged, in order.
 14. next_steps and final_outcome invent nothing: no decision, cover, liability, price, date or reply content that is
-    not on file; the outcome says what is still undecided and who the case now waits on.
+    not on file; final_outcome describes the state after your AFTER steps (not just "waiting on X"), says what is
+    still undecided and who the case then waits on.
 If anything fails: cancel_action and/or stage the corrected action, then call finish again.
 If all pass: call finish again with the same (or improved) fields to commit."""
 
@@ -74,7 +75,8 @@ TOOLS = [
                         '"NOW | AFTER <awaited input> - <who> -> <whom> via <channel>: <what>". NOW steps are the actions you '
                         'staged; AFTER steps are what you will do once that input arrives, up to the next wait on someone else.'},
          'final_outcome': {'type': 'string', 'description': '1-3 sentences, like a case file "Outcome": where the case will '
-                           'stand at that waiting point and what has NOT been decided (cover, liability, price, settlement).'},
+                           'stand once the NOW and AFTER steps are done (routine replies assumed, their content not invented), '
+                           'and what has NOT been decided (cover, liability, price, settlement).'},
          'open_risks': ARR,
          'confidence': {'type': 'number', 'description': '0-1: confidence this is what an experienced handler would do'}},
          'required': ['decision_type', 'situation', 'key_facts', 'issues_detected', 'options_considered', 'rationale', 'next_steps', 'final_outcome', 'open_risks', 'confidence']}},

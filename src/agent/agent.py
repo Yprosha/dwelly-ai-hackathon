@@ -101,7 +101,8 @@ When you escalate and someone is waiting, usually also send them a brief holding
    - next_steps: the numbered plan - first the actions you just took (NOW), then the AFTER steps through the routine
      replies you expect (e.g. customer supplies the facts -> submit to insurer -> insurer acknowledges -> update the
      customer), ending where the case waits on a decision or answer only someone else can give;
-   - final_outcome: 1-3 sentences in the style of a case file's "Outcome": the expected state at that end point -
+   - final_outcome: 1-3 sentences in the style of a case file's "Outcome": where the case will stand once your NOW and
+     AFTER steps are done (assuming the routine replies arrive) - not merely "waiting on the customer's reply". Say
      what will have been sent, relayed or registered, who it then waits on, and what has NOT been decided (cover,
      liability, price, settlement, payment, dates). E.g. "Once the tenant's dates arrive the notification goes to the
      insurer, which acknowledges it; no decision on cover has been made." Only facts on file; describe replies you

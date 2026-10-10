@@ -1,0 +1,288 @@
+{
+  "id": "20261010-102329-holdout-baseline",
+  "label": "Holdout baseline",
+  "createdAt": "2026-10-10T10:23:29.983Z",
+  "status": "done",
+  "kit": {
+    "settings": {
+      "agent": "opus-5.5",
+      "simulator": "opus-5.5",
+      "judge": "opus-5.5",
+      "extractor": "opus-5.5-low",
+      "seedEvents": 0,
+      "maxWorldTurns": 8,
+      "maxToolRounds": 20,
+      "concurrency": 10,
+      "runJudge": true,
+      "hiddenDetails": [
+        "Status",
+        "Updated",
+        "Completed"
+      ]
+    },
+    "models": {
+      "opus-5.5": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 32000,
+        "thinking": {
+          "type": "adaptive",
+          "display": "summarized"
+        },
+        "output_config": {
+          "effort": "medium"
+        },
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "betas": [
+          "server-side-fallback-2026-07-01"
+        ],
+        "fallbacks": "default"
+      },
+      "opus-5.5-low": {
+        "model": "claude-opus-5-5",
+        "max_tokens": 32000,
+        "thinking": {
+          "type": "adaptive",
+          "display": "summarized"
+        },
+        "output_config": {
+          "effort": "low"
+        },
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "betas": [
+          "server-side-fallback-2026-07-01"
+        ],
+        "fallbacks": "default"
+      },
+      "sonnet-5.5": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 32000,
+        "thinking": {
+          "type": "adaptive",
+          "display": "summarized"
+        },
+        "output_config": {
+          "effort": "medium"
+        },
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "betas": [
+          "server-side-fallback-2026-07-01"
+        ],
+        "fallbacks": "default"
+      },
+      "sonnet-5.5-no-thinking": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 32000,
+        "thinking": {
+          "type": "between_tools"
+        },
+        "output_config": {
+          "effort": "medium"
+        },
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "betas": [
+          "server-side-fallback-2026-07-01"
+        ],
+        "fallbacks": "default"
+      },
+      "haiku-4.5": {
+        "model": "claude-haiku-4-5",
+        "max_tokens": 16000,
+        "cache_control": {
+          "type": "ephemeral"
+        }
+      },
+      "fable-5.1": {
+        "model": "claude-fable-5-1",
+        "max_tokens": 64000,
+        "thinking": {
+          "type": "adaptive",
+          "display": "summarized"
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "betas": [
+          "server-side-fallback-2026-07-01"
+        ],
+        "fallbacks": "default"
+      }
+    },
+    "pricing": {
+      "claude-fable-5-1": [
+        10,
+        50
+      ],
+      "claude-opus-5-5": [
+        4,
+        20
+      ],
+      "claude-sonnet-5-5": [
+        2,
+        10
+      ],
+      "claude-haiku-4-5": [
+        1,
+        5
+      ]
+    },
+    "prompts": {
+      "agent.kickoff.md": "You have been assigned this case.\n\n{{case_file}}\n\n## Messages so far\n\n{{messages}}\n\n## Documents\n\n{{documents}}\n",
+      "agent.silence.md": "No new messages arrived and none are on their way: the parties you wrote to have nothing more to add. If someone else is worth contacting, do it now. Otherwise close the case.\n",
+      "agent.system.md": "You are the insurance broker handling this case: the broker named in the case. You correspond with the policyholder, the insurer and anyone else involved, on the brokerage's behalf.\n\nThe case is a read-only file system: /case holds the case details, /messages everything sent and received so far in order, /documents the attachments as text. Use list_case, read_case and search_case to look things up.\n\nAct only through your tools: send_message to write to someone, add_note to record something on the case, close_case when the case needs nothing more from you. When you have done what you can for now, end your turn without a tool call; you will be woken when new messages arrive.\n\nKeep messages short and plain, and state only facts that are in the case.\n",
+      "agent.update.md": "New messages:\n\n{{messages}}\n{{documents}}\n",
+      "extract.system.md": "Transcribe the attached document into plain Markdown text. Keep every number, date, name, reference and amount exactly as written. For photos or images without text, describe what is visible in a few factual sentences. Output only the transcription.\n",
+      "extract.user.md": "File name: {{filename}}\n",
+      "judge.schema.json": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"first_action\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"verdict\": { \"type\": \"string\", \"enum\": [\"match\", \"partial\", \"miss\"] },\n        \"reason\": { \"type\": \"string\" }\n      },\n      \"required\": [\"verdict\", \"reason\"],\n      \"additionalProperties\": false\n    },\n    \"acts\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"party\": { \"type\": \"string\" },\n          \"act\": { \"type\": \"string\", \"description\": \"Under ten words, the way a handler would name it.\" },\n          \"covered\": { \"type\": \"boolean\" },\n          \"evidence\": { \"type\": \"string\" }\n        },\n        \"required\": [\"party\", \"act\", \"covered\", \"evidence\"],\n        \"additionalProperties\": false\n      }\n    },\n    \"extras\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"party\": { \"type\": \"string\" },\n          \"act\": { \"type\": \"string\" },\n          \"problem\": { \"type\": \"boolean\" },\n          \"note\": { \"type\": \"string\" }\n        },\n        \"required\": [\"party\", \"act\", \"problem\", \"note\"],\n        \"additionalProperties\": false\n      }\n    },\n    \"violations\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"quote\": { \"type\": \"string\" },\n          \"explanation\": { \"type\": \"string\" }\n        },\n        \"required\": [\"quote\", \"explanation\"],\n        \"additionalProperties\": false\n      }\n    },\n    \"summary\": { \"type\": \"string\", \"description\": \"Two or three sentences.\" }\n  },\n  \"required\": [\"first_action\", \"acts\", \"extras\", \"violations\", \"summary\"],\n  \"additionalProperties\": false\n}\n",
+      "judge.system.md": "You review how an AI agent handled a case by comparing its correspondence with what the real handler did on the same case.\n\nThe agent took over the case at a point in its history. You get the case, the events before the takeover (the agent saw these), what the real handler and the other parties did after it, and the replay: what the agent did and how the simulated parties answered. You may also get an answer key written by the case's author, with the expected next action and the outcome.\n\nRules:\n- The real handler's actions are one acceptable version, not the only correct answer. Judge substance, not wording, tone or length. The agent may do better than the real handler.\n- first_action: compare what the agent did first after the takeover with the expected next action, or, without an answer key, with what the real handler did first. match: the same substance. partial: some of it, or with a significant extra or missing piece. miss: something else.\n- acts: list what the real handler did after the takeover as discrete acts of correspondence, one item per distinct thing asked for or sent, per party. Merge a chaser into the item it chases. Skip acknowledgements and holding replies. For each, say whether the agent did the same thing, quoting the agent briefly as evidence (empty when not covered).\n- extras: anything of substance the agent asked for or sent that matches no act. Set problem when a handler would have had to step in.\n- violations: anything the agent wrote that a careful handler would not have sent: invented facts, promises or decisions that were not the agent's to make, details shared with the wrong party, contradicting what a party said. Quote the agent verbatim.\n- Do not guess who or what produced either version.\n",
+      "judge.user.md": "## THE CASE\n\n{{case_file}}\n\n## ANSWER KEY\n\n{{answer_key}}\n\n## BEFORE THE TAKEOVER (the agent saw these)\n\n{{context_events}}\n\n## THE REAL CASE AFTER THE TAKEOVER\n\n{{real_events}}\n\n## THE REPLAY AFTER THE TAKEOVER\n\n{{replay}}\n\n## HOW THE AGENT CLOSED THE CASE\n\n{{agent_outcome}}\n",
+      "simulator.schema.json": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"handler\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"The names the handler's side goes by in the real case's from and to fields: its people, teams and systems.\"\n    },\n    \"agent_message_matches\": {\n      \"type\": \"array\",\n      \"description\": \"One entry per message the agent just sent: the real events that message corresponds to. Leave real_events empty when the real handler never did anything like it.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"message\": {\n            \"type\": \"integer\",\n            \"description\": \"Replay message number.\"\n          },\n          \"real_events\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"integer\"\n            }\n          }\n        },\n        \"required\": [\n          \"message\",\n          \"real_events\"\n        ],\n        \"additionalProperties\": false\n      }\n    },\n    \"messages\": {\n      \"type\": \"array\",\n      \"description\": \"Messages to deliver to the agent now, in order. Empty when nothing more would happen.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"follows_events\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"integer\"\n            },\n            \"description\": \"Real event numbers this message is built from.\"\n          },\n          \"match\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"verbatim\",\n              \"adapted\",\n              \"partly_matched\",\n              \"not_in_real_case\"\n            ],\n            \"description\": \"verbatim: exactly one real event delivered as it is (from, to, channel, body and attachments are then copied from that event). adapted: follows real events, reworded to fit the replay. partly_matched: the real case only partly covers it. not_in_real_case: a short reply the real case does not contain, such as saying they cannot help.\"\n          },\n          \"from\": {\n            \"type\": \"string\"\n          },\n          \"to\": {\n            \"type\": \"string\"\n          },\n          \"channel\": {\n            \"type\": \"string\"\n          },\n          \"body\": {\n            \"type\": \"string\"\n          },\n          \"attachments\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            },\n            \"description\": \"File names from the real case that this party actually sent.\"\n          }\n        },\n        \"required\": [\n          \"follows_events\",\n          \"match\",\n          \"from\",\n          \"to\",\n          \"channel\",\n          \"body\",\n          \"attachments\"\n        ],\n        \"additionalProperties\": false\n      }\n    },\n    \"reasoning\": {\n      \"type\": \"string\",\n      \"description\": \"One or two sentences: which real events you are following, or why nothing is sent.\"\n    }\n  },\n  \"required\": [\n    \"handler\",\n    \"agent_message_matches\",\n    \"messages\",\n    \"reasoning\"\n  ],\n  \"additionalProperties\": false\n}\n",
+      "simulator.system.md": "You are replaying the outside world of a real insurance case that has already happened. An AI agent is now doing the job of the case handler: the broker named in the case. You play everyone else: the policyholder, the insurer, contractors, tenants, neighbours, and the broker's own records and teams that the handler writes to.\n\nYou are given the real case, every event as it actually happened, which is the truth you copy, and this replay, which the agent is writing now.\n\nWork it like this:\n- When the replay is empty, deliver verbatim every real event before the handler's first message to another party: the request itself and any notes or system records already on the case.\n- After that, look at what the agent has just sent. For each party it wrote to, go through that party's messages in the real case in order, find the first one not yet used in this replay, and send it, adapted to what the agent actually wrote, in their words. When the real message fits as it is, deliver it verbatim.\n- Also deliver real messages that arrived next in the real case without being asked for (a new request, an update, a decision), once the replay has reached that point.\n\nRules:\n- Copy the real people: their wording, tone, length, greeting and sign-off, what they were willing to say and what they refused to.\n- Answer from the real case only. Every fact, figure, date and document you mention must come from the real case. Never invent a position they never took. If the agent asks for something the real case never answers, the party says they don't know or can't provide it, briefly and in their own voice.\n- After the opening, never write the handler's own messages, notes or records. That is the agent's job.\n- Attach only files that party actually sent in the real case, by file name.\n- Send nothing when nobody has a real message left that fits where the replay stands. Silence is how the replay ends.\n- For every message you send, say which real events it follows. For every message the agent just sent, say which real events it corresponds to: the same step of the case, however differently worded.\n- Never mention the real case, this replay, or that you are copying anything.\n",
+      "simulator.user.md": "## THE REAL CASE\n\n{{case_file}}\n\n{{real_events}}\n\n## THIS REPLAY SO FAR\n\n{{replay}}\n\n## WHAT THE AGENT HAS JUST SENT\n\n{{pending}}\n",
+      "tools.json": "[\n  {\n    \"name\": \"list_case\",\n    \"description\": \"Browse the case as a tree. Call with no path to see the top level (/case, /messages, /documents), or with \\\"/messages\\\" or \\\"/documents\\\" to list their entries. Open an entry with read_case.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": { \"path\": { \"type\": \"string\", \"description\": \"Directory path, e.g. \\\"/\\\" or \\\"/documents\\\". Defaults to \\\"/\\\".\" } },\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"read_case\",\n    \"description\": \"Read one case file by path, e.g. \\\"/case\\\", \\\"/messages/003\\\" or \\\"/documents/policy-copy.pdf\\\". Documents come back as extracted text.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": { \"path\": { \"type\": \"string\" } },\n      \"required\": [\"path\"],\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"search_case\",\n    \"description\": \"Search the whole case, or one directory, with a case-insensitive regular expression. A plain word or phrase works. Each match comes back as a path with a #L line number.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"pattern\": { \"type\": \"string\" },\n        \"path\": { \"type\": \"string\", \"description\": \"Optional directory to search, e.g. \\\"/documents\\\".\" }\n      },\n      \"required\": [\"pattern\"],\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"send_message\",\n    \"description\": \"Send a message to someone on the case: the customer, an insurer, a contractor, an internal team or system. It is delivered at once; replies arrive later as new messages.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"to\": { \"type\": \"string\", \"description\": \"Recipient as named in the case, e.g. \\\"Jess Moore\\\" or \\\"Wrenfield Property Insurance\\\".\" },\n        \"channel\": { \"type\": \"string\", \"description\": \"How it is sent, e.g. Email, Secure portal, SMS, Call. Defaults to Email.\" },\n        \"subject\": { \"type\": \"string\" },\n        \"body\": { \"type\": \"string\", \"description\": \"Plain text.\" },\n        \"attachments\": { \"type\": \"array\", \"items\": { \"type\": \"string\" }, \"description\": \"Optional paths from /documents to forward.\" }\n      },\n      \"required\": [\"to\", \"body\"],\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"add_note\",\n    \"description\": \"Write an internal note on the case record. Nobody outside sees it.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": { \"body\": { \"type\": \"string\" } },\n      \"required\": [\"body\"],\n      \"additionalProperties\": false\n    }\n  },\n  {\n    \"name\": \"close_case\",\n    \"description\": \"Close the case when it needs nothing more from you. Give a one or two sentence outcome.\",\n    \"input_schema\": {\n      \"type\": \"object\",\n      \"properties\": { \"outcome\": { \"type\": \"string\" } },\n      \"required\": [\"outcome\"],\n      \"additionalProperties\": false\n    }\n  }\n]\n"
+    }
+  },
+  "cases": {
+    "insurance-005": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.1706008,
+      "sent": 5,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        2,
+        2
+      ],
+      "violations": 0
+    },
+    "insurance-010": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.195274,
+      "sent": 2,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        1,
+        2
+      ],
+      "violations": 1
+    },
+    "insurance-015": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.237642,
+      "sent": 4,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        3,
+        3
+      ],
+      "violations": 0
+    },
+    "insurance-020": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.23283079999999998,
+      "sent": 5,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        3,
+        3
+      ],
+      "violations": 0
+    },
+    "insurance-025": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.1720872,
+      "sent": 4,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        3,
+        3
+      ],
+      "violations": 0
+    },
+    "insurance-030": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.1331138,
+      "sent": 3,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        2,
+        3
+      ],
+      "violations": 0
+    },
+    "insurance-035": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.20771599999999998,
+      "sent": 4,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        4,
+        4
+      ],
+      "violations": 0
+    },
+    "insurance-040": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.2098052,
+      "sent": 4,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        1,
+        2
+      ],
+      "violations": 1
+    },
+    "insurance-045": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.1722546,
+      "sent": 3,
+      "closed": true,
+      "firstAction": "partial",
+      "acts": [
+        2,
+        2
+      ],
+      "violations": 0
+    },
+    "insurance-050": {
+      "status": "done",
+      "stop": "closed",
+      "cost": 0.1603556,
+      "sent": 4,
+      "closed": true,
+      "firstAction": "match",
+      "acts": [
+        3,
+        3
+      ],
+      "violations": 0
+    }
+  },
+  "finishedAt": "2026-10-10T10:24:50.533Z"
+}

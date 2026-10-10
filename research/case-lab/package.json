@@ -1,0 +1,19 @@
+{
+  "name": "case-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "run": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "tsx src/selfcheck.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

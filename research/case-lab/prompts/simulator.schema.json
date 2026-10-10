@@ -1,0 +1,102 @@
+{
+  "type": "object",
+  "properties": {
+    "handler": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The names the handler's side goes by in the real case's from and to fields: its people, teams and systems."
+    },
+    "agent_message_matches": {
+      "type": "array",
+      "description": "One entry per message the agent just sent: the real events that message corresponds to. Leave real_events empty when the real handler never did anything like it.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "integer",
+            "description": "Replay message number."
+          },
+          "real_events": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "message",
+          "real_events"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "messages": {
+      "type": "array",
+      "description": "Messages to deliver to the agent now, in order. Empty when nothing more would happen.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "follows_events": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Real event numbers this message is built from."
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "verbatim",
+              "adapted",
+              "partly_matched",
+              "not_in_real_case"
+            ],
+            "description": "verbatim: exactly one real event delivered as it is (from, to, channel, body and attachments are then copied from that event). adapted: follows real events, reworded to fit the replay. partly_matched: the real case only partly covers it. not_in_real_case: a short reply the real case does not contain, such as saying they cannot help."
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "File names from the real case that this party actually sent."
+          }
+        },
+        "required": [
+          "follows_events",
+          "match",
+          "from",
+          "to",
+          "channel",
+          "body",
+          "attachments"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "One or two sentences: which real events you are following, or why nothing is sent."
+    }
+  },
+  "required": [
+    "handler",
+    "agent_message_matches",
+    "messages",
+    "reasoning"
+  ],
+  "additionalProperties": false
+}

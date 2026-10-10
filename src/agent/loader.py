@@ -44,6 +44,13 @@ def cut_history(text, n):
     return re.sub(r'Total events: \d+', f'Total events: {min(n, len(parts) - 1)}', ''.join(parts[:n + 1]))
 
 
+def strip_preamble(text):
+    """Drop what precedes the first event of an event-anchored history: its heading repeats the case title and
+    "Total events: N" says how long the finished case is."""
+    parts = EVENT_SPLIT.split(text, 1)
+    return parts[1] if len(parts) > 1 else text
+
+
 def load_case(path, cut_at_event=None):
     """Returns dict(id, files, notes, text, blocks). `blocks` are API content blocks for images/PDFs."""
     path = Path(path)
@@ -57,13 +64,18 @@ def load_case(path, cut_at_event=None):
         ext = p.suffix.lower()
         try:
             if ext in TEXT_EXT:
+                if cut_at_event and p.name.lower().startswith('index'):
+                    # the case card is written once the case has closed: its title, request summary and details
+                    # (the insurer's name, say) are not in the history yet at the replayed point
+                    case['notes'].append(f'{rel}: dev replay, case card withheld')
+                    continue
                 t = p.read_text(errors='replace')
                 if p.name.lower().startswith('index') or ext == '.md':
                     t, removed = strip_revealing(t)
                     if removed:
                         case['notes'].append(f'{rel}: hid answer-revealing sections/fields: {", ".join(removed)}')
                 if cut_at_event and 'history' in p.name.lower():
-                    t = cut_history(t, cut_at_event)
+                    t = strip_preamble(cut_history(t, cut_at_event))
                     case['notes'].append(f'{rel}: dev replay, history cut after event {cut_at_event}')
                 texts.append((rel, t))
                 case['files'].append(f'{rel} (text, {len(t)} chars)')
@@ -133,5 +145,6 @@ if __name__ == '__main__':  # self-check
     assert rm == ['Status', 'Overview', 'Outcome'], rm
     h = 'head\n<a id="event-001"></a>\none\n<a id="event-002"></a>\ntwo'
     assert cut_history(h, 1) == 'head\n<a id="event-001"></a>\none\n', repr(cut_history(h, 1))
+    assert strip_preamble(cut_history(h, 1)) == '<a id="event-001"></a>\none\n' and strip_preamble('no events') == 'no events'
     assert 'x.png' not in ATTACH_SECTION.sub('', '## Initial request\nhi\n## Attachments\n- [x.png](a/x.png)\n\n===== FILE: h =====\nev')
     print('ok')

@@ -8,7 +8,7 @@ Usage: python eval/public.py PUBLIC_DIR --run NAME [--points escalation|all] [--
   eval/public_escalation_points.json; gold = the case's "Next action at escalation", "Outcome" and later events.
 --points all: every event k > 1 sent by the broker; gold = the broker's real event k onwards (+ the case-level
   sections when k is the escalation point).
-The agent sees events 1..k-1 (agent.loader cut: later attachments withheld, Overview / Next action / Outcome hidden).
+The agent sees events 1..k-1 and nothing else (agent.loader cut: index.md and later attachments withheld).
 Writes eval/results/public_<run>/{answers,logs}/k<k>/<case>/ and eval/results/public_<run>.json (one row per point).
 """
 import argparse, concurrent.futures as cf, json, re, sys
@@ -18,7 +18,7 @@ from types import SimpleNamespace
 EVAL = Path(__file__).resolve().parent
 sys.path.insert(0, str(EVAL.parent / 'src'))
 from agent import cli, llm as agent_llm  # noqa: E402
-from agent.loader import EVENT_SPLIT, cut_history, strip_revealing  # noqa: E402
+from agent.loader import EVENT_SPLIT, cut_history, strip_preamble, strip_revealing  # noqa: E402
 from judge import llm, parse_json  # noqa: E402
 
 SYSTEM = """You grade an insurance-broker AI agent on replayed real cases. The agent saw a case history only up to a
@@ -95,9 +95,10 @@ def grade(case_dir, answer_path, pt):
     atts = sorted(p.name for p in (case_dir / 'attachments').glob('*')) if (case_dir / 'attachments').is_dir() else []
     ref = (f"### Next action at escalation\n{section(index, 'Next action')}\n\n### Outcome\n{section(index, 'Outcome')}\n\n"
            if pt['esc'] else '')
-    user = (f"<agent_saw>\n### index.md\n{strip_revealing(index)[0]}\n\n### history.md\n{cut_history(history, seen)}\n"
+    user = (f"<agent_saw>\n### history.md\n{strip_preamble(cut_history(history, seen))}\n"
             f"(attachments in the case: {', '.join(atts) or 'none'}; only those mentioned above were shown)\n</agent_saw>\n\n"
-            f"<reference>\n### Overview (whole case)\n{section(index, 'Overview')}\n\n{ref}"
+            f"<reference>\n### Case card, index.md (NOT shown to the agent)\n{strip_revealing(index)[0]}\n\n"
+            f"### Overview (whole case)\n{section(index, 'Overview')}\n\n{ref}"
             f"### What the broker actually did next: event {pt['k']} onwards\n{later}\n</reference>\n\n"
             f"<agent_output_untrusted>\n{answer}\n</agent_output_untrusted>\n\nGrade now. JSON only.")
     err = None

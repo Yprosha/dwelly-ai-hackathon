@@ -44,6 +44,9 @@ ANSWER.md with what the broker actually did and the recorded outcome; scores 0-1
 | Rehearsal set 001-022 (`eval/judge.py`, outcomes / judgement) | 22 | | 9.4 | 9.1 | 0 critical |
 | Hard rehearsal set 101-113 | 13 | | 8.9 | 8.5 | 0 critical |
 
+The two public-case rows were measured while replays still showed the agent the index.md case card (title, details,
+request summary). Replays now withhold it, so those rows need a re-run.
+
 No crashes or fallbacks; about $0.09 and 45 seconds per case with Claude Sonnet 5 (all 50 cases in ~4 minutes with 14
 workers). Prompt changes were tuned on odd case ids and checked on even ones; run-to-run noise is about ±0.3.
 
@@ -126,8 +129,8 @@ uv run python -m agent run "<path>/Insurance Claims Processing" --out ANSWERS --
 
 Options: `--model` (default `claude-sonnet-5`), `--workers`, `--only 001,022`, `--skip-existing` (resume an
 interrupted run), `--no-thinking`, `--logs DIR`, and for development `--cut-at-event 001:4,022:3` (replay a public case
-as if its history ended at that event; later attachments are withheld too). A case may be a folder (any name) or a
-single file.
+as if its history ended at that event; the agent then works from the history alone: the index.md case card and later
+attachments are withheld). A case may be a folder (any name) or a single file.
 
 Self-checks for the parser and tool layer: `python src/agent/loader.py` and `python src/agent/tools.py`.
 

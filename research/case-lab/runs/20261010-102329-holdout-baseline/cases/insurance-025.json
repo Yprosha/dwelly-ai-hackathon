@@ -1,0 +1,951 @@
+{
+  "key": "insurance-025",
+  "status": "done",
+  "stop": "closed",
+  "takeover": 1,
+  "handler": [
+    "Iris Vale, Millcroft Cover"
+  ],
+  "replay": [
+    {
+      "author": "world",
+      "kind": "message",
+      "channel": "Email",
+      "from": "Northmere Mutual Financial Team",
+      "to": "Iris Vale, Millcroft Cover",
+      "body": "Our records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.",
+      "ts": "2025-06-15 10:07:00",
+      "attachments": [],
+      "follows": [
+        1
+      ],
+      "match": "verbatim",
+      "turn": 0,
+      "n": 1
+    },
+    {
+      "turn": 1,
+      "author": "agent",
+      "kind": "message",
+      "channel": "Email",
+      "from": "Agent",
+      "to": "George Lane",
+      "subject": "Outstanding premium balance – 125 Willow Walk, Brackenford",
+      "body": "Dear George,\n\nNorthmere Mutual's Financial Team has confirmed the following to us today (15 June 2025):\n\n- Outstanding balance on your property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ: £286.40\n- Due: within 10 calendar days of their notice dated 15 June 2025, which means by 25 June 2025\n- How to pay: through Northmere Mutual's secure account portal\n\nTo pay safely, go to the portal yourself, either by typing in Northmere Mutual's web address or by using a link from your policy documents. Don't use a payment link from an unexpected email or text. Please don't send card or bank details to us or anyone else by email.\n\nIf the amount looks wrong, or you'd like us to ask Northmere what the balance covers, just reply and we'll take it up with them.\n\nKind regards,\nIris Vale\nMillcroft Cover",
+      "attachments": [],
+      "follows": [
+        2
+      ],
+      "n": 2
+    },
+    {
+      "turn": 1,
+      "author": "agent",
+      "kind": "note",
+      "channel": "Note",
+      "from": "Agent",
+      "to": "Case record",
+      "body": "Northmere Financial Team notice of 15/06/2025: £286.40 outstanding, due within 10 calendar days (by 25/06/2025), payable through Northmere's secure account portal. Passed this on to George Lane with advice on paying safely. Waiting to hear if he wants the balance queried.",
+      "attachments": [],
+      "follows": [],
+      "n": 3
+    },
+    {
+      "author": "world",
+      "kind": "message",
+      "channel": "Email",
+      "from": "George Lane",
+      "to": "Iris Vale, Millcroft Cover",
+      "body": "Thanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.",
+      "ts": "2025-06-15 12:21:00",
+      "attachments": [],
+      "follows": [
+        3
+      ],
+      "match": "verbatim",
+      "turn": 1,
+      "n": 4
+    },
+    {
+      "turn": 2,
+      "author": "agent",
+      "kind": "message",
+      "channel": "Email",
+      "from": "Agent",
+      "to": "Northmere Mutual Financial Team",
+      "subject": "Payment confirmation request – George Lane, 125 Willow Walk, Brackenford, ZZ3 7ZZ",
+      "body": "Hello,\n\nFurther to your notice of 15 June 2025 about an outstanding balance of £286.40 on George Lane's property policy (125 Willow Walk, Brackenford, ZZ3 7ZZ): our client tells us he paid it today through your secure account portal.\n\nPlease confirm once you have received the payment and the balance is cleared, or tell us if anything is still outstanding.\n\nKind regards,\nIris Vale\nMillcroft Cover",
+      "attachments": [],
+      "follows": [
+        4
+      ],
+      "n": 5
+    },
+    {
+      "turn": 2,
+      "author": "agent",
+      "kind": "message",
+      "channel": "Email",
+      "from": "Agent",
+      "to": "George Lane",
+      "subject": "RE: Outstanding premium balance – 125 Willow Walk, Brackenford",
+      "body": "Dear George,\n\nThank you for letting us know. We've asked Northmere Mutual's Financial Team to confirm they have received your payment of £286.40 and that the balance is cleared. We'll be in touch as soon as they reply.\n\nKind regards,\nIris Vale\nMillcroft Cover",
+      "attachments": [],
+      "follows": [],
+      "n": 6
+    },
+    {
+      "author": "world",
+      "kind": "message",
+      "channel": "Email",
+      "from": "Northmere Mutual Financial Team",
+      "to": "Iris Vale, Millcroft Cover",
+      "body": "We have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.",
+      "ts": "2025-06-15 14:35:00",
+      "attachments": [],
+      "follows": [
+        5
+      ],
+      "match": "verbatim",
+      "turn": 2,
+      "n": 7
+    },
+    {
+      "turn": 3,
+      "author": "agent",
+      "kind": "message",
+      "channel": "Email",
+      "from": "Agent",
+      "to": "George Lane",
+      "subject": "RE: Outstanding premium balance – payment confirmed",
+      "body": "Dear George,\n\nNorthmere Mutual's Financial Team has confirmed they received your £286.40 payment and the balance on your account is now settled. You don't need to do anything else.\n\nKind regards,\nIris Vale\nMillcroft Cover",
+      "attachments": [],
+      "follows": [],
+      "n": 8
+    }
+  ],
+  "agent": {
+    "system": "You are the insurance broker handling this case: the broker named in the case. You correspond with the policyholder, the insurer and anyone else involved, on the brokerage's behalf.\n\nThe case is a read-only file system: /case holds the case details, /messages everything sent and received so far in order, /documents the attachments as text. Use list_case, read_case and search_case to look things up.\n\nAct only through your tools: send_message to write to someone, add_note to record something on the case, close_case when the case needs nothing more from you. When you have done what you can for now, end your turn without a tool call; you will be woken when new messages arrive.\n\nKeep messages short and plain, and state only facts that are in the case.\n",
+    "messages": [
+      {
+        "role": "user",
+        "content": "You have been assigned this case.\n\n# Premium balance notification — 125 Willow Walk, Brackenford\n\n- Source role: Property owner / policyholder\n- Created: 2025-06-15 10:07:00 UTC\n- Property: 125 Willow Walk, Brackenford, ZZ3 7ZZ\n- Broker: Millcroft Cover\n- Insurer: Northmere Mutual\n\n## Initial request\n\nI’ve just been told there may be an unpaid amount on my property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ. Please check what I owe, when it is due and how I can pay securely.\n\n## Messages so far\n\n/messages/001\ndate: 2025-06-15 10:07:00 UTC\nchannel: Email\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n---\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n## Documents\n\n(none)\n"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "Let me take a quick look at the case.\n\n",
+            "signature": "CAQS4AQKEAgSGAI4AUIIdGhpbmtpbmcSDMbf+60JrT9hRHqSdRoMeGkb/avp6STJRWGxIjAS7OBwOJJhAAUAMCfdtyqb0Pk/yWe3H84GU0rE3hqR4ggo1tY8WU6qlmV7f0Nz1v8q/QNsWlZKSb3KXkwZFms1Tc+wUnn4XRQ/ezEGPi4A2S2p0pEpKGG8aGUMUZjw930T0eecqRZUUfyYRkGiQS8tuODQ11IBDNVyklMIEWdT3ND4fu87VLphOdPPmNjizNoNigGhuj7yk7hJTvTV764TekGj8Da4xJ6isS2eA6U1jHioVHkbcjL++q3/8ZmPDEtAcphvE1su686HJF/a+nfMOEdi/qhDeoeA6QgS5uMQW1w6ZR4y0emAfdQ/FJVMWAMSplQY+tyjHQrNtbP0++VKHENYSTuKbOA2JKrQA/l4X7MhK4+rk8AxDNtD/d6eNuI9x2D1D4yw5WeaxN3ZIVW8/7Gkk0qDgmHuOt48yRfw0BtQrQji9wkZ3ah82fiHsOTbpvaz7jVrUm/YJYixHHxWgWaiEMGnpTBMkh5b5vr+Ot3gLtpDIYrbcgTa09mnRFmNRfq6pEbUf9cO5N/pVMHbbaEg/R6X4sg50Ll4+uWy88FbYGV3kl5yrGYOtJ4EHS4O4LnlOCkAlFYY2F4cqvwQBz2U7jQc82ZqHI3LXT1SqQs406dYAcwDTtZjswPQI1wf7nkCA3JpGCHv9M2ufRTWnAZQsgDzKhHeVhsDeWHd5ZTnf40+B5/zEvpi6liHKRNFxhPnHWaeMxIYHTbjKGTAQ8s77A/Q7a9M1xAuaSkIUxgB"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01EZyDj1Wn4Z9zui22so81UQ",
+            "name": "list_case",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "path": "/"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01EZyDj1Wn4Z9zui22so81UQ",
+            "content": "/case\n/messages/\n/documents/"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_0198haa2xcyHbru4sXQMqohr",
+            "name": "list_case",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "path": "/messages"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_0198haa2xcyHbru4sXQMqohr",
+            "content": "/messages/001  Email · Northmere Mutual Financial Team → Iris Vale, Millcroft Cover"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "Fifteen days from the notice date puts the deadline at 25 June 2025, so I should note that and direct payment to George Lane through Northmere's secure account portal, being careful not to reference any payment links outside the case materials. I should also advise logging in directly rather than clicking links in unexpected messages.\n\n",
+            "signature": "CAQSjAcKEAgSGAI4AUIIdGhpbmtpbmcSDDNr8DGjHodp7k1cbxoMV6eJ/FqkMJmDP1DnIjAr4nr8iTWPR9zJOLdAv+fyvks05d4do+15uQ2UrbZCcEAprUQkSnw0QEYfV3fVZ40qqQYMw1Boc/fnwry+TmhZwP0PrjTDvibyLfjJp9f9qjaNr1m54s+egNVqueYBG4AU8juk4cjLDcUe54JokVyqji2WE78fnKcbfVLxQvDM4m1NDj3t9X0WVH3+Dxbbf/nDHLiZnv/cnbpoVQbyLDhbvxunTCIBNKOsgMfAA/UYX3wgi305jqkrLYI/SD6r+2Z711lJSnKZlGpztPGRH/JkYOCGxu2jvg/yE9JpPSXp1JB32hm63OT0LOMG/NpFRHM3657zf2xRxCwGPsoFcmhgDA7dw/V8rgDCAWQVhkQtUUcjy72a2pxIHeYZ5JCcscW57zFH0s5ghog8doc2uDD3JJ0wAAvU0JyW1c64LdC+rEfTtrFUJYkF30nxF8fuLXP1Fyt31dI7Z7F69s16WcItf9SIizofkwa53NkjLFkyfmFyEV8jaD0NG5eOssg3LCF47BYK8B6qDOJgVSELJCIboeX2naH5dFxsy0u48qglCnTmExIUe1MbOtiNp7moQLmd0E226U01j/b+1iLT3WHqa4+nblyg9yHtr113VYXu4ERNrLfCZ+UVlzGg6KEqN7wmVPQP1Dgcd+lL2mAqPw5YyQMuwUEHzX7dJssLdFNoJwwnt+SvjIIAI8c0ZksRJunPsjqEIsbcdHstN4RvIoOf+3YA4SlG0+zHXnY6FnxyBEOHNmmqZOt8CcIctRrHOw5/pSLd5KlE4MPUr3NDHTzMUOh2SrbTyJAE+/c1BMVTNI8u49ZQB4kBE9Ix/BjSJC+rEaHC516kdpqOFZFj7PWRZWFEQY1Q4QDKvtcRtLJ+/HUaJJJ/k4p+CCPAFnpkF7AAGxd3DotoQk2XYO1DamsNKdHRnu/dTdGNScd5GV1Qc4q0AyssiaLOr5aWX+FmCZySXH+TIu6TfUr3edvmqDE/CK4odlph55i+n4rBZdmHrYRMNBaiNJBoMD3POck6GmwkKL//H/7LrzGicv4XwfnfnjrzMgOiA3ngGMtRqZMJLm594GgNW9g7Nzu+rpjKHyBAhQKzFDPi3C5MKagAvK932xvXULOqHickhLP6cyg+OzYhGIPiW7vrJHuLthgB"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01P2nYRftDEi5VTuXXychtTj",
+            "name": "send_message",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "to": "George Lane",
+              "subject": "Outstanding premium balance – 125 Willow Walk, Brackenford",
+              "body": "Dear George,\n\nNorthmere Mutual's Financial Team has confirmed the following to us today (15 June 2025):\n\n- Outstanding balance on your property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ: £286.40\n- Due: within 10 calendar days of their notice dated 15 June 2025, which means by 25 June 2025\n- How to pay: through Northmere Mutual's secure account portal\n\nTo pay safely, go to the portal yourself, either by typing in Northmere Mutual's web address or by using a link from your policy documents. Don't use a payment link from an unexpected email or text. Please don't send card or bank details to us or anyone else by email.\n\nIf the amount looks wrong, or you'd like us to ask Northmere what the balance covers, just reply and we'll take it up with them.\n\nKind regards,\nIris Vale\nMillcroft Cover"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_012HHmpRcfyRARWGvnDpEMts",
+            "name": "add_note",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "body": "Northmere Financial Team notice of 15/06/2025: £286.40 outstanding, due within 10 calendar days (by 25/06/2025), payable through Northmere's secure account portal. Passed this on to George Lane with advice on paying safely. Waiting to hear if he wants the balance queried."
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01P2nYRftDEi5VTuXXychtTj",
+            "content": "Sent. Saved as /messages/002."
+          },
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_012HHmpRcfyRARWGvnDpEMts",
+            "content": "Saved as /messages/003."
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "I've emailed George Lane with what he owes, when it's due and how to pay. The details come from Northmere Mutual's Financial Team notice, which is the only message on the case:\n\n- **Amount:** £286.40 outstanding on his property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ.\n- **Due date:** The notice says payment is due within 10 calendar days of 15 June 2025. I worked that out as 25 June 2025 and gave him that date.\n- **How to pay:** Through Northmere Mutual's secure account portal. The case doesn't give a portal address, so I didn't include one. Instead I told him to reach the portal himself, by typing in Northmere's web address or using a link from his policy documents. I also told him not to use payment links from unexpected emails or texts, and not to send card or bank details by email.\n\nThe notice doesn't say what the balance covers. I've offered to ask Northmere if he thinks the amount is wrong or wants to know what it's for. I've added a note to the case and left it open until he replies."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "New messages:\n\n/messages/004\ndate: 2025-06-15 12:21:00 UTC\nchannel: Email\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n---\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01QzwjkWte1uzAT2Epb8J7cD",
+            "name": "send_message",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "to": "Northmere Mutual Financial Team",
+              "subject": "Payment confirmation request – George Lane, 125 Willow Walk, Brackenford, ZZ3 7ZZ",
+              "body": "Hello,\n\nFurther to your notice of 15 June 2025 about an outstanding balance of £286.40 on George Lane's property policy (125 Willow Walk, Brackenford, ZZ3 7ZZ): our client tells us he paid it today through your secure account portal.\n\nPlease confirm once you have received the payment and the balance is cleared, or tell us if anything is still outstanding.\n\nKind regards,\nIris Vale\nMillcroft Cover"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01D3hpeMghHq7Ubh7EgGqkDU",
+            "name": "send_message",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "to": "George Lane",
+              "subject": "RE: Outstanding premium balance – 125 Willow Walk, Brackenford",
+              "body": "Dear George,\n\nThank you for letting us know. We've asked Northmere Mutual's Financial Team to confirm they have received your payment of £286.40 and that the balance is cleared. We'll be in touch as soon as they reply.\n\nKind regards,\nIris Vale\nMillcroft Cover"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01QzwjkWte1uzAT2Epb8J7cD",
+            "content": "Sent. Saved as /messages/005."
+          },
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01D3hpeMghHq7Ubh7EgGqkDU",
+            "content": "Sent. Saved as /messages/006."
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "I've asked Northmere Mutual's Financial Team to confirm they've received George's £286.40 and that the balance is cleared. Right now the only word on the payment is George's own message saying he paid through their secure portal today.\n\nI've also told George we're checking with Northmere and will pass on their reply when it comes. The case stays open until then."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "New messages:\n\n/messages/007\ndate: 2025-06-15 14:35:00 UTC\nchannel: Email\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n---\nWe have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.\n\n"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01MrjDWHbR2PpozeUTdLCBWm",
+            "name": "send_message",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "to": "George Lane",
+              "subject": "RE: Outstanding premium balance – payment confirmed",
+              "body": "Dear George,\n\nNorthmere Mutual's Financial Team has confirmed they received your £286.40 payment and the balance on your account is now settled. You don't need to do anything else.\n\nKind regards,\nIris Vale\nMillcroft Cover"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01ANdYJX5KmawzRdM42PPF84",
+            "name": "close_case",
+            "caller": {
+              "type": "direct"
+            },
+            "input": {
+              "outcome": "George Lane paid the £286.40 balance through Northmere Mutual's secure portal. Northmere confirmed receipt and that the account is settled, and we have told George."
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01MrjDWHbR2PpozeUTdLCBWm",
+            "content": "Sent. Saved as /messages/008."
+          },
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01ANdYJX5KmawzRdM42PPF84",
+            "content": "Case closed."
+          }
+        ]
+      }
+    ],
+    "calls": [
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 8348,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 1845,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 1845,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 61,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 61,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 1845,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 1845,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 13
+          }
+        },
+        "stop_reason": "tool_use",
+        "cost": 0.010461,
+        "turn": 1,
+        "round": 1
+      },
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 1555,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 80,
+          "cache_read_input_tokens": 1845,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 80,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 49,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 49,
+              "cache_read_input_tokens": 1845,
+              "cache_creation_input_tokens": 80,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 80,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "tool_use",
+        "cost": 0.002126,
+        "turn": 1,
+        "round": 2
+      },
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 7936,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 92,
+          "cache_read_input_tokens": 1925,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 92,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 640,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 640,
+              "cache_read_input_tokens": 1925,
+              "cache_creation_input_tokens": 92,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 92,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 88
+          }
+        },
+        "stop_reason": "tool_use",
+        "cost": 0.014038,
+        "turn": 1,
+        "round": 3
+      },
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 4251,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 720,
+          "cache_read_input_tokens": 2017,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 720,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 344,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 344,
+              "cache_read_input_tokens": 2017,
+              "cache_creation_input_tokens": 720,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 720,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "end_turn",
+        "cost": 0.011294799999999999,
+        "turn": 1,
+        "round": 4
+      },
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 7168,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 473,
+          "cache_read_input_tokens": 2737,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 473,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 503,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 503,
+              "cache_read_input_tokens": 2737,
+              "cache_creation_input_tokens": 473,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 473,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "tool_use",
+        "cost": 0.013535799999999999,
+        "turn": 2,
+        "round": 1
+      },
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 2200,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 589,
+          "cache_read_input_tokens": 3210,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 589,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 108,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 108,
+              "cache_read_input_tokens": 3210,
+              "cache_creation_input_tokens": 589,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 589,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "end_turn",
+        "cost": 0.006397,
+        "turn": 2,
+        "round": 2
+      },
+      {
+        "role": "agent",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 6472,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 218,
+          "cache_read_input_tokens": 3799,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 218,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 289,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 289,
+              "cache_read_input_tokens": 3799,
+              "cache_creation_input_tokens": 218,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 218,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "tool_use",
+        "cost": 0.008405600000000001,
+        "turn": 3,
+        "round": 1
+      }
+    ],
+    "closed": {
+      "outcome": "George Lane paid the £286.40 balance through Northmere Mutual's secure portal. Northmere confirmed receipt and that the account is settled, and we have told George.",
+      "turn": 3
+    }
+  },
+  "world": [
+    {
+      "turn": 0,
+      "pending": [],
+      "delivered": [
+        1
+      ],
+      "output": {
+        "handler": [
+          "Iris Vale, Millcroft Cover",
+          "Millcroft Cover"
+        ],
+        "agent_message_matches": [],
+        "messages": [
+          {
+            "follows_events": [
+              1
+            ],
+            "match": "verbatim",
+            "from": "Northmere Mutual Financial Team",
+            "to": "Iris Vale, Millcroft Cover",
+            "channel": "Email",
+            "body": "Our records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.",
+            "attachments": []
+          }
+        ],
+        "reasoning": "The replay is empty, so I am delivering the opening insurer notice (event 1). It is the only event before the handler's first outgoing message."
+      },
+      "prompt": "## THE REAL CASE\n\n# Premium balance notification — 125 Willow Walk, Brackenford\n\n- Source role: Property owner / policyholder\n- Created: 2025-06-15 10:07:00 UTC\n- Property: 125 Willow Walk, Brackenford, ZZ3 7ZZ\n- Broker: Millcroft Cover\n- Insurer: Northmere Mutual\n\n## Initial request\n\nI’ve just been told there may be an unpaid amount on my property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ. Please check what I owe, when it is due and how I can pay securely.\n\n--- event 1 · 2025-06-15 10:07:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n--- event 2 · 2025-06-15 11:14:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual has advised that £286.40 remains due on your property policy, with payment due within 10 calendar days of its notice. The insurer says the permitted payment method is its secure account portal; I’m passing on its details so you can review and act on them.\n\n--- event 3 · 2025-06-15 12:21:00 UTC · Email ---\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n--- event 4 · 2025-06-15 13:28:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: Northmere Mutual Financial Team\n\nGeorge has reported paying the £286.40 balance through your secure account portal. Could you please check the account and confirm the current payment status?\n\n--- event 5 · 2025-06-15 14:35:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nWe have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.\n\n--- event 6 · 2025-06-15 15:42:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual’s financial team has confirmed receipt of your £286.40 payment and advised that the balance is now settled on the account. This confirms the current payment status.\n\n## THIS REPLAY SO FAR\n\n(empty: the case is just starting)\n\n## WHAT THE AGENT HAS JUST SENT\n\n(nothing)\n",
+      "call": {
+        "role": "simulator",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 3663,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 2624,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 2624,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 268,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 268,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 2624,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 2624,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "end_turn",
+        "cost": 0.018496
+      }
+    },
+    {
+      "turn": 1,
+      "pending": [
+        2,
+        3
+      ],
+      "delivered": [
+        4
+      ],
+      "output": {
+        "handler": [
+          "Iris Vale, Millcroft Cover",
+          "Millcroft Cover",
+          "Iris Vale"
+        ],
+        "agent_message_matches": [
+          {
+            "message": 2,
+            "real_events": [
+              2
+            ]
+          },
+          {
+            "message": 3,
+            "real_events": []
+          }
+        ],
+        "messages": [
+          {
+            "follows_events": [
+              3
+            ],
+            "match": "verbatim",
+            "from": "George Lane",
+            "to": "Iris Vale, Millcroft Cover",
+            "channel": "Email",
+            "body": "Thanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.",
+            "attachments": []
+          }
+        ],
+        "reasoning": "The agent passed on the balance details to George (event 2). His real reply (event 3) fits as it is, so it is delivered verbatim."
+      },
+      "prompt": "## THE REAL CASE\n\n# Premium balance notification — 125 Willow Walk, Brackenford\n\n- Source role: Property owner / policyholder\n- Created: 2025-06-15 10:07:00 UTC\n- Property: 125 Willow Walk, Brackenford, ZZ3 7ZZ\n- Broker: Millcroft Cover\n- Insurer: Northmere Mutual\n\n## Initial request\n\nI’ve just been told there may be an unpaid amount on my property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ. Please check what I owe, when it is due and how I can pay securely.\n\n--- event 1 · 2025-06-15 10:07:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n--- event 2 · 2025-06-15 11:14:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual has advised that £286.40 remains due on your property policy, with payment due within 10 calendar days of its notice. The insurer says the permitted payment method is its secure account portal; I’m passing on its details so you can review and act on them.\n\n--- event 3 · 2025-06-15 12:21:00 UTC · Email ---\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n--- event 4 · 2025-06-15 13:28:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: Northmere Mutual Financial Team\n\nGeorge has reported paying the £286.40 balance through your secure account portal. Could you please check the account and confirm the current payment status?\n\n--- event 5 · 2025-06-15 14:35:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nWe have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.\n\n--- event 6 · 2025-06-15 15:42:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual’s financial team has confirmed receipt of your £286.40 payment and advised that the balance is now settled on the account. This confirms the current payment status.\n\n## THIS REPLAY SO FAR\n\n--- #1 · OTHER SIDE · real event 1 verbatim · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n--- #2 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nNorthmere Mutual's Financial Team has confirmed the following to us today (15 June 2025):\n\n- Outstanding balance on your property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ: £286.40\n- Due: within 10 calendar days of their notice dated 15 June 2025, which means by 25 June 2025\n- How to pay: through Northmere Mutual's secure account portal\n\nTo pay safely, go to the portal yourself, either by typing in Northmere Mutual's web address or by using a link from your policy documents. Don't use a payment link from an unexpected email or text. Please don't send card or bank details to us or anyone else by email.\n\nIf the amount looks wrong, or you'd like us to ask Northmere what the balance covers, just reply and we'll take it up with them.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #3 · AGENT (handler) · Note ---\nfrom: Agent\nto: Case record\n\nNorthmere Financial Team notice of 15/06/2025: £286.40 outstanding, due within 10 calendar days (by 25/06/2025), payable through Northmere's secure account portal. Passed this on to George Lane with advice on paying safely. Waiting to hear if he wants the balance queried.\n\n## WHAT THE AGENT HAS JUST SENT\n\n--- #2 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nNorthmere Mutual's Financial Team has confirmed the following to us today (15 June 2025):\n\n- Outstanding balance on your property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ: £286.40\n- Due: within 10 calendar days of their notice dated 15 June 2025, which means by 25 June 2025\n- How to pay: through Northmere Mutual's secure account portal\n\nTo pay safely, go to the portal yourself, either by typing in Northmere Mutual's web address or by using a link from your policy documents. Don't use a payment link from an unexpected email or text. Please don't send card or bank details to us or anyone else by email.\n\nIf the amount looks wrong, or you'd like us to ask Northmere what the balance covers, just reply and we'll take it up with them.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #3 · AGENT (handler) · Note ---\nfrom: Agent\nto: Case record\n\nNorthmere Financial Team notice of 15/06/2025: £286.40 outstanding, due within 10 calendar days (by 25/06/2025), payable through Northmere's secure account portal. Passed this on to George Lane with advice on paying safely. Waiting to hear if he wants the balance queried.\n",
+      "call": {
+        "role": "simulator",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 3219,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 3740,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 3740,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 265,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 265,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 3740,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 3740,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "end_turn",
+        "cost": 0.024016
+      }
+    },
+    {
+      "turn": 2,
+      "pending": [
+        5,
+        6
+      ],
+      "delivered": [
+        7
+      ],
+      "output": {
+        "handler": [
+          "Iris Vale, Millcroft Cover",
+          "Millcroft Cover"
+        ],
+        "agent_message_matches": [
+          {
+            "message": 5,
+            "real_events": [
+              4
+            ]
+          },
+          {
+            "message": 6,
+            "real_events": []
+          }
+        ],
+        "messages": [
+          {
+            "follows_events": [
+              5
+            ],
+            "match": "verbatim",
+            "from": "Northmere Mutual Financial Team",
+            "to": "Iris Vale, Millcroft Cover",
+            "channel": "Email",
+            "body": "We have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.",
+            "attachments": []
+          }
+        ],
+        "reasoning": "The agent asked Northmere to confirm the payment (event 4), so Northmere's confirmation (event 5) is delivered verbatim. The holding reply to George has no real counterpart."
+      },
+      "prompt": "## THE REAL CASE\n\n# Premium balance notification — 125 Willow Walk, Brackenford\n\n- Source role: Property owner / policyholder\n- Created: 2025-06-15 10:07:00 UTC\n- Property: 125 Willow Walk, Brackenford, ZZ3 7ZZ\n- Broker: Millcroft Cover\n- Insurer: Northmere Mutual\n\n## Initial request\n\nI’ve just been told there may be an unpaid amount on my property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ. Please check what I owe, when it is due and how I can pay securely.\n\n--- event 1 · 2025-06-15 10:07:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n--- event 2 · 2025-06-15 11:14:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual has advised that £286.40 remains due on your property policy, with payment due within 10 calendar days of its notice. The insurer says the permitted payment method is its secure account portal; I’m passing on its details so you can review and act on them.\n\n--- event 3 · 2025-06-15 12:21:00 UTC · Email ---\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n--- event 4 · 2025-06-15 13:28:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: Northmere Mutual Financial Team\n\nGeorge has reported paying the £286.40 balance through your secure account portal. Could you please check the account and confirm the current payment status?\n\n--- event 5 · 2025-06-15 14:35:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nWe have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.\n\n--- event 6 · 2025-06-15 15:42:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual’s financial team has confirmed receipt of your £286.40 payment and advised that the balance is now settled on the account. This confirms the current payment status.\n\n## THIS REPLAY SO FAR\n\n--- #1 · OTHER SIDE · real event 1 verbatim · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n--- #2 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nNorthmere Mutual's Financial Team has confirmed the following to us today (15 June 2025):\n\n- Outstanding balance on your property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ: £286.40\n- Due: within 10 calendar days of their notice dated 15 June 2025, which means by 25 June 2025\n- How to pay: through Northmere Mutual's secure account portal\n\nTo pay safely, go to the portal yourself, either by typing in Northmere Mutual's web address or by using a link from your policy documents. Don't use a payment link from an unexpected email or text. Please don't send card or bank details to us or anyone else by email.\n\nIf the amount looks wrong, or you'd like us to ask Northmere what the balance covers, just reply and we'll take it up with them.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #3 · AGENT (handler) · Note ---\nfrom: Agent\nto: Case record\n\nNorthmere Financial Team notice of 15/06/2025: £286.40 outstanding, due within 10 calendar days (by 25/06/2025), payable through Northmere's secure account portal. Passed this on to George Lane with advice on paying safely. Waiting to hear if he wants the balance queried.\n\n--- #4 · OTHER SIDE · real event 3 verbatim · Email ---\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n--- #5 · AGENT (handler) · Email ---\nfrom: Agent\nto: Northmere Mutual Financial Team\nsubject: Payment confirmation request – George Lane, 125 Willow Walk, Brackenford, ZZ3 7ZZ\n\nHello,\n\nFurther to your notice of 15 June 2025 about an outstanding balance of £286.40 on George Lane's property policy (125 Willow Walk, Brackenford, ZZ3 7ZZ): our client tells us he paid it today through your secure account portal.\n\nPlease confirm once you have received the payment and the balance is cleared, or tell us if anything is still outstanding.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #6 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: RE: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nThank you for letting us know. We've asked Northmere Mutual's Financial Team to confirm they have received your payment of £286.40 and that the balance is cleared. We'll be in touch as soon as they reply.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n## WHAT THE AGENT HAS JUST SENT\n\n--- #5 · AGENT (handler) · Email ---\nfrom: Agent\nto: Northmere Mutual Financial Team\nsubject: Payment confirmation request – George Lane, 125 Willow Walk, Brackenford, ZZ3 7ZZ\n\nHello,\n\nFurther to your notice of 15 June 2025 about an outstanding balance of £286.40 on George Lane's property policy (125 Willow Walk, Brackenford, ZZ3 7ZZ): our client tells us he paid it today through your secure account portal.\n\nPlease confirm once you have received the payment and the balance is cleared, or tell us if anything is still outstanding.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #6 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: RE: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nThank you for letting us know. We've asked Northmere Mutual's Financial Team to confirm they have received your payment of £286.40 and that the balance is cleared. We'll be in touch as soon as they reply.\n\nKind regards,\nIris Vale\nMillcroft Cover\n",
+      "call": {
+        "role": "simulator",
+        "preset": "opus-5.5",
+        "model": "claude-opus-5-5",
+        "ms": 3382,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 4171,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 4171,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 256,
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 256,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 4171,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 4171,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          }
+        },
+        "stop_reason": "end_turn",
+        "cost": 0.025991
+      }
+    }
+  ],
+  "extract": [],
+  "cost": 0.1720872,
+  "ms": 62179,
+  "judge": {
+    "output": {
+      "first_action": {
+        "verdict": "match",
+        "reason": "The agent's first email told George the £286.40 balance, the 10-calendar-day deadline and the secure account portal as the payment route. This is the same substance as the expected next action and the real handler's first email."
+      },
+      "acts": [
+        {
+          "party": "George Lane",
+          "act": "Relay balance, deadline and portal payment route",
+          "covered": true,
+          "evidence": "Outstanding balance ... £286.40 ... Due: within 10 calendar days ... How to pay: through Northmere Mutual's secure account portal"
+        },
+        {
+          "party": "Northmere Mutual Financial Team",
+          "act": "Ask for payment status after George reported paying",
+          "covered": true,
+          "evidence": "Please confirm once you have received the payment and the balance is cleared, or tell us if anything is still outstanding."
+        },
+        {
+          "party": "George Lane",
+          "act": "Pass on insurer's confirmation that balance is settled",
+          "covered": true,
+          "evidence": "Northmere Mutual's Financial Team has confirmed they received your £286.40 payment and the balance on your account is now settled."
+        }
+      ],
+      "extras": [
+        {
+          "party": "George Lane",
+          "act": "Safe-payment guidance and offer to query the balance",
+          "problem": false,
+          "note": "Advised George to reach the portal himself, avoid unexpected links and not email card details. This is sensible and responds to his request to pay securely."
+        },
+        {
+          "party": "George Lane",
+          "act": "Calculated deadline as 25 June 2025",
+          "problem": false,
+          "note": "This is a reasonable reading of 10 calendar days from a 15 June notice. The insurer's own 'within 10 calendar days' wording was also included."
+        }
+      ],
+      "violations": [],
+      "summary": "The agent did the same things as the real handler in the same order: relayed the balance, deadline and portal, asked the insurer to confirm status after George paid, and passed on the confirmation. It also added sensible payment-security advice and a calculated due date, neither of which caused any problem."
+    },
+    "prompt": "## THE CASE\n\n# Premium balance notification — 125 Willow Walk, Brackenford\n\n- Source role: Property owner / policyholder\n- Created: 2025-06-15 10:07:00 UTC\n- Property: 125 Willow Walk, Brackenford, ZZ3 7ZZ\n- Broker: Millcroft Cover\n- Insurer: Northmere Mutual\n\n## Initial request\n\nI’ve just been told there may be an unpaid amount on my property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ. Please check what I owe, when it is due and how I can pay securely.\n\n## ANSWER KEY\n\n### Overview\n\nNorthmere Mutual’s financial team told Iris Vale at Millcroft Cover that George Lane owed £286.40, due within 10 calendar days of the insurer’s notice, and could pay through the insurer’s secure account portal. Iris relayed those details to George, who confirmed receipt and said he had paid through that channel. Northmere Mutual’s financial team subsequently confirmed the payment status to Iris, who passed the confirmation to George.\n\n### Next action at escalation\n\nNotify George of the specific £286.40 balance, the insurer’s 10-calendar-day payment deadline and the permitted secure payment route, then seek a finance-team status check after he reports payment.\n\n### Outcome\n\nGeorge was notified of the £286.40 balance, its 10-calendar-day deadline and the permitted payment method; Northmere Mutual’s financial team later confirmed that the payment had been received and the balance was settled.\n\n## BEFORE THE TAKEOVER (the agent saw these)\n\n--- event 1 · 2025-06-15 10:07:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nOur records show an outstanding property-policy balance of £286.40 for George Lane at 125 Willow Walk, Brackenford, ZZ3 7ZZ. Payment is due within 10 calendar days of this notice and may be made through Northmere Mutual’s secure account portal.\n\n## THE REAL CASE AFTER THE TAKEOVER\n\n--- event 2 · 2025-06-15 11:14:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual has advised that £286.40 remains due on your property policy, with payment due within 10 calendar days of its notice. The insurer says the permitted payment method is its secure account portal; I’m passing on its details so you can review and act on them.\n\n--- event 3 · 2025-06-15 12:21:00 UTC · Email ---\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n--- event 4 · 2025-06-15 13:28:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: Northmere Mutual Financial Team\n\nGeorge has reported paying the £286.40 balance through your secure account portal. Could you please check the account and confirm the current payment status?\n\n--- event 5 · 2025-06-15 14:35:00 UTC · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nWe have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.\n\n--- event 6 · 2025-06-15 15:42:00 UTC · Email ---\nfrom: Iris Vale, Millcroft Cover\nto: George Lane\n\nNorthmere Mutual’s financial team has confirmed receipt of your £286.40 payment and advised that the balance is now settled on the account. This confirms the current payment status.\n\n## THE REPLAY AFTER THE TAKEOVER\n\n--- #2 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nNorthmere Mutual's Financial Team has confirmed the following to us today (15 June 2025):\n\n- Outstanding balance on your property policy for 125 Willow Walk, Brackenford, ZZ3 7ZZ: £286.40\n- Due: within 10 calendar days of their notice dated 15 June 2025, which means by 25 June 2025\n- How to pay: through Northmere Mutual's secure account portal\n\nTo pay safely, go to the portal yourself, either by typing in Northmere Mutual's web address or by using a link from your policy documents. Don't use a payment link from an unexpected email or text. Please don't send card or bank details to us or anyone else by email.\n\nIf the amount looks wrong, or you'd like us to ask Northmere what the balance covers, just reply and we'll take it up with them.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #3 · AGENT (handler) · Note ---\nfrom: Agent\nto: Case record\n\nNorthmere Financial Team notice of 15/06/2025: £286.40 outstanding, due within 10 calendar days (by 25/06/2025), payable through Northmere's secure account portal. Passed this on to George Lane with advice on paying safely. Waiting to hear if he wants the balance queried.\n\n--- #4 · OTHER SIDE · real event 3 verbatim · Email ---\nfrom: George Lane\nto: Iris Vale, Millcroft Cover\n\nThanks, I’ve received the balance and deadline details. I’ve now made the payment through Northmere Mutual’s secure account portal, but please let me know once its finance team has confirmed the status.\n\n--- #5 · AGENT (handler) · Email ---\nfrom: Agent\nto: Northmere Mutual Financial Team\nsubject: Payment confirmation request – George Lane, 125 Willow Walk, Brackenford, ZZ3 7ZZ\n\nHello,\n\nFurther to your notice of 15 June 2025 about an outstanding balance of £286.40 on George Lane's property policy (125 Willow Walk, Brackenford, ZZ3 7ZZ): our client tells us he paid it today through your secure account portal.\n\nPlease confirm once you have received the payment and the balance is cleared, or tell us if anything is still outstanding.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #6 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: RE: Outstanding premium balance – 125 Willow Walk, Brackenford\n\nDear George,\n\nThank you for letting us know. We've asked Northmere Mutual's Financial Team to confirm they have received your payment of £286.40 and that the balance is cleared. We'll be in touch as soon as they reply.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n--- #7 · OTHER SIDE · real event 5 verbatim · Email ---\nfrom: Northmere Mutual Financial Team\nto: Iris Vale, Millcroft Cover\n\nWe have confirmed receipt of George Lane’s £286.40 payment. The balance is now settled on the account.\n\n--- #8 · AGENT (handler) · Email ---\nfrom: Agent\nto: George Lane\nsubject: RE: Outstanding premium balance – payment confirmed\n\nDear George,\n\nNorthmere Mutual's Financial Team has confirmed they received your £286.40 payment and the balance on your account is now settled. You don't need to do anything else.\n\nKind regards,\nIris Vale\nMillcroft Cover\n\n## HOW THE AGENT CLOSED THE CASE\n\nGeorge Lane paid the £286.40 balance through Northmere Mutual's secure portal. Northmere confirmed receipt and that the account is settled, and we have told George.\n",
+    "call": {
+      "role": "judge",
+      "preset": "opus-5.5",
+      "model": "claude-opus-5-5",
+      "ms": 13982,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 3958,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 3958,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 876,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 4,
+            "output_tokens": 876,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 3958,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 3958,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message",
+            "model": null
+          }
+        ],
+        "output_tokens_details": {
+          "thinking_tokens": 248
+        }
+      },
+      "stop_reason": "end_turn",
+      "cost": 0.037326
+    }
+  }
+}

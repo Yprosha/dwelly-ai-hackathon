@@ -1,0 +1,70 @@
+[
+  {
+    "name": "list_case",
+    "description": "Browse the case as a tree. Call with no path to see the top level (/case, /messages, /documents), or with \"/messages\" or \"/documents\" to list their entries. Open an entry with read_case.",
+    "input_schema": {
+      "type": "object",
+      "properties": { "path": { "type": "string", "description": "Directory path, e.g. \"/\" or \"/documents\". Defaults to \"/\"." } },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "read_case",
+    "description": "Read one case file by path, e.g. \"/case\", \"/messages/003\" or \"/documents/policy-copy.pdf\". Documents come back as extracted text.",
+    "input_schema": {
+      "type": "object",
+      "properties": { "path": { "type": "string" } },
+      "required": ["path"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "search_case",
+    "description": "Search the whole case, or one directory, with a case-insensitive regular expression. A plain word or phrase works. Each match comes back as a path with a #L line number.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "pattern": { "type": "string" },
+        "path": { "type": "string", "description": "Optional directory to search, e.g. \"/documents\"." }
+      },
+      "required": ["pattern"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "send_message",
+    "description": "Send a message to someone on the case: the customer, an insurer, a contractor, an internal team or system. It is delivered at once; replies arrive later as new messages.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "to": { "type": "string", "description": "Recipient as named in the case, e.g. \"Jess Moore\" or \"Wrenfield Property Insurance\"." },
+        "channel": { "type": "string", "description": "How it is sent, e.g. Email, Secure portal, SMS, Call. Defaults to Email." },
+        "subject": { "type": "string" },
+        "body": { "type": "string", "description": "Plain text." },
+        "attachments": { "type": "array", "items": { "type": "string" }, "description": "Optional paths from /documents to forward." }
+      },
+      "required": ["to", "body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_note",
+    "description": "Write an internal note on the case record. Nobody outside sees it.",
+    "input_schema": {
+      "type": "object",
+      "properties": { "body": { "type": "string" } },
+      "required": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "close_case",
+    "description": "Close the case when it needs nothing more from you. Give a one or two sentence outcome.",
+    "input_schema": {
+      "type": "object",
+      "properties": { "outcome": { "type": "string" } },
+      "required": ["outcome"],
+      "additionalProperties": false
+    }
+  }
+]

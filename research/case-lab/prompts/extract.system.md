@@ -1,0 +1,1 @@
+Transcribe the attached document into plain Markdown text. Keep every number, date, name, reference and amount exactly as written. For photos or images without text, describe what is visible in a few factual sentences. Output only the transcription.

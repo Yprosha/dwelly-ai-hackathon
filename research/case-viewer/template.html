@@ -1,0 +1,203 @@
+<title>Hackathon Case Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500&display=swap">
+<style>
+/* Layout: index rail on the left, the case file on the right; the event timeline is the spine. */
+:root {
+  --paper: #f3f5f4; --sheet: #ffffff; --ink: #15211d; --muted: #5d6a65; --rule: #dce3e0;
+  --accent: #1e5f57; --accent-soft: #e2eeeb;
+  --email: #2f6db0; --call: #b4612a; --note: #7d848b; --portal: #7b58a8;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --serif: "IBM Plex Serif", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0f1513; --sheet: #151d1a; --ink: #e2e9e6; --muted: #8f9b96; --rule: #26312d;
+  --accent: #66b8aa; --accent-soft: #1b2b27;
+  --email: #74a7dd; --call: #dc955c; --note: #9ca3aa; --portal: #ab8dd5; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0f1513; --sheet: #151d1a; --ink: #e2e9e6; --muted: #8f9b96; --rule: #26312d;
+  --accent: #66b8aa; --accent-soft: #1b2b27;
+  --email: #74a7dd; --call: #dc955c; --note: #9ca3aa; --portal: #ab8dd5; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font: 14px/1.55 var(--sans); }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100%; }
+.rail { display: flex; flex-direction: column; gap: 12px; padding: 20px 16px 0; border-right: 1px solid var(--rule); min-height: 0; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.brand b { font: 500 17px var(--serif); }
+.brand span, .count { font: 12px var(--mono); color: var(--muted); }
+.tracks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tracks button { padding: 6px 8px; border-radius: 6px; text-align: left; font-size: 13px; color: var(--muted); }
+.tracks button:hover { background: var(--sheet); }
+.tracks button[aria-selected="true"] { background: var(--accent); color: var(--paper); }
+#q { width: 100%; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); color: var(--ink); font: inherit; }
+.list { list-style: none; margin: 0 -8px; padding: 0 0 16px; overflow-y: auto; flex: 1; }
+.list button { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: baseline; width: 100%; padding: 6px 8px; border-radius: 6px; text-align: left; }
+.list button:hover { background: var(--sheet); }
+.list button[aria-current="true"] { background: var(--accent-soft); }
+.list .num { font: 12px var(--mono); color: var(--muted); }
+.list .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .n { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.list .clip { color: var(--accent); margin-right: 4px; }
+.empty { color: var(--muted); padding: 8px; }
+
+.file { overflow-y: auto; background: var(--sheet); }
+.inner { max-width: 760px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 28px; }
+.eyebrow { font: 12px var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 500 30px/1.2 var(--serif); margin: 6px 0 16px; text-wrap: balance; }
+h2 { font: 600 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; display: flex; gap: 8px; align-items: baseline; }
+.meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px 20px; margin: 0; }
+.meta div { min-width: 0; }
+.meta dt { font-size: 12px; color: var(--muted); }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.request { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; font-size: 15px; }
+
+.key { border: 1px dashed var(--rule); border-radius: 8px; padding: 14px 16px; }
+.key-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.key-head h2 { margin: 0; }
+.key-head button { font-size: 13px; color: var(--accent); padding: 2px 6px; border-radius: 4px; }
+.key-head button:hover { background: var(--accent-soft); }
+.key-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.key-body h3 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+.key.locked .key-body { filter: blur(5px); user-select: none; pointer-events: none; }
+
+.timeline { list-style: none; margin: 0; padding: 0; }
+.ev { display: grid; grid-template-columns: 64px 14px minmax(0, 1fr); gap: 0 12px; }
+.when { text-align: right; font: 12px/1.4 var(--mono); color: var(--muted); padding-top: 3px; font-variant-numeric: tabular-nums; }
+.when .d { display: block; color: var(--ink); }
+.spine { position: relative; }
+.spine::before { content: ""; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--rule); }
+.ev:first-child .spine::before { top: 8px; }
+.ev:last-child .spine::before { bottom: auto; height: 8px; }
+.spine::after { content: ""; position: absolute; left: 1px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--sheet); }
+.card { padding-bottom: 22px; }
+.who { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; margin-bottom: 4px; }
+.who b { font-weight: 600; }
+.who .to { color: var(--muted); }
+.chip { font: 11px var(--mono); padding: 1px 6px; border-radius: 4px; color: var(--c); border: 1px solid currentColor; }
+.stage { font: 11px var(--mono); color: var(--muted); }
+.ch-email { --c: var(--email); } .ch-call { --c: var(--call); } .ch-note { --c: var(--note); } .ch-portal { --c: var(--portal); }
+
+.files { display: flex; flex-wrap: wrap; gap: 8px; }
+.files a { font: 12px var(--mono); color: var(--accent); padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; text-decoration: none; }
+.files a:hover { border-color: var(--accent); }
+
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .rail { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .list { max-height: 36vh; }
+  .inner { padding: 24px 16px 48px; }
+  .ev { grid-template-columns: 44px 14px minmax(0, 1fr); gap: 0 8px; }
+}
+</style>
+
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><b>Case Desk</b><span id="stats"></span></div>
+    <div class="tracks" role="tablist" id="tracks"></div>
+    <input id="q" type="search" placeholder="Search this track" aria-label="Search cases">
+    <ol class="list" id="list"></ol>
+  </aside>
+  <main class="file" id="file"></main>
+</div>
+
+<script>
+const CASES = /*DATA*/[];
+const TRACKS = [...new Set(CASES.map(c => c.track))];
+const slug = c => c.track.split(" ")[0].toLowerCase() + "-" + c.id;
+const short = t => t.split(" ")[0];
+const esc = s => s.replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+const kind = ch => /call/i.test(ch) ? "call" : /email/i.test(ch) ? "email" : /note|hold|update|queue/i.test(ch) ? "note" : "portal";
+const fmtDate = ts => new Date(ts.replace(" ", "T") + "Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+CASES.forEach(c => c.hay = JSON.stringify(c).toLowerCase());
+
+let current = CASES.find(c => slug(c) === location.hash.slice(1)) || CASES.find(c => slug(c) === "insurance-032") || CASES[0];
+let track = current.track, revealed = false, visible = [];
+const $ = id => document.getElementById(id);
+
+function renderTracks() {
+  $("tracks").innerHTML = TRACKS.map(t =>
+    `<button role="tab" aria-selected="${t === track}" data-t="${esc(t)}">${short(t)}</button>`).join("");
+}
+
+function renderList() {
+  const q = $("q").value.trim().toLowerCase();
+  visible = CASES.filter(c => c.track === track && (!q || c.hay.includes(q)));
+  const inTrack = CASES.filter(c => c.track === track);
+  $("stats").textContent = `${inTrack.length} cases · ${inTrack.reduce((s, c) => s + c.events.length, 0)} events`;
+  $("list").innerHTML = visible.map(c => `<li><button data-s="${slug(c)}" aria-current="${c === current}">
+    <span class="num">${c.id}</span><span class="t" title="${esc(c.title)}">${esc(c.title)}</span>
+    <span class="n">${c.attachments.length ? `<span class="clip" title="${c.attachments.length} attachment(s)">⧉</span>` : ""}${c.events.length}</span>
+  </button></li>`).join("") || `<li class="empty">No cases match.</li>`;
+}
+
+function renderCase() {
+  const c = current;
+  let lastDay = "";
+  const events = c.events.map(e => {
+    const day = fmtDate(e.ts), showDay = day !== lastDay;
+    lastDay = day;
+    return `<li class="ev ch-${kind(e.channel || "")}">
+      <div class="when">${showDay ? `<span class="d">${day}</span>` : ""}${e.ts.slice(11, 16)}<br>#${e.n}</div>
+      <div class="spine"></div>
+      <div class="card">
+        <div class="who"><b>${esc(e.from || "")}</b><span class="to">→ ${esc(e.to || "")}</span>
+          <span class="chip">${esc(e.channel || "")}</span>${e.stage ? `<span class="stage">${esc(e.stage)}</span>` : ""}</div>
+        <p class="text">${md(e.body)}</p>
+      </div></li>`;
+  }).join("");
+  const key = Object.entries(c.key);
+  $("file").innerHTML = `<div class="inner">
+    <header>
+      <div class="eyebrow">${esc(c.track)} · Case ${c.id}</div>
+      <h1>${esc(c.title)}</h1>
+      <dl class="meta">${Object.entries(c.details).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${md(v)}</dd></div>`).join("")}</dl>
+    </header>
+    <section><h2>Initial request</h2><p class="text request">${md(c.request)}</p></section>
+    ${c.context ? `<section><h2>Context</h2><p class="text">${md(c.context)}</p></section>` : ""}
+    ${key.length ? `<section class="key ${revealed ? "" : "locked"}">
+      <div class="key-head"><h2>Answer key</h2><button id="reveal" aria-expanded="${revealed}">${revealed ? "Hide" : "Reveal"}</button></div>
+      <div class="key-body">${key.map(([h, b]) => `<div><h3>${esc(h)}</h3><p class="text">${md(b)}</p></div>`).join("")}</div>
+    </section>` : ""}
+    <section><h2>History <span class="count">${c.events.length} events</span></h2><ol class="timeline">${events}</ol></section>
+    ${c.attachments.length ? `<section><h2>Attachments</h2><div class="files">${c.attachments.map(a =>
+      `<a href="${a.url}" target="_blank" rel="noopener">${esc(a.name)}</a>`).join("")}</div></section>` : ""}
+  </div>`;
+}
+
+function select(c) {
+  current = c;
+  try { history.replaceState(null, "", "#" + slug(c)); } catch {}
+  renderList(); renderCase();
+  $("file").scrollTop = 0;
+  document.querySelector('.list [aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+}
+
+$("tracks").onclick = e => {
+  const t = e.target.closest("button")?.dataset.t;
+  if (!t || t === track) return;
+  track = t; $("q").value = ""; renderTracks();
+  select(CASES.find(c => c.track === t));
+};
+$("list").onclick = e => {
+  const s = e.target.closest("button")?.dataset.s;
+  if (s) select(CASES.find(c => slug(c) === s));
+};
+$("q").oninput = renderList;
+$("file").onclick = e => { if (e.target.id === "reveal") { revealed = !revealed; renderCase(); } };
+document.onkeydown = e => {
+  if (e.target === $("q") || !["ArrowDown", "ArrowUp", "j", "k"].includes(e.key)) return;
+  const i = visible.indexOf(current) + (e.key === "ArrowDown" || e.key === "j" ? 1 : -1);
+  if (visible[i]) { e.preventDefault(); select(visible[i]); }
+};
+
+renderTracks(); renderList(); renderCase();
+</script>

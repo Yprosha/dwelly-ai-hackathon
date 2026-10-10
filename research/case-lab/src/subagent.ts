@@ -5,18 +5,25 @@ import { allCases, type Case } from "./cases.ts";
 import { agentBrief, caseFile, fsTool, renderMsg, visibleDocs, type Ctx } from "./casefs.ts";
 import { call, jsonPrompt, promptOf, render, type Call, type Kit } from "./llm.ts";
 
+// What a sub-agent did, in order: what it said between tool calls, the tools it called and what came back. Enough for
+// the UI to replay its work the way it shows the agent's own chat. The content of web pages is not kept.
+export type ToolStep = { name: string; input: unknown; result?: string; error?: boolean; links?: { title: string; url: string }[] };
+export type Step = { text: string } | ToolStep;
+
 export type SubagentRun = {
   id: string; // the agent's run_subagent tool_use id
   turn: number;
   instruction: string;
+  input: string; // what the sub-agent was shown
   report: string;
   error?: string; // why there is no report
-  steps: { name: string; input: unknown; result?: string }[]; // tool calls, in order
+  steps: Step[];
   calls: Call[];
   cost: number; ms: number;
 };
 
 const MAX_ROUNDS = 8; // model rounds per sub-agent; the last one has no tools, so it always ends in a report
+const MAX_KEEP = 30_000; // characters of one tool result kept in the trace
 const DEADLINE_MS = 300_000; // a sub-agent still working after this fails and the agent goes on without it
 const CASE_TOOLS = ["list_case", "read_case", "search_case"];
 
@@ -24,7 +31,7 @@ const CASE_TOOLS = ["list_case", "read_case", "search_case"];
 export async function runSubagent(ctx: Ctx, id: string, turn: number, instruction: string): Promise<SubagentRun> {
   const { kit, c, replay } = ctx;
   const t0 = Date.now();
-  const s: SubagentRun = { id, turn, instruction, report: "", steps: [], calls: [], cost: 0, ms: 0 };
+  const s: SubagentRun = { id, turn, instruction, input: "", report: "", steps: [], calls: [], cost: 0, ms: 0 };
   let late = false;
   const work = async () => {
     const tools = [...jsonPrompt<{ name: string }[]>(kit, "tools.json").filter((t) => CASE_TOOLS.includes(t.name)), ...jsonPrompt<unknown[]>(kit, "subagent.tools.json")];
@@ -38,18 +45,26 @@ export async function runSubagent(ctx: Ctx, id: string, turn: number, instructio
       instruction,
     });
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: user }];
+    s.input = user;
+    const pending = new Map<string, ToolStep>(); // server-side tool calls waiting for their result block
     for (let round = 1; round <= MAX_ROUNDS && !late; round++) {
       const { message, call: meta } = await call(kit, "subagent", { system, messages, tools, toolChoiceNone: round === MAX_ROUNDS });
       if (late) return; // timed out while this call was in flight: its result is dropped
       s.calls.push(meta);
       messages.push({ role: "assistant", content: message.content });
-      for (const b of message.content) if (b.type === "server_tool_use") s.steps.push({ name: b.name, input: b.input });
-      if (message.stop_reason === "refusal" || message.stop_reason === "max_tokens") throw new Error(`sub-agent stopped: ${message.stop_reason}`);
-      if (message.stop_reason === "pause_turn") continue; // a long server-side tool loop paused: sent again as is, it resumes
       const uses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+      const paused = message.stop_reason === "pause_turn";
+      // the report is the text after the last tool block of the last message; any text before that is said along the way
+      const last = message.content.findLastIndex((b) => b.type !== "text" && b.type !== "thinking" && b.type !== "redacted_thinking");
+      message.content.forEach((b, i) => {
+        const id = (b as { tool_use_id?: unknown }).tool_use_id;
+        if (b.type === "text") { if (b.text.trim() && (uses.length || paused || i < last)) s.steps.push({ text: b.text.trim() }); }
+        else if (b.type === "server_tool_use") { const t: ToolStep = { name: b.name, input: b.input }; s.steps.push(t); pending.set(b.id, t); }
+        else if (typeof id === "string" && pending.has(id)) Object.assign(pending.get(id)!, serverResult((b as { content?: unknown }).content));
+      });
+      if (message.stop_reason === "refusal" || message.stop_reason === "max_tokens") throw new Error(`sub-agent stopped: ${message.stop_reason}`);
+      if (paused) continue; // a long server-side tool loop paused: sent again as is, it resumes
       if (!uses.length) {
-        // the text after the last tool block, without any "I have enough" preamble
-        const last = message.content.findLastIndex((b) => b.type !== "text" && b.type !== "thinking" && b.type !== "redacted_thinking");
         s.report = message.content.slice(last + 1).flatMap((b) => (b.type === "text" ? [b.text] : [])).join("").trim();
         break;
       }
@@ -62,7 +77,7 @@ export async function runSubagent(ctx: Ctx, id: string, turn: number, instructio
             : u.name === "read_claim" ? readClaim(kit, others, String(input?.claim_id ?? ""))
             : await fsTool(ctx, u.name, input);
         } catch (e) { content = e instanceof Error ? e.message : String(e); failed = true; }
-        s.steps.push({ name: u.name, input, result: content.slice(0, 300) });
+        s.steps.push({ name: u.name, input, result: content.slice(0, MAX_KEEP), ...(failed ? { error: true } : {}) });
         results.push({ type: "tool_result", tool_use_id: u.id, content, ...(failed ? { is_error: true } : {}) });
       }
       messages.push({ role: "user", content: results });
@@ -81,6 +96,17 @@ export async function runSubagent(ctx: Ctx, id: string, turn: number, instructio
   s.cost = s.calls.reduce((a, x) => a + x.cost, 0);
   s.ms = Date.now() - t0;
   return s;
+}
+
+// What a server-side tool returned, reduced to what a reader needs: the pages a search found, the page a fetch opened,
+// what the code printed.
+function serverResult(c: any): Partial<ToolStep> {
+  const link = (x: any) => ({ title: String(x.title ?? x.content?.title ?? x.url), url: String(x.url) });
+  if (Array.isArray(c)) return { links: c.filter((x) => x?.url).map(link) };
+  if (c?.error_code) return { result: String(c.error_code), error: true };
+  if (c?.url) return { links: [link(c)] };
+  const out = [c?.stdout, c?.stderr].filter((s) => typeof s === "string" && s.trim()).join("\n");
+  return out ? { result: out.slice(0, 4000) } : {};
 }
 
 // The claims a sub-agent may read: every other claim, answers included, but never the one being worked on,

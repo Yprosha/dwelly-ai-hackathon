@@ -62,7 +62,7 @@ p { margin: 0; }
 
 /* body: claim list + claim */
 .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 270px minmax(0, 1fr); }
-.claims { border-right: 1px solid var(--border); overflow-y: auto; }
+.claims { overflow-y: auto; } /* the grip beside it draws the line */
 .claims .top { position: sticky; top: 0; background: var(--muted); padding: 10px 16px; font-weight: 500; z-index: 1; }
 .claim { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--fg); }
 .claim:hover { background: var(--muted); }
@@ -115,7 +115,7 @@ table.cmp td + td { width: 41%; }
 .panetop { flex: none; max-height: 50%; overflow-y: auto; display: grid; gap: 14px; }
 .split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); border-top: 1px solid var(--border); }
 .col { min-height: 0; overflow-y: auto; padding: 0 18px 60px 0; }
-.col + .col { border-left: 1px solid var(--border); padding-left: 18px; }
+.grip + .col { padding-left: 12px; } /* the grip between the columns draws the line */
 .colhead { position: sticky; top: 0; z-index: 1; background: var(--bg); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0 10px; }
 .colhead h2 { margin: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-fg); }
 .colhead .hint { color: var(--muted-fg); font-size: 12.5px; }
@@ -274,12 +274,39 @@ dialog::backdrop { background: rgb(0 0 0 / .35); }
 dialog .dh { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); }
 dialog .db { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 
+/* Resizable panes: the claims list and the emails column are dragged by their edge and hidden with the chevron on it
+   (double-click the edge to reset). Widths live on .app as --claims-w / --mail-w, see applyLayout in app.js. */
+.body { grid-template-columns: var(--claims-w, 270px) 11px minmax(0, 1fr); }
+.app.no-claims .body { grid-template-columns: 11px minmax(0, 1fr); }
+.app.no-claims .claims { display: none; }
+.split { grid-template-columns: minmax(0, 1fr) 11px var(--mail-w, minmax(0, 1fr)); }
+.app.no-mail .split { grid-template-columns: minmax(0, 1fr) 11px; }
+.app.no-mail #mailcol { display: none; }
+.grip { position: relative; cursor: col-resize; touch-action: none; background: linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat; }
+.grip:hover, .grip.drag { background: linear-gradient(var(--accent), var(--accent)) center / 3px 100% no-repeat; }
+.app.no-claims .grip[data-grip="claims"], .app.no-mail .grip[data-grip="mail"] { cursor: default; background-size: 1px 100%; }
+.grip button { position: absolute; top: 10px; left: 50%; translate: -50% 0; z-index: 2; width: 18px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--muted-fg); cursor: pointer; font: 600 14px/1 var(--sans); }
+.grip button:hover { color: var(--accent); border-color: var(--accent); }
+.grip[data-grip="claims"] button::before, .app.no-mail .grip[data-grip="mail"] button::before { content: "‹"; }
+.grip[data-grip="mail"] button::before, .app.no-claims .grip[data-grip="claims"] button::before { content: "›"; }
+.app.dragging { user-select: none; cursor: col-resize; }
+/* An adviser's trace in the chat column */
+.colhead .linkbtn.back { margin-left: 0; }
+.advtabs { flex: 0 0 100%; flex-wrap: wrap; }
+.app.wide .chat { max-width: none; }
+details.step.turnhead details.step.read .sl { color: var(--fg); font-size: 13.5px; font-weight: 400; letter-spacing: 0; text-transform: none; } /* advisers listed inside a turn header */
+.sl .linkbtn { margin-left: 8px; font-size: 12.5px; }
+.links { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
 @media (max-width: 900px) {
   .app { padding: 14px 16px 0; }
   .body, .fullbody, .settings { grid-template-columns: 1fr; }
   .claims, .keys, .files { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--border); }
   .pane, .fullpane, .editor { padding-left: 0; }
   .body { grid-template-rows: auto minmax(0, 1fr); } /* the claim keeps its own height, so chat and mailbox still scroll side by side */
+  .app.no-claims .body { grid-template-columns: 1fr; } /* the list sits above the claim here: nothing to drag or hide */
+  .app.no-claims .claims { display: block; }
+  .grip[data-grip="claims"] { display: none; }
   .claims { max-height: 26vh; }
   .grid2 { grid-template-columns: 1fr; }
   table.cmp td:first-child { width: auto; white-space: normal; }
@@ -290,6 +317,8 @@ dialog .db { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px
   .panetop { max-height: none; overflow: visible; }
   .split { display: block; margin-top: 16px; }
   .col { overflow: visible; padding: 0 0 24px; }
-  .col + .col { border-left: 0; border-top: 1px solid var(--border); padding-left: 0; }
+  .grip { display: none; }
+  .app.no-mail #mailcol { display: block; }
+  .grip + .col { border-top: 1px solid var(--border); padding-left: 0; }
   .colhead { position: static; }
 }

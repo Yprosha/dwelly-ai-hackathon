@@ -41,6 +41,58 @@ async function api(path, opts) {
 let poll, routeToken = 0, titles;
 const results = new Map(); // "<run>/<case>" -> finished result
 const mailbox = { side: "run", filter: "all" }; // kept across claims
+const adviser = { id: null, turn: 0, name: "" }; // the adviser whose trace is open in the chat column of claim <run>/<case>
+
+// Pane layout. The claims list and the emails column are dragged wider or narrower by their edge and hidden with the
+// chevron on it; a double-click on the edge resets the width. Kept across claims and reloads.
+const GRIP = { claims: { min: 160, rest: 480, hide: "Hide the claims list", show: "Show the claims list" }, mail: { min: 260, rest: 320, hide: "Hide the emails", show: "Show the emails" } };
+const layout = (() => { try { return JSON.parse(localStorage.getItem("caselab.layout")) ?? {}; } catch { return {}; } })();
+function applyLayout(save = true) {
+  for (const k of Object.keys(GRIP)) {
+    app.classList.toggle(`no-${k}`, Boolean(layout[`${k}Hidden`]));
+    if (layout[k]) app.style.setProperty(`--${k}-w`, `${layout[k]}px`); else app.style.removeProperty(`--${k}-w`);
+    app.classList.toggle("wide", Boolean(layout.mail || layout.mailHidden)); // the chat then fills its column
+    app.querySelectorAll(`.grip[data-grip="${k}"] button`).forEach((b) => { b.title = GRIP[k][layout[`${k}Hidden`] ? "show" : "hide"]; b.setAttribute("aria-label", b.title); });
+  }
+  if (save) try { localStorage.setItem("caselab.layout", JSON.stringify(layout)); } catch { /* private mode: the layout lasts for this page only */ }
+}
+const grip = (k) => `<div class="grip" data-grip="${k}" role="separator" aria-orientation="vertical" title="Drag to resize · double-click to reset"><button type="button"></button></div>`;
+app.addEventListener("pointerdown", (e) => {
+  const g = e.target.closest(".grip");
+  if (!g || e.target.closest("button") || layout[`${g.dataset.grip}Hidden`]) return;
+  const k = g.dataset.grip, box = g.parentElement.getBoundingClientRect();
+  e.preventDefault();
+  g.setPointerCapture(e.pointerId);
+  g.classList.add("drag");
+  app.classList.add("dragging");
+  const move = (ev) => {
+    const w = k === "claims" ? ev.clientX - box.left - 5 : box.right - ev.clientX - 5; // the grip is 11px wide
+    layout[k] = Math.round(Math.max(GRIP[k].min, Math.min(w, box.width - GRIP[k].rest)));
+    applyLayout(false);
+  };
+  const up = () => {
+    g.classList.remove("drag");
+    app.classList.remove("dragging");
+    g.removeEventListener("pointermove", move);
+    applyLayout();
+  };
+  g.addEventListener("pointermove", move);
+  g.addEventListener("pointerup", up, { once: true });
+  g.addEventListener("pointercancel", up, { once: true });
+});
+app.addEventListener("click", (e) => {
+  const b = e.target.closest(".grip button");
+  if (!b) return;
+  const k = b.parentElement.dataset.grip;
+  layout[`${k}Hidden`] = !layout[`${k}Hidden`];
+  applyLayout();
+});
+app.addEventListener("dblclick", (e) => {
+  const g = e.target.closest(".grip");
+  if (!g || e.target.closest("button")) return;
+  delete layout[g.dataset.grip];
+  applyLayout();
+});
 
 window.addEventListener("hashchange", route);
 document.addEventListener("keydown", (e) => {
@@ -143,9 +195,11 @@ async function renderSimple(runs, run, key, tab) {
     <div class="score">${scoreSimple(run)}</div>
     <div class="body">
       <nav class="claims" aria-label="Claims">${claimRows(run, key, tab)}</nav>
+      ${grip("claims")}
       <section class="pane" id="pane"></section>
     </div>`;
   if (keep) document.querySelector(".claims").scrollTop = keep;
+  applyLayout(false);
   bindRunSelect("simple");
   const pane = document.getElementById("pane");
   const sum = run.cases[key];
@@ -190,11 +244,32 @@ async function renderSimple(runs, run, key, tab) {
       </details>
     </div>
     <div class="split">
-      <section class="col" id="chatcol" aria-label="Agent chat">${chat(run, r)}</section>
+      <section class="col" id="chatcol" aria-label="Agent chat"></section>
+      ${grip("mail")}
       <section class="col" id="mailcol" aria-label="Emails"></section>
     </div>`;
+  applyLayout(false);
   const chatcol = document.getElementById("chatcol"), mailcol = document.getElementById("mailcol");
-  bindChat(chatcol);
+  // The chat column shows the agent's chat, or one adviser's own trace in the same form (opened from an Advisers fold).
+  const id = `${run.id}/${key}`;
+  let back = null; // the agent chat as it was left: scroll position and which folds were open
+  const drawChat = () => {
+    const a = adviser.id === id ? adviceOf(r, adviser.turn) : null, p = a?.proposals.find((x) => x.name === adviser.name);
+    chatcol.innerHTML = p ? adviserChat(r, a, p) : chat(run, r);
+    bindChat(chatcol);
+    return Boolean(p);
+  };
+  chatcol.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-adviser]");
+    if (!b) return;
+    e.preventDefault(); // inside a fold's summary: open the trace, do not toggle the fold
+    const [turn, name] = b.dataset.adviser.split(":");
+    if (adviser.id !== id) back = { top: chatcol.scrollTop, open: [...chatcol.querySelectorAll("details")].map((d) => d.open) };
+    Object.assign(adviser, name ? { id, turn: Number(turn), name } : { id: null, turn: 0, name: "" });
+    if (drawChat()) chatcol.scrollTop = 0;
+    else if (back) { chatcol.querySelectorAll("details").forEach((d, i) => (d.open = Boolean(back.open[i]))); chatcol.scrollTop = back.top; }
+  });
+  drawChat();
   const link = linkPanes(chatcol, mailcol, r, () => redraw());
   const redraw = drawMailbox(mailcol, r, c, handler, link.remark);
 }
@@ -320,10 +395,35 @@ const pad3 = (n) => String(n).padStart(3, "0");
 const linkAttr = (ns, origin) => (ns.length ? ` data-ns="${ns.join(",")}"${origin ? ' data-origin="1"' : ""}` : "");
 const refChips = (ns) => ns.slice(0, 4).map((n) => `<span class="ref">#${pad3(n)}</span>`).join("") + (ns.length > 4 ? `<span class="ref">+${ns.length - 4}</span>` : "");
 
+// The council's sitting before an agent turn (absent in runs without advisers), and that turn's input without the
+// proposals that were appended to it.
+const adviceOf = (r, turn) => (r.advice ?? []).find((a) => a.turn === turn);
+const ownInput = (r, turn, content) => { const a = adviceOf(r, turn); return a && content.endsWith(a.text) ? content.slice(0, -a.text.length) : content; };
+const toolSteps = (p) => p.steps.filter((s) => s.name); // the trace also holds what the adviser said along the way
+const toolCount = (p) => Object.entries(toolSteps(p).reduce((t, s) => ({ ...t, [s.name]: (t[s.name] ?? 0) + 1 }), {})).map(([n, k]) => `${n} ×${k}`).join(", ");
+
+function council(a) {
+  const ok = a.proposals.filter((p) => p.status === "ok").length;
+  const open = (p, label) => `<button type="button" class="linkbtn" data-adviser="${a.turn}:${esc(p.name)}">${label}</button>`;
+  const rows = a.proposals.map((p) => `<details class="step read"><summary><span class="si">${ICON.search}</span><span class="sl"><b>${esc(p.title)}</b>${p.status === "ok" ? "" : '<span class="fail">no proposal</span>'} ${open(p, "trace ›")}</span><span class="sx">${esc(p.status === "ok" ? p.proposal.replace(/^PROPOSAL\s*/, "").replace(/^Next steps:\s*/i, "").split("\n").map((l) => l.trim()).find(Boolean) ?? "" : p.note)}</span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(p.status === "ok" ? p.proposal : p.note)}</div><div class="meta">${esc(p.preset)}${toolSteps(p).length ? ` · ${esc(toolCount(p))}` : ""} · ${money(p.cost)} · ${dur(p.ms)} · ${open(p, "Open the adviser's trace")}</div></div></details>`).join("");
+  return `<details class="step turnhead"><summary><span class="si">${ICON.folder}</span><span class="sl">Advisers · ${ok} of ${a.proposals.length} proposals</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb">${rows}</div></details>`;
+}
+
 // What a run_subagent call did behind its tool result (absent in runs made before sub-agents).
 const subOf = (r, b) => (b.name === "run_subagent" ? (r.agent.subagents ?? []).find((s) => s.id === b.id) : undefined);
-const toolCount = (s) => Object.entries(s.steps.reduce((t, x) => ({ ...t, [x.name]: (t[x.name] ?? 0) + 1 }), {})).map(([n, k]) => `${n} ×${k}`).join(", ");
-const subMeta = (s) => [s.calls[0]?.preset, `${s.calls.length} calls`, s.steps.length && toolCount(s), money(s.cost), dur(s.ms)].filter(Boolean).map(esc).join(" · ");
+const subMeta = (s) => [s.calls[0]?.preset, `${s.calls.length} calls`, toolSteps(s).length && toolCount(s), money(s.cost), dur(s.ms)].filter(Boolean).map(esc).join(" · ");
+
+// One adviser's work before an agent turn, drawn like the agent's own chat: what it was asked, each tool call as a
+// step, what it said along the way, and its proposal. Runs made before traces were kept have the tool calls only,
+// with results cut short.
+function adviserChat(r, a, p) {
+  const say = (html) => `<div class="row"><span class="ai">AI</span><div class="md">${html}</div></div>`;
+  const out = [`<details class="step turnhead"><summary><span class="si">${ICON.bolt}</span><span class="sl">Asked before turn ${a.turn}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb">${p.input ? `<div class="md">${md(p.input.replace(/\n---\n/g, "\n\n---\n\n"))}</div>` : '<div class="meta">This run did not keep what the adviser was shown.</div>'}</div></details>`];
+  for (const s of p.steps) out.push(s.name ? step({ name: s.name, input: s.input, links: s.links }, { content: s.result ?? "", is_error: s.error }, r) : say(md(s.text)));
+  out.push(say(p.status === "ok" ? md(p.proposal) : `<b>No proposal.</b> ${esc(p.note)}`));
+  const tabs = a.proposals.map((q) => `<button type="button" data-adviser="${a.turn}:${esc(q.name)}" class="${q === p ? "on" : ""}">${esc(q.title)}</button>`).join("");
+  return `<div class="colhead"><button type="button" class="linkbtn back" data-adviser="">‹ Agent chat</button><h2>${esc(p.title)}</h2><span class="hint">adviser before turn ${a.turn} · ${esc(p.preset)} · ${money(p.cost)} · ${dur(p.ms)}</span><button class="linkbtn" id="toggleAll">Expand all</button><div class="pills advtabs">${tabs}</div></div><div class="chat">${out.join("")}</div>`;
+}
 
 function chat(run, r) {
   const silence = run.kit.prompts["agent.silence.md"], answerAsk = run.kit.prompts["agent.answer.md"];
@@ -342,10 +442,11 @@ function chat(run, r) {
     }
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
-      const own = m.content;
+      const own = ownInput(r, turn, m.content), adv = adviceOf(r, turn); // advisers: runs made before sub-agents
       const label = turn === 1 ? (r.start === "escalation" ? "Picked up at the escalation point" : "New case") : own === silence ? "No replies" : "New messages";
       const ns = [...own.matchAll(/^\/messages\/(\d+)$/gm)].map((x) => Number(x[1])); // the messages this turn handed to the agent
       out.push(`<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(own.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
+      if (adv) out.push(council(adv));
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "text" && b.text.trim()) out.push(`<div class="row"><span class="ai">AI</span><div class="md">${md(b.text)}</div></div>`);
@@ -375,10 +476,20 @@ function step(b, res, r) {
     `${off || partly ? `<div class="why${partly ? " soft" : ""}">${esc(off || "Partly unavailable")}: ${esc(msg.reason)}</div>` : ""}<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
   if (b.name === "add_note") return row("note", ICON.note, "<b>Added a note</b>", firstLine(x.body), `<div class="md">${md(x.body)}</div>`);
   if (b.name === "close_case") return row("close", ICON.done, "<b>Closed the case</b>", firstLine(x.outcome), `<div class="md">${md(x.outcome)}</div>`);
-  if (b.name === "run_subagent") { const s = subOf(r, b); return row("read", ICON.search, "<b>Sub-agent</b>", firstLine(x.instruction), `<div class="md"><p><b>Task</b></p>${md(x.instruction)}<p><b>Report</b></p>${md(result)}</div>${s ? `<div class="meta">${subMeta(s)}</div>` : ""}`); }
+  if (b.name === "run_subagent") { const s = subOf(r, b); const work = (s?.steps ?? []).map((t) => (t.name ? step({ name: t.name, input: t.input, links: t.links }, { content: t.result ?? "", is_error: t.error }, r) : `<div class="row"><span class="ai">AI</span><div class="md">${md(t.text)}</div></div>`)).join("");
+    return row("read", ICON.search, "<b>Sub-agent</b>", firstLine(x.instruction), `<div class="md"><p><b>Task</b></p>${md(x.instruction)}</div>${work}<div class="md"><p><b>Report</b></p>${md(result)}</div>${s ? `<div class="meta">${subMeta(s)}</div>` : ""}`); }
   if (b.name === "read_case") return row("read", ICON.file, `Read <code>${esc(x.path)}</code>`, "", /^\/messages\//.test(x.path) ? `<pre class="plain">${esc(result)}</pre>` : `<div class="md">${md(result)}</div>`);
   if (b.name === "list_case") return row("read", ICON.folder, `Listed <code>${esc(x.path || "/")}</code>`, "", `<pre>${esc(result)}</pre>`);
   if (b.name === "search_case") return row("read", ICON.search, `Searched for <code>${esc(x.pattern)}</code>`, "", `<pre>${esc(result)}</pre>`);
+  // a query or an address can be long: it goes in the preview, which is cut to fit, and in full in the body
+  const asked = (q) => `<div class="meta">${esc(q)}</div>`;
+  if (b.name === "search_claims") return row("read", ICON.search, "Searched other claims", x.query, `${asked(x.query)}<pre>${esc(result)}</pre>`);
+  if (b.name === "read_claim") return row("read", ICON.file, `Read claim <code>${esc(x.claim_id)}</code>`, "", `<div class="md">${md(result)}</div>`);
+  const links = (b.links ?? []).map((l) => `<li><a href="${/^https?:\/\//.test(l.url) ? esc(l.url) : "#"}" target="_blank" rel="noopener noreferrer">${esc(l.title)}</a> <span class="muted">${esc(l.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0])}</span></li>`).join("");
+  const found = links ? `<ul class="links">${links}</ul>` : "";
+  if (b.name === "web_search") return row("read", ICON.search, "Searched the web", x.query, asked(x.query) + (found || `<pre>${esc(result || "The results were not kept.")}</pre>`));
+  if (b.name === "web_fetch") return row("read", ICON.file, "Opened a page", x.url, asked(x.url) + (found || `<pre>${esc(result || "The page content is not kept.")}</pre>`));
+  if (/code_execution$/.test(b.name)) return row("read", ICON.file, "Ran code", firstLine(x.code ?? x.command), `<pre>${esc(x.code ?? x.command ?? JSON.stringify(x, null, 2))}</pre>${result ? `<pre>${esc(result)}</pre>` : ""}`);
   return row("read", ICON.file, esc(b.name), "", `<pre>${esc(JSON.stringify(x, null, 2))}</pre><pre>${esc(result)}</pre>`);
 }
 
@@ -464,7 +575,10 @@ function traceTab(run, r) {
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
       if (m.content === run.kit.prompts["agent.answer.md"]) { turn--; out.push(`<div class="turn"><span class="lbl">Answer</span><span class="muted">agent.answer.md</span></div>`); continue; }
-      out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : m.content === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
+      out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : ownInput(r, turn, m.content) === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
+      const adv = adviceOf(r, turn);
+      if (adv) out.push(`<div class="round">advisers before this turn · ${adv.proposals.filter((p) => p.status === "ok").length}/${adv.proposals.length} proposals · ${money(adv.proposals.reduce((t, p) => t + p.cost, 0))} · their proposals are appended to the input above</div>`,
+        ...adv.proposals.map((p) => `<details class="box"><summary><b>${esc(p.title)}</b><span class="x">${esc(p.name)} · ${esc(p.preset)} · ${p.calls.length} calls${toolSteps(p).length ? ` · ${esc(toolCount(p))}` : ""} · ${money(p.cost)} · ${dur(p.ms)}</span>${p.status === "ok" ? "" : `<span class="chip bad">no proposal</span>`}</summary><div class="io"><pre>${esc(p.status === "ok" ? p.proposal : p.note)}</pre></div>${toolSteps(p).length ? `<div class="io"><span class="lbl">Tool calls</span><pre>${esc(toolSteps(p).map((s) => `${s.name} ${JSON.stringify(s.input)}${s.result ? `\n  → ${s.result.replace(/\s+/g, " ").slice(0, 160)}` : ""}`).join("\n"))}</pre></div>` : ""}</details>`));
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "thinking" && b.thinking) out.push(`<div class="thinking">${esc(b.thinking)}</div>`);
@@ -473,7 +587,7 @@ function traceTab(run, r) {
           const x = res.get(b.id), i = b.input || {};
           const brief = i.path ?? i.pattern ?? (i.to ? `to ${i.to}: ${i.body ?? ""}` : (i.body ?? i.outcome ?? i.instruction ?? ""));
           const s = subOf(r, b);
-          const steps = s ? `<div class="io"><span class="lbl">Sub-agent · ${subMeta(s)}</span>${s.steps.length ? `<pre>${esc(s.steps.map((t) => `${t.name} ${JSON.stringify(t.input)}${t.result ? `\n  → ${t.result.replace(/\s+/g, " ").slice(0, 160)}` : ""}`).join("\n"))}</pre>` : ""}</div>` : "";
+          const steps = s ? `<div class="io"><span class="lbl">Sub-agent · ${subMeta(s)}</span>${toolSteps(s).length ? `<pre>${esc(toolSteps(s).map((t) => `${t.name} ${JSON.stringify(t.input)}${t.result ? `\n  → ${t.result.replace(/\s+/g, " ").slice(0, 160)}` : ""}`).join("\n"))}</pre>` : ""}</div>` : "";
           const content = typeof x?.content === "string" ? x.content : JSON.stringify(x?.content ?? "(no result)");
           out.push(`<details class="box"><summary><b class="mono">${esc(b.name)}</b><span class="x">${esc(String(brief).replace(/\s+/g, " ").slice(0, 300))}</span>${x?.is_error ? `<span class="chip bad">error</span>` : ""}</summary><div class="io">${fields(i) || '<span class="muted">no input</span>'}</div><div class="io"><span class="lbl">Result</span><pre class="${x?.is_error ? "err" : ""}">${esc(content)}</pre></div>${steps}</details>`);
         }

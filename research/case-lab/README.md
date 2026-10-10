@@ -16,7 +16,7 @@ Then open http://localhost:5177.
 
 The UI has two modes, like Sophie Lab:
 
-- **Simple** is for reviewing. It has a scorecard, the claim list, an "Agent vs the real claim" fold, an Emails mailbox (this run or the real claim) and the agent's Chat.
+- **Simple** is for reviewing. It has a scorecard, the claim list, an "Agent vs the real claim" fold, an Emails mailbox (this run or the real claim) and the agent's Chat. The claims list and the Emails column can be dragged by their edge or hidden with the chevron on it (double-click the edge to reset), to give the chat more room.
 - **Full** is for building. It has the agent trace with thinking and tokens, simulator turns, judge details, a side-by-side replay, run config, New run, and Prompts & settings.
 
 To run from the terminal instead (runs show up in the UI either way):
@@ -67,7 +67,7 @@ The agent can hand any task to a sub-agent with the `run_subagent` tool. It writ
 - On by default (`subagents` in `config/settings.json`). Turn it off in **Full → New run** or with `--no-subagents`; the tool is then not offered at all. The model preset is the `subagent` role.
 - Prompts: `prompts/subagent.system.md`, `prompts/subagent.user.md`. Tools: the agent's read-only case tools plus `prompts/subagent.tools.json` (the web tools cannot use GitHub: `blocked_domains`).
 - A sub-agent that fails or is still working after five minutes comes back to the agent as a tool error.
-- In the UI, Simple shows each call as a **Sub-agent** step in the agent chat. Full → Agent trace shows its task, report, tool calls, cost and time.
+- In the UI, Simple shows each call as a **Sub-agent** step in the agent chat: its task, its work drawn like the agent's (case files, other claims, web searches with the pages they found), its report, cost and time. Full → Agent trace lists the same with its tool calls. Runs made with the earlier advisory council still show their **Advisers** folds and traces.
 
 ## Where things live
 

@@ -365,7 +365,7 @@ function drawMailbox(box, r, c, handler, onDraw) {
     flag: OFF[m.verdict] ? { label: OFF[m.verdict], reason: m.reason } : m.quotes?.length ? { label: "Partly unavailable", reason: m.reason, soft: true } : undefined,
   }, { n: m.n }) }));
   const realItems = c.events.map((e) => ({ after: e.n > r.takeover, ...item(isNote(e.channel) ? "note" : handler.includes(e.from) ? "sent" : "inbox", {
-    from: e.from, to: e.to, body: e.body, attachments: c.attachments.filter((a) => a.firstEvent === e.n).map((a) => a.name), time: day(e.ts),
+    from: e.from, to: e.to, subject: e.subject, body: e.body, attachments: c.attachments.filter((a) => a.firstEvent === e.n).map((a) => a.name), time: day(e.ts),
   }, { e: e.n }) }));
   const expected = c.answer["Next action at escalation"];
   const cut = (side) => `<div class="cutline" role="separator"><b>${r.start === "escalation" ? "Escalation point" : "Agent takes over"}</b>
@@ -716,7 +716,7 @@ async function renderNew() {
       </fieldset>
       <fieldset><legend>Loop</legend>
         <div class="fields">
-          <label>Agent is told from the case card (index.md)<select id="caseCard">${[["none", "Nothing: only who it is"], ["record", "Who it is, plus broker, insurer and property"], ["full", "The whole card: title, details, request"]].map(([v, l]) => `<option value="${v}" ${v === (settings.caseCard ?? "full") ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          <label>Case context (initial request is always included)<select id="caseCard">${[["none", "Identity and initial request"], ["record", "Plus broker, insurer and property"], ["full", "The whole card: title, details, request"]].map(([v, l]) => `<option value="${v}" ${v === (settings.caseCard ?? "full") ? "selected" : ""}>${l}</option>`).join("")}</select></label>
           <label>Agent starts<select id="startAt">${[["escalation", "At the escalation point (config/escalation.json)"], ["opening", "At the opening (the simulator opens the claim)"]].map(([v, l]) => `<option value="${v}" ${v === (settings.startAt ?? "opening") ? "selected" : ""}>${l}</option>`).join("")}</select></label>
           <label>Seed events (0: start as chosen; N: hand over the first N real events instead)<input id="seedEvents" type="number" min="0" value="${settings.seedEvents}"></label>
           <label>Max world turns<input id="maxWorldTurns" type="number" min="0" value="${settings.maxWorldTurns}"></label>

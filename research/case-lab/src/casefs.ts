@@ -1,5 +1,5 @@
 // The case as the agent sees it: a read-only virtual file system rebuilt from the replay on every tool call.
-//   /case            who the agent is on this case (settings.caseCard decides whether anything from index.md is added)
+//   /case            the customer request and who the agent is (settings.caseCard controls additional context)
 //   /messages/NNN    everything received and sent so far, numbered in order
 //   /documents/NAME  attachments delivered so far, as extracted text
 import Anthropic from "@anthropic-ai/sdk";
@@ -43,15 +43,13 @@ export function caseFile(kit: Kit, c: Case): string {
   return [`# ${c.title}`, details, `## Initial request\n\n${c.request}`, c.context && `## Context\n\n${c.context}`].filter(Boolean).join("\n\n");
 }
 
-// What the agent is told about the case besides its messages. index.md is the case card written after the case
-// closed: its title, request summary and details give things away that the handler did not have in front of them
-// at the escalation point (the insurer's name is absent from the visible history in about half the cases). So by
-// default the agent only learns who it is. The simulator and the judge always get the full card (caseFile).
+// The initial request is task input in every mode. Keep the retrospective title, context and outcome out of
+// none/record briefs; record adds the broker, insurer and property. Graders get the full card (caseFile).
 export function agentBrief(kit: Kit, c: Case): string {
   const mode = kit.settings.caseCard ?? "full"; // kits saved before this setting showed the whole card
   if (mode === "full") return caseFile(kit, c);
   const me = [...handlerNames(c)].sort((a, b) => b.length - a.length)[0] ?? c.details.Broker ?? "the broker";
-  const who = `You are handling this case as ${me}.`;
+  const who = `You are handling this case as ${me}.\n\n## Initial request\n\n${c.request || "(not provided)"}`;
   if (mode !== "record") return who;
   const record = ["Broker", "Insurer", "Property"].filter((k) => c.details[k]).map((k) => `- ${k}: ${c.details[k]}`).join("\n");
   return `${who}\n\nOn record:\n${record}`;
@@ -146,7 +144,7 @@ export async function fsTool(ctx: Ctx, name: string, input: any): Promise<string
     const p = norm(input?.path);
     if (p === "/") return "/case\n/messages/\n/documents/";
     if (p === "/messages") return replay.map((x) => `/messages/${pad(x.n)}  ${x.channel} · ${x.from} → ${x.to}`).join("\n") || "(empty)";
-    if (p === "/documents") return docs.map((x) => `/documents/${x}`).join("\n") || "(empty)";
+    if (p === "/documents") return docs.map((x) => `/documents/${x}`).join("\n") || "No documents are available here. Other brokerage records may exist; ask the relevant internal team through send_message if needed.";
     throw new Error(`NOT_FOUND: ${p} is not a directory. Directories: /, /messages, /documents.`);
   }
   if (name === "read_case") {

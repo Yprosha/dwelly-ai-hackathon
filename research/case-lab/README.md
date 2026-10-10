@@ -32,7 +32,7 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 ## Cases
 
 - **Public claims** (50): the Insurance Claims Processing cases, with a real history after the escalation point that the simulator replays.
-- **Synthetic eval cases** (22, `eval-101`…`eval-113` hard, `eval-201`…`eval-209` complex): read from `eval/cases` (`EVAL_CASES_DIR`). Their history ends at the escalation point, so the agent gets all of it, writes its answer and stops; there is no simulated future and no judge. The reviewer grades the answer against the case's `expected_answer.md` (complex set) and `rubric.json`. Neither file is ever shown to the agent.
+- **Synthetic eval cases** (44: `eval-001`…`eval-022` rehearsal, `eval-101`…`eval-113` hard, `eval-201`…`eval-209` complex): read from `eval/cases` (`EVAL_CASES_DIR`). Their history ends at the escalation point, so the agent gets all of it, writes its answer and stops; there is no simulated future and no judge. The reviewer grades the answer against the case's `expected_answer.md` (complex set) and `rubric.json`. Neither file is ever shown to the agent.
 - Splits in `config/splits.json`: `holdout`, `dev`, `synthetic`; `--split all` runs everything.
 
 ## How a case runs
@@ -42,7 +42,7 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
    - Set `seedEvents` to N to hand over the first N real events, whatever `startAt` says.
 2. **Agent turn.** The agent reads the case through `list_case`, `read_case` and `search_case`, then acts with `send_message`, `add_note` or `close_case`. Ending its turn without a tool call means "wait for replies".
    - The case is exposed as files: `/case`, `/messages/NNN`, and `/documents/NAME` (attachments as text).
-   - The agent is not shown the case card (`index.md`): it was written after the case closed, and its title, request summary and details give away things the handler did not have in the history yet. `/case` only says who the agent is. `caseCard` in settings can add the broker, insurer and property on record (`record`) or the whole card (`full`); the simulator and the judge always get the whole card.
+   - `/case` always includes the **Initial request** and the agent's identity. `caseCard` in settings adds broker, insurer and property (`record`) or the whole card (`full`). The retrospective title, context and answer sections stay out of `none`/`record` briefs. Message subjects are preserved. Missing local attachments do not establish that the brokerage has no records; the agent can ask an internal team through `send_message`.
    - PDFs and images are transcribed by Claude on first read and cached in `cache/extracted/`.
    - **The answer.** Right after its first turn, still at the escalation point and before any reply, the agent writes its answer the way the case file records it: **Overview** and **Next action at escalation** (`prompts/agent.answer.md`). Each answer is saved as `runs/<id>/answers/<key>.md`.
 3. **World turn.** The simulator plays everyone except the handler. It follows the real history, adapts it to what the agent actually wrote, and stays silent when the real parties had nothing left to say.
@@ -63,6 +63,8 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 ## Sub-agents
 
 The agent can hand any task to a sub-agent with the `run_subagent` tool. It writes the instruction itself; nothing is predefined. The tool description gives a few examples: a reviewer for a draft, a policy-wording searcher, a web precedent search, a simplifier. A sub-agent sees the case as it stands. It can read it, search and read the other claims in the database (never the one being worked on), and use web search and fetch. It reports back as the tool result and never acts. Several `run_subagent` calls in one response run in parallel.
+
+The main agent checks completeness before acting and before every final answer, including simple cases. For complex or uncertain cases, one sub-agent derives required actions from the case without the main agent's plan; another reviews the full proposed action set. Research addresses a named uncertainty. The main agent waits for relevant reviews and verifies findings against the evidence. Each successful tool reply includes `prompts/subagent.result.md`, asking it to record whether each material finding was acted on, deferred with a dependency or rejected with a reason. These are model instructions, not an execution gate; the main agent remains the final decision-maker and answer author.
 
 - On by default (`subagents` in `config/settings.json`). Turn it off in **Full → New run** or with `--no-subagents`; the tool is then not offered at all. The model preset is the `subagent` role.
 - Prompts: `prompts/subagent.system.md`, `prompts/subagent.user.md`. Tools: the agent's read-only case tools plus `prompts/subagent.tools.json` (the web tools cannot use GitHub: `blocked_domains`).

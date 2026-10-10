@@ -1,8 +1,8 @@
 // npm run check: the smallest checks that fail if the parser or the grounding guard breaks.
 import assert from "node:assert/strict";
 import { allCases, getCase, handlerNames } from "./cases.ts";
-import { agentBrief, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
-import { ground, seed } from "./simulator.ts";
+import { agentBrief, fsTool, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
+import { ground, renderEvent, seed } from "./simulator.ts";
 import { loadEnv, loadKit, promptOf } from "./llm.ts";
 import { otherClaims, readClaim, searchClaims } from "./subagent.ts";
 import { checkPanel } from "./panel.ts";
@@ -12,9 +12,10 @@ loadEnv();
 const cases = allCases().filter((k) => !k.synthetic); // the public claims
 assert.equal(cases.length, 50);
 assert.ok(cases.every((c) => c.key.startsWith("insurance-")));
-// the synthetic eval sets: hard 101-113 and complex 201-209, each graded against a rubric (and a gold answer from 201)
+// All rehearsal sets: 001-022, hard 101-113 and complex 201-209, each graded against a rubric.
 const syn = allCases().filter((k) => k.synthetic);
-assert.equal(syn.length, 22);
+assert.equal(syn.length, 44);
+assert.ok(syn.some((k) => k.key === "eval-001") && syn.some((k) => k.key === "eval-022"));
 assert.ok(syn.every((k) => k.key.startsWith("eval-") && k.reference.next_action && k.reference.full.includes("## Grading rubric")));
 assert.ok(getCase("eval-201").reference.full.includes("## Expected answer"));
 const c = getCase("insurance-032");
@@ -46,11 +47,30 @@ for (const k of cases) {
 const s9 = getCase("insurance-039"), replay9: Msg[] = [];
 seed({ kit: {} as Ctx["kit"], c: s9, replay: replay9, handler: handlerNames(s9), extract: [] }, 3);
 assert.deepEqual(replay9.map((m) => [m.follows[0], m.author, m.turn]), [[1, "world", 0], [2, "world", 0], [3, "handler", 0]]);
-// by default the agent learns who it is and nothing else from the case card: no title, no insurer, no request summary
-const kit9 = loadKit({ caseCard: "none" });
-assert.equal(agentBrief(kit9, getCase("insurance-009")), "You are handling this case as Josh, Heathmere Brokers.");
-assert.ok(cases.every((k) => { const b = agentBrief(kit9, k); return !b.includes(k.title) && !b.includes(k.details.Insurer) && !b.includes(k.request.slice(0, 40)); }));
+// The customer request must survive every context mode; retrospective context and answers stay hidden.
+for (const caseCard of ["none", "record", "full"] as const) {
+  const kit = loadKit({ caseCard });
+  assert.ok(allCases().every((k) => agentBrief(kit, k).includes(k.request)), `${caseCard}: missing initial request`);
+  const fixture = { ...c, title: "HIDDEN_TITLE", request: "CUSTOMER_REQUEST", context: "HIDDEN_CONTEXT", answer: { Overview: "HIDDEN_OUTCOME" } };
+  const brief = agentBrief(kit, fixture);
+  assert.ok(!brief.includes("HIDDEN_OUTCOME"));
+  if (caseCard !== "full") assert.ok(!brief.includes("HIDDEN_TITLE") && !brief.includes("HIDDEN_CONTEXT"));
+}
 assert.ok(agentBrief(loadKit({ caseCard: "record" }), getCase("insurance-009")).includes("- Insurer: Alderfen Mutual"));
+// The incorrect subject in 108 is decision evidence: preserve it from parsing through handover and tools.
+const c108 = getCase("eval-108"), subject = "Re: CLM-30516 — 22 Mill Lane";
+assert.equal(c108.events[3].subject, subject);
+const ctx108: Ctx = { kit: loadKit(), c: c108, replay: [], handler: handlerNames(c108), extract: [] };
+seed(ctx108, 4);
+assert.equal(ctx108.replay[3].subject, subject);
+assert.equal(ctx108.replay[3].body, c108.events[3].body);
+assert.ok(renderMsg(ctx108.replay[3]).includes(`subject: ${subject}`));
+assert.ok(renderEvent(c108, c108.events[3]).includes(`subject: ${subject}`));
+assert.ok((await fsTool(ctx108, "read_case", { path: "/messages/004" })).includes(subject));
+assert.ok((await fsTool(ctx108, "search_case", { path: "/messages", pattern: "CLM-30516" })).includes(subject));
+const ctx7: Ctx = { kit: loadKit(), c: getCase("insurance-007"), replay: [], handler: handlerNames(getCase("insurance-007")), extract: [] };
+seed(ctx7, 1);
+assert.match(await fsTool(ctx7, "list_case", { path: "/documents" }), /Other brokerage records may exist/);
 // sub-agents: their prompts exist and the user prompt's variables are the ones runSubagent fills; the claims search
 // finds the obvious precedent and never the case being worked on (the caller hands it every claim but that one)
 const kitA = loadKit();
@@ -62,6 +82,7 @@ assert.match(searchClaims(cases, "unoccupied between tenancies"), /^\[insurance-
 assert.ok(!searchClaims(others, "unoccupied between tenancies").includes("insurance-017"));
 assert.match(searchClaims(others, "zzzqqq"), /^No claim found/);
 assert.ok(readClaim(kitA, others, "016").includes("## Outcome") && readClaim(kitA, others, "insurance-016").includes("--- event 1 "));
+assert.ok(readClaim(kitA, otherClaims(c), "eval-108").includes(`subject: ${subject}`));
 assert.throws(() => readClaim(kitA, others, "insurance-017"), /NOT_FOUND/);
 // the preset panel: every member in config/panel.json has its prompt, and the templates take what sitPanel fills
 assert.ok(Object.keys(kitA.panel).length > 0 && !kitA.settings.panel?.length);

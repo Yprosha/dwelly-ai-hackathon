@@ -15,7 +15,7 @@ export type WorldTurn = { turn: number; pending: number[]; delivered: number[]; 
 
 export function renderEvent(c: Case, e: Event): string {
   const att = eventAttachments(c, e);
-  return [`--- event ${e.n} · ${e.ts} UTC · ${e.channel} ---`, `from: ${e.from}`, `to: ${e.to}`, att.length > 0 && `attachments: ${att.join(", ")}`, "", e.body].filter((x) => x !== false).join("\n");
+  return [`--- event ${e.n} · ${e.ts} UTC · ${e.channel} ---`, `from: ${e.from}`, `to: ${e.to}`, e.subject && `subject: ${e.subject}`, att.length > 0 && `attachments: ${att.join(", ")}`, "", e.body].filter((x) => x !== false && x !== undefined).join("\n");
 }
 
 export function renderReplay(m: Msg): string {
@@ -40,7 +40,7 @@ export function ground(body: string, support: string[]): { body: string; strippe
 }
 
 function verbatim(c: Case, e: Event): Omit<Msg, "n" | "turn"> {
-  return { author: "world", kind: /note/i.test(e.channel) ? "note" : "message", channel: e.channel, from: e.from, to: e.to, body: e.body, ts: e.ts, attachments: eventAttachments(c, e), follows: [e.n], match: "verbatim" };
+  return { author: "world", kind: /note/i.test(e.channel) ? "note" : "message", channel: e.channel, from: e.from, to: e.to, subject: e.subject, body: e.body, ts: e.ts, attachments: eventAttachments(c, e), follows: [e.n], match: "verbatim" };
 }
 
 // Hand the agent the first N real events as they happened: the history up to its takeover point. The real handler's

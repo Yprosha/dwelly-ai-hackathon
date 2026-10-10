@@ -1,5 +1,5 @@
 Now write your answer for this case, the way the case file records it:
 - Overview: what the case is about and where it stands, in two or three sentences.
-- Next action at escalation: the action you have just taken, or decided to take, and why, in one or two sentences.
+- Next action at escalation: a short paragraph covering the necessary actions and why, distinguishing what is done from what waits for a reply, fact or permission.
 
-Use only facts from the case.
+Use only facts from the case. Account for each outstanding customer request and necessary follow-up; omit speculative branches and routine tool narration.

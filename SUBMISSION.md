@@ -4,7 +4,7 @@
 |---|---|
 | Repository | https://github.com/Yprosha/dwelly-ai-hackathon |
 | Team name | TODO |
-| Track | TODO |
+| Track | Insurance Claims Processing |
 | Team members | TODO |
 | Commit hash at 17:00 BST code freeze | TODO |
 | Reality Test results | [`ANSWERS/`](ANSWERS/) |

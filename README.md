@@ -3,12 +3,25 @@
 Submission for the **Real-World Agents Hackathon** (10 October 2026).
 
 - **Team:** TODO
-- **Track:** TODO (Insurance Claims Processing / Property Management / Banking & Financial Services / Delivery & Logistics)
+- **Track:** Insurance Claims Processing
 - **Demo video:** [`demo/`](demo/) — TODO exact file path
-- **Reality Test results:** [`ANSWERS/`](ANSWERS/)
+- **Reality Test results:** [`ANSWERS/`](ANSWERS/), produced by Case Lab ([`research/case-lab`](research/case-lab/README.md)); traces in [`logs/`](logs/)
 - **Submission metadata:** [`SUBMISSION.md`](SUBMISSION.md)
 
 ## 1. What we built
+
+Two agents for an insurance broker's claims desk live in this repository. Both take a folder of cases and write
+`ANSWERS/<case>/ANSWER.md` and `REASONING.md`.
+
+- **Case Lab** ([`research/case-lab`](research/case-lab/README.md), TypeScript) produced the Reality Test answers
+  in `ANSWERS/`. The agent reads the case as a small file system (the correspondence, the attachments as text),
+  acts through tools (send a message, add a note, close the case) and can hand a check or a piece of research to
+  sub-agents before it acts. On a folder of unseen cases it takes one turn per case: it does what the case needs at
+  that point, then writes an Overview, the Next action at escalation and its reasoning. Case Lab also has a
+  simulated counterparty, a judge, a reviewer and a UI; we used those to develop and measure the agent on the public
+  cases, and none of them runs on the Reality Test.
+- **The Python agent** (`src/agent`) is the earlier single-loop agent, still runnable on the same folder. The rest
+  of this section and the sections below describe it, with Case Lab called out where it differs.
 
 A claims-operations agent for an insurance broker. Point it at a folder of cases (emails, call notes, internal notes,
 photos, PDFs) and, for every case, it reads the whole file and carries the case forward to the next point where it
@@ -52,6 +65,28 @@ workers). Prompt changes were tuned on odd case ids and checked on even ones; ru
 
 ## 3. Architecture
 
+**Case Lab** (the Reality Test run):
+
+```
+ folder of cases            cases.ts                    agent.ts (one turn per case, cases in parallel)
+ <case>/index.md,      -->  history -> messages    -->  Claude Opus 5.5, tool use, adaptive thinking
+ history.md, any files      other files -> documents      |  list_case, read_case, search_case   (read the case)
+                            (PDFs and images                |  send_message, add_note, close_case   (act)
+                             transcribed by Claude)         |  run_subagent  ->  subagent.ts: reads the case, searches
+                                                            |                    the public claims and the web, reports back
+                                                            v
+                            answers.ts  -->  ANSWERS/<case>/ANSWER.md, REASONING.md ; logs/<case>.json, logs/run.json
+```
+
+- The agent never sees an answer key: `Overview`, `Next action at escalation` and `Outcome` are hidden if a case
+  still has them. Sub-agents only read and report; only the agent acts.
+- No live mailbox is connected: each message and note is recorded word for word in `ANSWER.md`.
+- A case that fails is run once more. One that fails again, or is still running after 15 minutes, still gets both
+  files, saying that the system wrote no answer and the case needs a human. Nothing is filled in by hand.
+- Details, the simulator, judge and UI: [`research/case-lab/README.md`](research/case-lab/README.md).
+
+**The Python agent:**
+
 ```
  cases_dir/<case>/            loader.py                       agent.py (one loop per case, N cases in parallel)
  index.md, history.md,  -->   text + image/PDF blocks   -->   Claude (tool use, adaptive thinking)
@@ -93,7 +128,8 @@ workers). Prompt changes were tuned on odd case ids and checked on even ones; ru
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.10+ (the Python agent)
+- Node 20.12 or newer (Case Lab)
 - [uv](https://docs.astral.sh/uv/)
 - Git LFS (for the demo video)
 
@@ -127,14 +163,21 @@ uv run python -m agent run "<path>/Insurance Claims Processing" --out ANSWERS --
 # or, after install: agent run <cases_dir> --out ANSWERS
 ```
 
-The same folder can be given to Case Lab, the agent harness in [`research/case-lab`](research/case-lab/README.md)
-(Node 20.12 or newer, `npm install` there first). It writes the same `ANSWERS/<case>/ANSWER.md` and `REASONING.md`, with the
-full trace of each case in `logs/<case>.json` and the settings and prompts used in `logs/run.json`:
+**Case Lab, as used for the Reality Test.** It reads `ANTHROPIC_API_KEY` from the same `.env`. It writes
+`ANSWERS/<case>/ANSWER.md` and `REASONING.md`, the full trace of each case in `logs/<case>.json`, and the settings,
+model presets and prompts the run used in `logs/run.json`:
 
 ```bash
 cd research/case-lab
-npm run run -- --dir "<path>/Insurance Claims Processing"
+npm install
+npm run run -- --dir "<path to the folder of cases>"
 ```
+
+`--no-subagents` turns the sub-agents off, `--cases 3,7` runs only those folders, `--timeout 15` is the time limit
+per case in minutes. `npm start` opens the UI (http://localhost:5177), where **Full → New run → A folder of cases**
+starts the same run. `npm run check` runs the self-checks.
+
+**The Python agent:**
 
 Options: `--model` (default `claude-sonnet-5`), `--workers`, `--only 001,022`, `--skip-existing` (resume an
 interrupted run), `--no-thinking`, `--logs DIR`, and for development `--cut-at-event 001:4,022:3` (replay a public case
@@ -151,6 +194,9 @@ Backtest on the public cases (agent + Claude Opus 5 judge; see [`eval/README.md`
 | Service | Used for |
 |---|---|
 | Claude Sonnet 5 (`claude-sonnet-5`) via the Anthropic API or Amazon Bedrock | The agent: reading the case (text, images, PDFs), deciding, calling tools. Adaptive thinking on, prompt caching on the case file |
+| Claude Opus 5.5 (`claude-opus-5-5`) via the Anthropic API | Case Lab: the agent and its sub-agents (adaptive thinking, effort xhigh), transcription of PDFs and images (effort low); in development also the simulator, judge and reviewer |
+| Anthropic server-side web search and web fetch | Case Lab sub-agents only, when the agent asks one to look something up |
+| `@anthropic-ai/sdk` (TypeScript) | Case Lab's API client |
 | Claude Opus 5 | Offline only: grader in the research replay (`research/insurance-sim/`) |
 | `anthropic` Python SDK, `python-dotenv` | API client (retries 429/5xx with backoff), `.env` loading |
 
@@ -158,6 +204,9 @@ Everything else is the Python standard library. No agent framework.
 
 ## 6. Assumptions
 
+- Case Lab, Reality Test: a case's history ends where the agent takes over, so the agent is given all of it and
+  every file in the case folder. It takes one turn; what happens after the replies arrive is described in the
+  Next action, not acted out.
 - The agent acts for the broker named in the case (or for whichever party the case shows it working for) at the moment
   the history ends; the expected output is the next steps up to the next point where the case waits on someone else,
   and the expected outcome at that point, not a full case resolution.
@@ -170,6 +219,13 @@ Everything else is the Python standard library. No agent framework.
 
 ## 7. Known limitations
 
+- Case Lab has no separate "escalate to a human" tool: a handover is a message to an internal team or a note on the
+  case record, so it has to be read in `ANSWER.md`, not counted from a field.
+- Case Lab on unseen cases is one turn with no reviewer after it. The folder run was checked on a handful of
+  rehearsal cases, not measured at scale; the measured scores in section 2 are the Python agent's.
+- Case Lab reads PDFs, images and text files. Other binary formats (Word, Excel, audio) are listed but not read.
+- With sub-agents on, a complex case takes several minutes and about $1; `REASONING.md` gives the cost and time of
+  each case.
 - Single pass per case, no second model reviewing the first; the self-check is the same model re-reading its staged
   actions. Judgement is only as good as the prompt and the model.
 - `lookup_records` is keyword search over the case file, not a real policy/claims system; it can miss paraphrases.
@@ -190,7 +246,8 @@ Everything else is the Python standard library. No agent framework.
 
 | Path | Contents |
 |---|---|
-| `src/agent/` | Agent source code |
+| `research/case-lab/` | Case Lab: the agent harness that produced `ANSWERS/` (source, prompts, config, UI) |
+| `src/agent/` | The Python agent's source code |
 | `data/` | Synthetic operating environment provided at the event |
 | `ANSWERS/<n>/ANSWER.md` | Final result for Reality Test case `n` |
 | `ANSWERS/<n>/REASONING.md` | What the system received, actions taken, escalations, failures |

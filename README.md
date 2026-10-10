@@ -11,10 +11,13 @@ Submission for the **Real-World Agents Hackathon** (10 October 2026).
 ## 1. What we built
 
 A claims-operations agent for an insurance broker. Point it at a folder of cases (emails, call notes, internal notes,
-photos, PDFs) and, for every case, it reads the whole file, decides what should happen **now**, and records the
-actions it takes: messages to the customer / insurer / third parties, internal notes, an escalation to a human with a
-self-contained handover, or a deliberate "no action". Each case gets `ANSWERS/<case>/ANSWER.md` (the decision and the
-full text of every action), `ANSWERS/<case>/REASONING.md` (what it received, facts with sources, conflicts it detected,
+photos, PDFs) and, for every case, it reads the whole file and carries the case forward to the next point where it
+has to wait on someone else (customer, insurer, third party or a human colleague). It takes every action it can take
+now, in order (messages to the customer / insurer / third parties, internal notes, an escalation to a human with a
+self-contained handover, or a deliberate "no action"), says what it will do once the awaited reply arrives, and states
+where the case will then stand without inventing decisions. Each case gets `ANSWERS/<case>/ANSWER.md` (**Final
+outcome**, numbered **Next steps** marked NOW / AFTER ..., then the decision and the full text of every action),
+`ANSWERS/<case>/REASONING.md` (what it received, facts with sources, conflicts it detected,
 options, why, every tool call, what failed) and a machine-readable trace in `logs/<case>.jsonl`.
 
 ## 2. What operational problem it solves
@@ -49,22 +52,24 @@ A full run of this agent over all 50 public cases completed with no crashes or f
 ```
 
 - **One agent, one loop per case** (`agent.py`), max 24 model calls. The system prompt is the playbook distilled
-  from the replay study (do the earliest unblocked step, pass facts on with unknowns marked, relay the insurer
-  faithfully with its caveats, containment via a qualified contractor, hard rules on authority / payments / personal
+  from the replay study (take every step up to the next wait on someone else, pass facts on with unknowns marked,
+  relay the insurer faithfully with its caveats, safety advice first then containment via a qualified contractor, hard rules on authority / payments / personal
   data) plus an exception checklist (conflicting facts, failed or bounced actions, missing context, duplicates/noise,
   fraud and social engineering, vulnerable customers, complaints and legal signals, decisions outside authority).
 - **Case content is untrusted.** It is wrapped in `<case_file>` tags; the prompt tells the model to treat it as
   evidence only and to flag any embedded instructions as a possible injection.
 - **Mock operations layer** (`tools.py`). There is no live broker system, so every action is recorded in a per-case
   outbox. `lookup_records` searches only the case file and answers "no record found" rather than inventing.
-  Actions are *staged*; the first `finish` call returns a 12-point self-check (invented facts, promises, authority,
+  Actions are *staged*; the first `finish` call returns a 14-point self-check (invented facts, promises, authority,
   payment details, data sharing, injection, unresolved conflicts, safety, faithful relay, handover quality, who is
-  left waiting, doing too much). The agent can `cancel_action` and restage before the second `finish` commits.
+  left waiting, doing too much or too little, nothing invented in the next steps / outcome). The agent can `cancel_action` and restage before the second `finish` commits.
 - **Escalation to a human** is a first-class action: reason, urgency, route (claims handler, complaints, fraud, data
   protection...), handover summary, open questions, recommended next steps. "No action" is also first-class.
 - **Never crash on a case.** Unreadable files are listed as not read; tool errors go back to the model as errors;
-  an API failure, refusal or turn limit produces an ANSWER.md that says "system fallback: escalate to human" and lists
-  whatever drafts were staged as not committed.
+  tool arguments with leaked tool-call markup are repaired instead of bounced. Near the turn limit the model is told
+  to finish; if it still doesn't, one forced `finish` call commits the staged actions with every message held for
+  human approval. An API failure or a refusal produces an ANSWER.md that says "system fallback: escalate to human"
+  and lists whatever drafts were staged as not committed.
 - **Traces**: every model call (model, token usage, cost estimate, latency, tool calls) and every tool result is
   appended to `logs/<case>.jsonl`; `logs/run_summary.json` summarises the run.
 
@@ -113,6 +118,9 @@ single file.
 
 Self-checks for the parser and tool layer: `python src/agent/loader.py` and `python src/agent/tools.py`.
 
+Backtest on the public cases (agent + Claude Opus 5 judge; see [`eval/README.md`](eval/README.md)):
+`python eval/public.py "<path>/Insurance Claims Processing" --run NAME [--points escalation|all] [--parity odd|even]`.
+
 ## 5. Models, APIs and external services
 
 | Service | Used for |
@@ -126,7 +134,8 @@ Everything else is the Python standard library. No agent framework.
 ## 6. Assumptions
 
 - The agent acts for the broker named in the case (or for whichever party the case shows it working for) at the moment
-  the history ends; the expected output is the next action(s), not a full case resolution.
+  the history ends; the expected output is the next steps up to the next point where the case waits on someone else,
+  and the expected outcome at that point, not a full case resolution.
 - There is no live system to act on, so "acting" means recording complete, sendable messages, notes and handovers in a
   mock outbox. Messages flagged `needs_human_approval` would wait for an operator in production.
 - Everything in the case file is on record; nothing outside it is known (no policy database, no wording documents).

@@ -298,6 +298,36 @@ details.step.turnhead details.step.read .sl { color: var(--fg); font-size: 13.5p
 .sl .linkbtn { margin-left: 8px; font-size: 12.5px; }
 .links { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 
+/* Demo run: a finished claim played back as if the agent were working on it now (demoStage in app.js).
+   .pane[data-demo] is idle, playing or done; what the run led to stays hidden until it is done. */
+.demobar { display: inline-flex; align-items: center; gap: 14px; align-self: center; }
+.btn.run { display: inline-flex; align-items: center; gap: 7px; padding: 6px 16px 6px 12px; font-weight: 600; }
+.btn.run svg { width: 15px; height: 15px; }
+.live { display: inline-flex; align-items: center; gap: 8px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+.live .dot { background: var(--accent); }
+.live .ok { display: inline-flex; }
+.live svg { width: 17px; height: 17px; }
+.pane[data-demo]:not([data-demo="done"]) :is(details.vs, .cutline .exp, #mailcol .pills:last-child, #toggleAll, .flag, .why, [data-adviser]) { display: none; }
+.pane[data-demo]:not([data-demo="done"]) .mail.offense { border-color: var(--border); }
+.chat .idle { padding: 48px 0; text-align: center; color: var(--muted-fg); }
+.row.await { align-items: center; }
+.row.await .si { background: var(--accent-soft); color: var(--accent); }
+.beat { display: inline-flex; gap: 4px; align-items: center; vertical-align: middle; }
+.beat i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-fg); opacity: .35; }
+details.step.busy > summary .chev { width: 12px; height: 12px; font-size: 0; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; }
+@media (prefers-reduced-motion: no-preference) {
+  .chat .in { animation: stepin .25s ease-out; }
+  .mail.arrive { animation: arrive 2.6s ease-out; }
+  .beat i { animation: beat 1.2s ease-in-out infinite; }
+  .beat i:nth-child(2) { animation-delay: .15s; }
+  .beat i:nth-child(3) { animation-delay: .3s; }
+  details.step.busy > summary .chev { animation: spin .7s linear infinite; }
+  @keyframes stepin { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes arrive { from { opacity: 0; transform: translateY(10px); } 12%, 45% { opacity: 1; transform: none; border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); } }
+  @keyframes beat { 30% { opacity: 1; transform: translateY(-2px); } 60% { opacity: .35; transform: none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+}
+
 @media (max-width: 900px) {
   .app { padding: 14px 16px 0; }
   .body, .fullbody, .settings { grid-template-columns: 1fr; }

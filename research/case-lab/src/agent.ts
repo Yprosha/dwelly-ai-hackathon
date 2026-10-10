@@ -17,7 +17,7 @@ export const newAgent = (kit: Kit): AgentState => ({ system: promptOf(kit, "agen
 
 const agentTools = (kit: Kit) => jsonPrompt<{ name: string }[]>(kit, "tools.json").filter((t) => kit.settings.subagents || t.name !== "run_subagent");
 
-export type Answer = { overview: string; next_action: string };
+export type Answer = { overview: string; next_action: string; reasoning?: string }; // reasoning: absent in runs made before it was asked for
 
 // The deliverable: the agent's Overview and Next action at escalation, written in the same conversation right after
 // its first turn, so it is decided at the escalation point and before any simulated reply.

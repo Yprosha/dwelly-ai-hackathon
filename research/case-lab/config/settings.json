@@ -10,7 +10,7 @@
   "seedEvents": 0,
   "maxWorldTurns": 8,
   "maxToolRounds": 40,
-  "concurrency": 6,
+  "concurrency": 100,
   "subagents": true,
   "panel": [],
   "runJudge": true,

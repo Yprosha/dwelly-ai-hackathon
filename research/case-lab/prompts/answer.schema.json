@@ -1,9 +1,22 @@
 {
   "type": "object",
   "properties": {
-    "overview": { "type": "string" },
-    "next_action": { "type": "string", "description": "The next action at escalation." }
+    "overview": {
+      "type": "string"
+    },
+    "next_action": {
+      "type": "string",
+      "description": "The next action at escalation."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "How the decision was reached: facts relied on, conflicts and gaps, what was left undone and why, what needs a human."
+    }
   },
-  "required": ["overview", "next_action"],
+  "required": [
+    "overview",
+    "next_action",
+    "reasoning"
+  ],
   "additionalProperties": false
 }

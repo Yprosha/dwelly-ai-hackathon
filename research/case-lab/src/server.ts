@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { allCases, getCase } from "./cases.ts";
+import { allCases, getCase, loadDir } from "./cases.ts";
 import { ROOT, loadEnv, readJson } from "./llm.ts";
 import { getCaseResult, getRun, listRuns, selectKeys, startRun } from "./run.ts";
 
@@ -30,18 +30,27 @@ http.createServer(async (req, res) => {
     if (p === "/api/runs" && get) return send(res, 200, listRuns());
     if (p === "/api/runs" && req.method === "POST") {
       const b = JSON.parse(await body(req));
-      const run = startRun({ label: b.label, keys: selectKeys(b), overrides: b.overrides });
+      // dir: a folder of handed cases. Its answers and traces go to the repo's ANSWERS/ and logs/, as from the CLI.
+      const handed = b.dir ? loadDir(b.dir) : undefined;
+      const repo = path.resolve(ROOT, "../..");
+      const run = handed
+        ? startRun({ label: b.label, keys: handed.map((c) => c.key), overrides: { ...b.overrides, runJudge: false, runReviewer: false }, out: { answers: path.join(repo, "ANSWERS"), logs: path.join(repo, "logs") }, timeoutMin: 15, dir: path.resolve(b.dir) })
+        : startRun({ label: b.label, keys: selectKeys(b), overrides: b.overrides });
       run.done.catch((e) => console.error(`run ${run.id} failed:`, e)); // keep the server up if a run dies
       return send(res, 200, { id: run.id });
     }
     if (get && (m = p.match(/^\/api\/runs\/([^/]+)$/))) return send(res, 200, getRun(m[1]));
-    if (get && (m = p.match(/^\/api\/runs\/([^/]+)\/cases\/([^/]+)$/))) return send(res, 200, { result: getCaseResult(m[1], m[2]), case: getCase(m[2]) });
+    if (get && (m = p.match(/^\/api\/runs\/([^/]+)\/cases\/([^/]+)$/))) {
+      const dir = getRun(m[1]).dir; // a run over a handed folder: its cases are read from that folder again
+      if (dir && fs.existsSync(dir)) loadDir(dir);
+      return send(res, 200, { result: getCaseResult(m[1], m[2]), case: getCase(m[2]) });
+    }
     if (get && p === "/api/cases") return send(res, 200, { cases: allCases().map((c) => ({ key: c.key, track: c.track, title: c.title, events: c.events.length })), splits: readJson("config/splits.json") });
     if (get && (m = p.match(/^\/api\/cases\/([^/]+)\/(files|text)\/(.+)$/))) {
       const c = getCase(m[1]);
       const name = decodeURIComponent(m[3]);
       if (!c.attachments.some((a) => a.name === name)) return send(res, 404, { error: "no such attachment" });
-      if (m[2] === "files") return send(res, 200, fs.readFileSync(path.join(c.dir, "attachments", name)), TYPES[path.extname(name).toLowerCase()] ?? "application/octet-stream");
+      if (m[2] === "files") return send(res, 200, fs.readFileSync(c.attachments.find((a) => a.name === name)?.file ?? path.join(c.dir, "attachments", name)), TYPES[path.extname(name).toLowerCase()] ?? "application/octet-stream");
       const cached = path.join(ROOT, "cache/extracted", c.key, `${name}.md`);
       return fs.existsSync(cached) ? send(res, 200, fs.readFileSync(cached, "utf8"), "text/plain") : send(res, 404, { error: "not extracted yet" });
     }

@@ -1,5 +1,6 @@
 // Case Lab UI. Simple: what a reviewer reads. Full: everything technical.
 // Routes: #/simple/<run>/<case> · #/full/<run>/<case>/<trace|simulator|judge|compare> · #/full/new · #/full/settings/<file>
+// · #/demo/<run>/<case>[/<speed>] (a finished claim played back live, see "demo run" below)
 const app = document.getElementById("app");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const money = (n) => `$${(n ?? 0).toFixed(2)}`;
@@ -23,6 +24,8 @@ const ICON = {
   folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   clip: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.9-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
 };
 
 // Markdown for model-written text. Raw HTML in it is shown as text, never rendered.
@@ -39,6 +42,7 @@ async function api(path, opts) {
 }
 
 let poll, routeToken = 0, titles;
+let playToken = 0, autoplay = false; // the demo run being played, and whether the next demo page starts by itself
 const results = new Map(); // "<run>/<case>" -> finished result
 const mailbox = { side: "run", filter: "all" }; // kept across claims
 const adviser = { id: null, turn: 0, name: "" }; // the adviser whose trace is open in the chat column of claim <run>/<case>
@@ -105,6 +109,7 @@ route();
 
 async function route() {
   clearTimeout(poll);
+  playToken++; // leaving the page stops a demo run
   const token = ++routeToken;
   const [mode = "simple", a, b, c, ...rest] = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   try {
@@ -120,8 +125,9 @@ async function route() {
     const keys = Object.keys(run.cases);
     const key = run.cases[b] ? b : keys.find((x) => ["done", "error"].includes(run.cases[x].status)) || keys[0];
     if (mode === "full") await renderFull(runs, run, key, c || "trace");
+    else if (mode === "demo") await renderSimple(runs, run, key, c || "", true);
     else await renderSimple(runs, run, key, c === "chat" ? "chat" : "emails");
-    if (run.status === "running") poll = setTimeout(() => refresh(mode, run.id, key, token), 4000);
+    if (run.status === "running" && mode !== "demo") poll = setTimeout(() => refresh(mode, run.id, key, token), 4000); // a redraw would cut a demo run short
   } catch (e) {
     app.innerHTML = `<div class="empty"><b>Something went wrong</b><span>${esc(e.message)}</span></div>`;
   }
@@ -189,23 +195,24 @@ function scoreSimple(run) {
 
 // ---------------- simple ----------------
 
-async function renderSimple(runs, run, key, tab) {
+// `demo`: the same page before the agent has started, with a Run button that plays the claim back (tab is then the speed).
+async function renderSimple(runs, run, key, tab, demo = false) {
   const keep = document.querySelector(".claims")?.scrollTop;
   app.innerHTML = `${header(runs, run, "simple", key)}
     <div class="score">${scoreSimple(run)}</div>
     <div class="body">
-      <nav class="claims" aria-label="Claims">${claimRows(run, key, tab)}</nav>
+      <nav class="claims" aria-label="Claims">${claimRows(run, key, tab, demo ? "demo" : "simple")}</nav>
       ${grip("claims")}
       <section class="pane" id="pane"></section>
     </div>`;
   if (keep) document.querySelector(".claims").scrollTop = keep;
   applyLayout(false);
-  bindRunSelect("simple");
+  bindRunSelect(demo ? "demo" : "simple");
   const pane = document.getElementById("pane");
   const sum = run.cases[key];
   pane.dataset.status = sum?.status ?? "";
   if (!sum || sum.status === "pending" || sum.status === "running") {
-    pane.innerHTML = `<div class="empty"><b>Case ${esc(caseNo(key))} · ${esc(titles[key])}</b><span>${sum?.status === "running" ? "The agent is working on this claim." : "Waiting in the queue."}</span></div>`;
+    pane.innerHTML = `<div class="empty"><b>Case ${esc(caseNo(key))} · ${esc(titles[key] ?? key)}</b><span>${sum?.status === "running" ? "The agent is working on this claim." : "Waiting in the queue."}</span></div>`;
     return;
   }
   const { result: r, case: c } = await load(run.id, key);
@@ -236,7 +243,8 @@ async function renderSimple(runs, run, key, tab) {
   pane.classList.add("splitpane");
   pane.innerHTML = `
     <div class="panetop">
-      <div class="claimhead"><h1>Case ${esc(caseNo(key))} · ${esc(c.title)}</h1><a href="#/full/${run.id}/${key}">Technical details</a></div>
+      <div class="claimhead"><h1>Case ${esc(caseNo(key))} · ${esc(c.title)}</h1>${demo ? `<span class="demobar"><button type="button" class="btn primary run" id="demorun"></button><span class="live" id="demostatus" role="status"></span></span>`
+        : `<a href="#/full/${run.id}/${key}">Technical details</a><a href="#/demo/${run.id}/${key}">Demo run</a>`}</div>
       ${startLine(run, r, c)}
       <details class="vs"${ans ? " open" : ""}><summary>Agent vs the real claim ${rv ? `<span class="decision ${rv.decision === "correct" ? "ok" : "bad"}" title="${esc(rv.summary)}">${rv.decision === "correct" ? "Correct" : "Incorrect"}</span>` : ""} ${headline}</summary>
         <table class="cmp"><thead><tr><th></th><th>Agent</th><th>The real claim</th></tr></thead>
@@ -263,15 +271,19 @@ async function renderSimple(runs, run, key, tab) {
     const b = e.target.closest("[data-adviser]");
     if (!b) return;
     e.preventDefault(); // inside a fold's summary: open the trace, do not toggle the fold
+    if (demo && pane.dataset.demo !== "done") return; // a demo run is playing in this column
     const [turn, name] = b.dataset.adviser.split(":");
     if (adviser.id !== id) back = { top: chatcol.scrollTop, open: [...chatcol.querySelectorAll("details")].map((d) => d.open) };
     Object.assign(adviser, name ? { id, turn: Number(turn), name } : { id: null, turn: 0, name: "" });
     if (drawChat()) chatcol.scrollTop = 0;
     else if (back) { chatcol.querySelectorAll("details").forEach((d, i) => (d.open = Boolean(back.open[i]))); chatcol.scrollTop = back.top; }
   });
+  if (demo) { Object.assign(adviser, { id: null, turn: 0, name: "" }); Object.assign(mailbox, { side: "run", filter: "all" }); }
   drawChat();
+  const stage = demo ? demoStage(run, r, pane, chatcol, mailcol, Math.min(20, Math.max(0.25, Number(tab) || 1))) : null;
   const link = linkPanes(chatcol, mailcol, r, () => redraw());
-  const redraw = drawMailbox(mailcol, r, c, handler, link.remark);
+  const redraw = drawMailbox(mailcol, r, c, handler, () => { link.remark(); stage?.mails(); });
+  stage?.ready();
 }
 
 // Chat events and mailbox items about the same message light up together, and a click on one scrolls to the other.
@@ -325,13 +337,13 @@ function startLine(run, r, c) {
   return `<div class="startline ${r.start === "escalation" ? "esc" : ""}"><b>Starts at ${startKind(r)}</b> · the agent saw ${sawEvents(r, c)} and nothing after · case card ${cardLabel(run.kit.settings)}${trigger ? ` · ${esc(trigger)}` : ""}</div>`;
 }
 
-function claimRows(run, current, tab) {
+function claimRows(run, current, tab, mode = "simple") {
   return `<div class="top">${Object.keys(run.cases).length} claims<span class="legend">escalation · end to end</span></div>` + Object.entries(run.cases).map(([key, s]) => {
     const x = escOf(s);
     const dot = s.status === "pending" || s.status === "running" ? "wait" : s.status === "error" ? "error"
       : x === undefined ? "" : x ? "match" : s.correct === undefined && s.firstAction === "partial" ? "partial" : "miss";
     const e = s.failed ? false : e2eOf(s); // a run that failed its script check was not solved end to end
-    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.correct !== undefined ? `escalation: reviewer says ${s.correct ? "correct" : "incorrect"}` : s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${s.failed ? `failed: ${OFF[s.failed] ?? s.failed}` : e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
+    return `<a class="claim ${key === current ? "on" : ""}" href="#/${mode}/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.correct !== undefined ? `escalation: reviewer says ${s.correct ? "correct" : "incorrect"}` : s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${s.failed ? `failed: ${OFF[s.failed] ?? s.failed}` : e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
   }).join("");
 }
 
@@ -425,19 +437,24 @@ function adviserChat(r, a, p) {
   return `<div class="colhead"><button type="button" class="linkbtn back" data-adviser="">‹ Agent chat</button><h2>${esc(p.title)}</h2><span class="hint">adviser before turn ${a.turn} · ${esc(p.preset)} · ${money(p.cost)} · ${dur(p.ms)}</span><button class="linkbtn" id="toggleAll">Expand all</button><div class="pills advtabs">${tabs}</div></div><div class="chat">${out.join("")}</div>`;
 }
 
-function chat(run, r) {
+// The chat as events in the order they happened, one element each. Besides its html an event carries what a demo run
+// needs to play it back in time: `msg`, the message it came from (the tool calls of one assistant message ran at once),
+// and on the first event of an assistant message `think`, how long that model call took.
+function chatEvents(run, r) {
   const silence = run.kit.prompts["agent.silence.md"], answerAsk = run.kit.prompts["agent.answer.md"];
   const results = new Map();
   for (const m of r.agent.messages) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result") results.set(b.tool_use_id, b);
   const out = [];
-  let turn = 0, answering = false;
+  let turn = 0, answering = false, msg = -1;
+  const put = (kind, html, more) => out.push({ kind, html, msg, ...more });
   for (const m of r.agent.messages) {
+    msg++;
     if (m.role === "user" && m.content === answerAsk) { answering = true; continue; }
     if (m.role === "assistant" && answering) {
       answering = false;
       let a = r.answer;
       try { a = JSON.parse(m.content.find((b) => b.type === "text")?.text ?? ""); } catch {}
-      if (a) out.push(`<details class="step answer" open><summary><span class="si">${ICON.note}</span><span class="sl"><b>Wrote the answer</b></span><span class="sx"></span><span class="chev">›</span></summary><div class="sb"><div class="md"><p><b>Overview</b></p>${md(a.overview)}<p><b>Next action at escalation</b></p>${md(a.next_action)}</div></div></details>`);
+      if (a) put("answer", `<details class="step answer" open><summary><span class="si">${ICON.note}</span><span class="sl"><b>Wrote the answer</b></span><span class="sx"></span><span class="chev">›</span></summary><div class="sb"><div class="md"><p><b>Overview</b></p>${md(a.overview)}<p><b>Next action at escalation</b></p>${md(a.next_action)}</div></div></details>`);
       continue;
     }
     if (m.role === "user" && typeof m.content === "string") {
@@ -445,17 +462,20 @@ function chat(run, r) {
       const own = ownInput(r, turn, m.content), adv = adviceOf(r, turn); // advisers: runs made before sub-agents
       const label = turn === 1 ? (r.start === "escalation" ? "Picked up at the escalation point" : "New case") : own === silence ? "No replies" : "New messages";
       const ns = [...own.matchAll(/^\/messages\/(\d+)$/gm)].map((x) => Number(x[1])); // the messages this turn handed to the agent
-      out.push(`<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(own.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
-      if (adv) out.push(council(adv));
+      put("turn", `<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(own.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`, { turn, ns }); // header/body separators are rules, not setext headings
+      if (adv) put("advice", council(adv), { advice: adv });
     } else if (m.role === "assistant") {
       for (const b of m.content) {
-        if (b.type === "text" && b.text.trim()) out.push(`<div class="row"><span class="ai">AI</span><div class="md">${md(b.text)}</div></div>`);
-        else if (b.type === "tool_use") out.push(step(b, results.get(b.id), r));
+        if (b.type === "text" && b.text.trim()) put("say", `<div class="row"><span class="ai">AI</span><div class="md">${md(b.text)}</div></div>`);
+        else if (b.type === "tool_use") put("tool", step(b, results.get(b.id), r), { name: b.name, input: b.input ?? {}, sub: subOf(r, b) });
       }
     }
   }
-  return `<div class="colhead"><h2>Agent chat</h2><span class="hint">Click an event or an email to find its counterpart</span><button class="linkbtn" id="toggleAll">Expand all</button></div><div class="chat">${out.join("")}</div>`;
+  const took = new Map(r.agent.messages.flatMap((m, i) => (m.role === "assistant" ? [i] : [])).map((i, k) => [i, r.agent.calls[k]?.ms ?? 2000]));
+  out.forEach((e, k) => { if (took.has(e.msg) && out[k - 1]?.msg !== e.msg) e.think = took.get(e.msg); });
+  return out;
 }
+const chat = (run, r) => `<div class="colhead"><h2>Agent chat</h2><span class="hint">Click an event or an email to find its counterpart</span><button class="linkbtn" id="toggleAll">Expand all</button></div><div class="chat">${chatEvents(run, r).map((e) => e.html).join("")}</div>`;
 
 function step(b, res, r) {
   const x = b.input || {};
@@ -502,6 +522,192 @@ function bindChat(box) {
     all.forEach((d) => (d.open = open));
     btn.textContent = open ? "Collapse all" : "Expand all";
   };
+}
+
+// ---------------- demo run ----------------
+
+// A finished claim played back as if the agent were working on it now, to show how it works. The page opens the way it
+// stood before the agent started: an empty chat, and in the mailbox only what the agent was handed. Run then plays the
+// recorded trace at the pace it was recorded: a model call, a sub-agent and the other parties' replies each take as
+// long as they took (`speed` 2 halves that). Chat events appear one by one, and an email lands in the mailbox when the
+// agent sends it or a reply comes in. The verdicts stay hidden until the run is over.
+const TOOL_MS = { send_message: 900, add_note: 600, close_case: 700, search_case: 450, list_case: 300 }; // the trace keeps no time for these
+const TYPE_CPS = 320; // characters a second the agent's words stream in at
+const doing = (s) => { const x = s.input ?? {}; return ({ read_case: `Reading ${x.path}`, list_case: `Listing ${x.path || "/"}`, search_case: `Searching the case for ${x.pattern}`, search_claims: `Searching other claims · ${x.query}`,
+  read_claim: `Reading claim ${x.claim_id}`, web_search: `Searching the web · ${x.query}`, web_fetch: `Opening ${String(x.url).replace(/^https?:\/\/(www\.)?/, "")}` })[s.name] ?? s.name; }; // an adviser's step, while it runs
+const mmss = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+
+function demoStage(run, r, pane, chatcol, mailcol, speed) {
+  const evs = chatEvents(run, r); // one per child of .chat, in order
+  const seen = new Set(r.replay.filter((m) => m.turn === 0).map((m) => m.n)); // the run's messages in the mailbox so far
+  const btn = pane.querySelector("#demorun"), status = pane.querySelector("#demostatus");
+  const dots = [...document.querySelectorAll(".claims .claim.on .dot")], verdicts = dots.map((d) => d.className);
+  const smooth = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  const STOP = Symbol("stop");
+  let token = -1, clock, stick = true; // stick: the chat follows new events until the reader scrolls up
+  const alive = () => token === playToken;
+  const pause = (ms) => new Promise((ok, no) => setTimeout(() => (alive() ? ok() : no(STOP)), ms));
+  const sleep = (ms) => pause(ms / speed);
+  const follow = () => { if (stick) chatcol.scrollTop = chatcol.scrollHeight; };
+  chatcol.addEventListener("scroll", () => { stick = chatcol.scrollHeight - chatcol.scrollTop - chatcol.clientHeight < 120; });
+  const show = (el) => { el.hidden = false; el.classList.add("in"); follow(); };
+  const say = (what) => { status.querySelector(".what").textContent = what; };
+
+  function set(state, took) {
+    pane.dataset.demo = state;
+    btn.innerHTML = state === "playing" ? `${ICON.stop}Stop` : `${ICON.play}${state === "done" ? "Run again" : "Run"}`;
+    btn.classList.toggle("primary", state !== "playing");
+    status.innerHTML = state === "playing" ? `<span class="dot wait"></span><span class="what">Agent is working</span><span class="clock">0:00</span>`
+      : state === "done" ? `<span class="ok">${ICON.done}</span>${r.agent.closed ? "Case closed" : "Finished"} in ${mmss(took)}` : "";
+    dots.forEach((d, i) => (d.className = state === "done" ? verdicts[i] : state === "playing" && i === 0 ? "dot wait" : "dot"));
+    mails();
+  }
+
+  // The mailbox holds what has been sent and received so far; redrawn by its filters, it asks again what to hide.
+  function mails() {
+    mailcol.querySelectorAll(".mail[data-n]").forEach((m) => (m.hidden = pane.dataset.demo !== "done" && !seen.has(Number(m.dataset.n))));
+  }
+  function deliver(n) {
+    if (seen.has(n)) return false;
+    seen.add(n);
+    const m = mailcol.querySelector(`.mail[data-n="${n}"]`);
+    if (m) { m.hidden = false; m.classList.add("arrive"); mailcol.scrollTo({ top: mailcol.scrollHeight, behavior: smooth }); }
+    return true;
+  }
+
+  // While a model call or the other parties' replies are awaited, a row at the end of the chat says so.
+  const waiting = (html) => Object.assign(document.createElement("div"), { className: "row await", innerHTML: html });
+  const beat = `<span class="beat"><i></i><i></i><i></i></span>`;
+  const thinking = waiting(`<span class="ai">AI</span>${beat}`);
+  const replies = waiting(`<span class="si">${ICON.inbox}</span><span class="muted">Waiting for replies ${beat}</span>`);
+  async function wait(row, ms) {
+    chatcol.querySelector(".chat").append(row);
+    follow();
+    try { await sleep(ms); } finally { row.remove(); }
+  }
+
+  // Text comes in the way a model streams it: element by element, a few characters a frame.
+  async function type(el) {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT), nodes = [];
+    while (walk.nextNode()) nodes.push(walk.currentNode);
+    const text = nodes.map((n) => (n.nodeType === 3 ? n.data : ""));
+    nodes.forEach((n) => { if (n.nodeType === 3) n.data = ""; else n.hidden = true; });
+    let at = performance.now(), owed = 0;
+    for (const [i, n] of nodes.entries()) {
+      if (n.nodeType !== 3) { n.hidden = false; continue; }
+      if (!text[i].trim()) { n.data = text[i]; continue; }
+      for (let k = 0; k < text[i].length; ) {
+        await pause(16);
+        owed += ((performance.now() - at) * TYPE_CPS * speed) / 1000;
+        at = performance.now();
+        k = Math.min(text[i].length, k + Math.floor(owed));
+        owed %= 1;
+        n.data = text[i].slice(0, k);
+        follow();
+      }
+    }
+  }
+
+  async function tool(e) {
+    show(e.el);
+    e.el.classList.add("busy");
+    if (e.sub) await subagent(e.el, e.sub);
+    else await sleep(TOOL_MS[e.name] ?? (e.name === "read_case" && /^\/documents\//.test(e.input.path ?? "") ? 1400 : 400));
+    e.el.classList.remove("busy");
+    if (e.el.dataset.origin) for (const n of e.el.dataset.ns.split(",")) deliver(Number(n)); // the email it sent, the note it saved
+  }
+
+  // A sub-agent's fold stays open while it works: its task, then each step and what it said on the way, then its report.
+  async function subagent(el, s) {
+    const rest = [...el.querySelector(":scope > .sb").children].slice(1);
+    const typed = rest.filter((k) => k.matches(".row, .md")).reduce((t, k) => t + k.textContent.length, 0) / TYPE_CPS; // seconds its words take
+    const each = Math.max(250, (s.ms - typed * 1000) / (rest.filter((k) => k.matches("details.step")).length + 1));
+    rest.forEach((k) => (k.hidden = true));
+    el.open = true;
+    follow();
+    await sleep(each);
+    for (const k of rest) {
+      show(k);
+      if (k.matches("details.step")) { k.classList.add("busy"); await sleep(each); k.classList.remove("busy"); }
+      else if (k.matches(".row, .md")) await type(k.querySelector(".md") ?? k);
+    }
+    await sleep(1000);
+    el.open = false;
+  }
+
+  // The advisers sit before the agent's turn, all at once: each row says what its adviser is doing, then shows its proposal.
+  async function advice(e) {
+    const rows = [...e.el.querySelectorAll(":scope > .sb > details.step")], label = e.el.querySelector(":scope > summary .sl"), was = label.textContent;
+    label.textContent = "Advisers · working";
+    show(e.el);
+    e.el.open = true;
+    follow();
+    await Promise.all(rows.map(async (row, i) => {
+      const p = e.advice.proposals[i], steps = toolSteps(p), line = row.querySelector(":scope > summary .sx"), proposal = line.textContent;
+      row.classList.add("busy");
+      for (const s of [null, ...steps]) { line.textContent = s ? doing(s) : "Reading the case"; await sleep(p.ms / (steps.length + 1)); }
+      line.textContent = proposal;
+      row.classList.remove("busy");
+    }));
+    label.textContent = was;
+    await sleep(1000);
+    e.el.open = false;
+  }
+
+  async function turn(e) {
+    if (e.turn > 1) { // the other parties answer first: their emails land in the mailbox, then the agent is told
+      say("Waiting for replies");
+      await wait(replies, r.world.find((w) => w.turn === e.turn - 1)?.call.ms ?? 2500);
+      for (const n of e.ns) if (deliver(n)) await sleep(800);
+      say("Agent is working");
+    }
+    show(e.el);
+    await sleep(500);
+  }
+
+  async function play() {
+    token = ++playToken;
+    const t0 = Date.now();
+    chatcol.querySelector(".idle")?.remove();
+    set("playing");
+    clock = setInterval(() => { const c = status.querySelector(".clock"); if (c) c.textContent = mmss(Date.now() - t0); }, 250);
+    try {
+      for (let i = 0; i < evs.length; i++) {
+        const e = evs[i];
+        // the model call behind this message; what the agent says then takes part of that time to stream in
+        if (e.think) await wait(thinking, Math.max(400, e.think - (e.kind === "tool" ? 0 : (e.el.textContent.length / TYPE_CPS) * 1000)));
+        if (e.kind === "tool") { // the tool calls of one model message run at once, as they did
+          const group = [e];
+          while (evs[i + 1]?.kind === "tool" && evs[i + 1].msg === e.msg) group.push(evs[++i]);
+          await Promise.all(group.map((g, k) => sleep(k * 150).then(() => tool(g))));
+        } else if (e.kind === "turn") await turn(e);
+        else if (e.kind === "advice") await advice(e);
+        else { show(e.el); await type(e.el.querySelector(".md")); await sleep(250); } // the agent's words, or its answer
+      }
+      say("Checking the result");
+      await sleep(1500);
+      set("done", Date.now() - t0);
+    } catch (x) {
+      if (x !== STOP) throw x;
+    } finally {
+      clearInterval(clock);
+    }
+  }
+
+  function ready() {
+    const chat = chatcol.querySelector(".chat");
+    evs.forEach((e, i) => { e.el = chat.children[i]; e.el.hidden = true; });
+    chat.insertAdjacentHTML("beforeend", `<p class="idle">The agent has not started on this case yet. Press Run to hand it over.</p>`);
+    pane.querySelector("details.vs").open = false; // shown when the run is over, as one line
+    set("idle");
+    btn.onclick = () => {
+      if (pane.dataset.demo === "idle") return play();
+      autoplay = pane.dataset.demo === "done"; // Stop goes back to the start; Run again starts over
+      route();
+    };
+    if (autoplay) { autoplay = false; play(); }
+  }
+  return { mails, ready };
 }
 
 // ---------------- full ----------------
@@ -707,8 +913,9 @@ async function renderNew() {
     <form class="form" id="f">
       <label>Label <input id="label" value="baseline" required></label>
       <fieldset><legend>Claims</legend>
-        <div class="row">${[["holdout", `Holdout (${splits.holdout.length})`], ["dev", `Dev (${splits.dev.length})`], ["synthetic", `Synthetic (${splits.synthetic?.length ?? 0})`], ["all", `All (${cases.length})`], ["pick", "Pick claims"]].map(([v, l], i) => `<label><input type="radio" name="split" value="${v}" ${i === 0 ? "checked" : ""}> ${l}</label>`).join("")}</div>
+        <div class="row">${[["holdout", `Holdout (${splits.holdout.length})`], ["dev", `Dev (${splits.dev.length})`], ["synthetic", `Synthetic (${splits.synthetic?.length ?? 0})`], ["all", `All (${cases.length})`], ["pick", "Pick claims"], ["dir", "A folder of cases"]].map(([v, l], i) => `<label><input type="radio" name="split" value="${v}" ${i === 0 ? "checked" : ""}> ${l}</label>`).join("")}</div>
         <textarea id="keys" rows="2" placeholder="insurance-032, insurance-037" hidden></textarea>
+        <input id="dir" placeholder="/full/path/to/the/folder" hidden>
         <div id="count" class="muted"></div>
       </fieldset>
       <fieldset><legend>Models · presets from config/models.json</legend>
@@ -733,11 +940,12 @@ async function renderNew() {
     </form></div>`;
   const f = document.getElementById("f");
   const $ = (id) => document.getElementById(id);
-  const selected = () => (f.split.value === "pick" ? $("keys").value.split(/[\s,]+/).filter(Boolean) : f.split.value === "all" ? cases.map((c) => c.key) : splits[f.split.value]);
+  const selected = () => (f.split.value === "dir" ? [] : f.split.value === "pick" ? $("keys").value.split(/[\s,]+/).filter(Boolean) : f.split.value === "all" ? cases.map((c) => c.key) : splits[f.split.value]);
   const update = () => {
     $("keys").hidden = f.split.value !== "pick";
+    $("dir").hidden = f.split.value !== "dir";
     const n = selected().length;
-    $("count").textContent = `${n} ${n === 1 ? "claim" : "claims"} selected`;
+    $("count").textContent = f.split.value === "dir" ? "Every case in the folder. The agent answers once per case; no simulator, judge or reviewer. Answers go to ANSWERS/<case>/ and traces to logs/ at the repo root." : `${n} ${n === 1 ? "claim" : "claims"} selected`;
     for (const r of roles) $(`d-${r}`).textContent = presetLine(models[$(`p-${r}`).value]);
   };
   f.addEventListener("input", update);
@@ -752,6 +960,7 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
+          dir: f.split.value === "dir" ? $("dir").value.trim() : undefined,
           overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, runReviewer: $("runReviewer").checked, subagents: $("subagents").checked,
             failOn: [$("failOR").checked && "over_request", $("failXE").checked && "extra_message"].filter(Boolean) },
         }),

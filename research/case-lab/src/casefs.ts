@@ -49,10 +49,11 @@ export function agentBrief(kit: Kit, c: Case): string {
   const mode = kit.settings.caseCard ?? "full"; // kits saved before this setting showed the whole card
   if (mode === "full") return caseFile(kit, c);
   const me = [...handlerNames(c)].sort((a, b) => b.length - a.length)[0] ?? c.details.Broker ?? "the broker";
-  const who = `You are handling this case as ${me}.\n\n## Initial request\n\n${c.request || "(not provided)"}`;
+  // a handed case may bring sections of its own (a question, an instruction): they are task input too
+  const who = [`You are handling this case as ${me}.\n\n## Initial request\n\n${c.request || "(not provided)"}`, c.handed?.extra].filter(Boolean).join("\n\n");
   if (mode !== "record") return who;
   const record = ["Broker", "Insurer", "Property"].filter((k) => c.details[k]).map((k) => `- ${k}: ${c.details[k]}`).join("\n");
-  return `${who}\n\nOn record:\n${record}`;
+  return record ? `${who}\n\nOn record:\n${record}` : who;
 }
 
 export const eventAttachments = (c: Case, e: Event) => c.attachments.filter((a) => a.firstEvent === e.n).map((a) => a.name);
@@ -74,6 +75,7 @@ export function renderMsg(m: Msg): string {
 // Attachments the agent holds: never mentioned in the history, delivered with a message, or first sent out by the
 // handler's own side at real event N once the world has delivered every outside event before N (it had them by then).
 export function visibleDocs({ c, replay, handler }: Ctx): string[] {
+  if (c.handed) return c.attachments.map((a) => a.name); // the whole history is handed over, and so is every file
   const delivered = new Set(replay.flatMap((m) => m.attachments));
   const progress = Math.max(0, ...replay.filter((m) => m.author !== "agent").flatMap((m) => m.follows));
   const ours = (n: number) => handler.includes(c.events.find((e) => e.n === n)?.from ?? "");
@@ -95,11 +97,15 @@ export function extract(ctx: Ctx, name: string): Promise<string> {
 
 async function extractOnce({ kit, c, extract: calls }: Ctx, name: string, cached: string): Promise<string> {
   if (fs.existsSync(cached)) return fs.readFileSync(cached, "utf8");
-  const file = path.join(c.dir, "attachments", name);
+  const file = c.attachments.find((a) => a.name === name)?.file ?? path.join(c.dir, "attachments", name);
   const ext = path.extname(name).toLowerCase();
   let text: string;
   if (TEXT.has(ext)) text = fs.readFileSync(file, "utf8");
-  else if (ext === ".pdf" || IMAGE[ext]) {
+  else if (c.handed && !(ext === ".pdf" || IMAGE[ext])) { // a handed case can bring any format: read whatever is text
+    const buf = fs.readFileSync(file);
+    if (buf.subarray(0, 8000).includes(0)) return `(no text can be extracted from ${name})`;
+    text = buf.toString("utf8");
+  } else if (ext === ".pdf" || IMAGE[ext]) {
     const data = fs.readFileSync(file).toString("base64");
     const block: Anthropic.Beta.BetaContentBlockParam = ext === ".pdf"
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }

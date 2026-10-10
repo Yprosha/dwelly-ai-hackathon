@@ -127,6 +127,15 @@ uv run python -m agent run "<path>/Insurance Claims Processing" --out ANSWERS --
 # or, after install: agent run <cases_dir> --out ANSWERS
 ```
 
+The same folder can be given to Case Lab, the agent harness in [`research/case-lab`](research/case-lab/README.md)
+(Node 20.12 or newer, `npm install` there first). It writes the same `ANSWERS/<case>/ANSWER.md` and `REASONING.md`, with the
+full trace of each case in `logs/<case>.json` and the settings and prompts used in `logs/run.json`:
+
+```bash
+cd research/case-lab
+npm run run -- --dir "<path>/Insurance Claims Processing"
+```
+
 Options: `--model` (default `claude-sonnet-5`), `--workers`, `--only 001,022`, `--skip-existing` (resume an
 interrupted run), `--no-thinking`, `--logs DIR`, and for development `--cut-at-event 001:4,022:3` (replay a public case
 as if its history ended at that event; the agent then works from the history alone: the index.md case card and later

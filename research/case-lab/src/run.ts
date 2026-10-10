@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
+import { writeOut, type Out } from "./answers.ts";
 import { agentTurn, newAgent, writeAnswer, type AgentState, type Answer } from "./agent.ts";
 import { checkPanel, sitPanel, type Advice } from "./panel.ts";
 import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
@@ -28,6 +29,7 @@ export type CaseResult = {
   key: string;
   status: "done" | "error";
   error?: string;
+  firstError?: string; // a handed case is tried twice: why the first attempt failed
   stop: string; // closed | silence | turn limit | over-request | extra-message | error
   failure?: Offense & { turn: number }; // the agent message that ended the run, when settings.failOn caught one
   start: "escalation" | "seed" | "opening"; // how the takeover point was chosen (absent in runs made before escalation starts)
@@ -52,7 +54,7 @@ export type CaseSummary = {
   e2e?: boolean; // the judge's end-to-end verdict: the whole replay is correct and follows the real case
 };
 
-export type RunMeta = { id: string; label: string; createdAt: string; finishedAt?: string; status: "running" | "done"; kit: Kit; cases: Record<string, CaseSummary> };
+export type RunMeta = { id: string; label: string; dir?: string; createdAt: string; finishedAt?: string; status: "running" | "done"; kit: Kit; cases: Record<string, CaseSummary> };
 
 const RUNS = path.join(ROOT, "runs");
 
@@ -191,7 +193,9 @@ export function selectKeys(sel: { split?: string; tracks?: string[]; keys?: stri
   return keys.filter((k) => !sel.tracks?.length || sel.tracks.includes(k.split("-")[0]));
 }
 
-export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings> }, onCase?: (key: string, s: CaseSummary) => void) {
+// out: also write each case's ANSWER.md, REASONING.md and trace there (a folder of handed cases).
+// timeoutMin: with out, a case still running after that long gets its files anyway, saying it was not finished.
+export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings>; out?: Out; timeoutMin?: number; dir?: string }, onCase?: (key: string, s: CaseSummary) => void) {
   const kit = loadKit(opts.overrides);
   checkPanel(kit);
   const cases = opts.keys.map(getCase);
@@ -200,14 +204,24 @@ export function startRun(opts: { label?: string; keys: string[]; overrides?: Par
   const id = `${new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15)}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   const dir = path.join(RUNS, id);
   fs.mkdirSync(path.join(dir, "cases"), { recursive: true });
-  const meta: RunMeta = { id, label, createdAt: new Date().toISOString(), status: "running", kit, cases: Object.fromEntries(cases.map((c) => [c.key, { status: "pending" }])) };
+  const meta: RunMeta = { id, label, dir: opts.dir, createdAt: new Date().toISOString(), status: "running", kit, cases: Object.fromEntries(cases.map((c) => [c.key, { status: "pending" }])) };
   const save = () => fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(meta, null, 2));
   save();
   const done = pool(cases, kit.settings.concurrency, async (c) => {
     meta.cases[c.key] = { status: "running" };
     save();
-    const r = await runCase(kit, c);
+    const until = Date.now() + (opts.timeoutMin ?? 0) * 60_000;
+    const attempt = () => !(opts.out && opts.timeoutMin) ? runCase(kit, c) : Promise.race([runCase(kit, c), new Promise<CaseResult>((ok) => {
+      const late: CaseResult = { key: c.key, status: "error", error: `not finished within ${opts.timeoutMin} minutes`, stop: "timeout", start: "escalation", takeover: 0, handler: [], replay: [], agent: newAgent(kit), world: [], extract: [], cost: 0, ms: opts.timeoutMin! * 60_000 };
+      setTimeout(() => ok(late), Math.max(0, until - Date.now())).unref();
+    })]);
+    let r = await attempt();
+    if (r.status === "error" && r.stop !== "timeout" && c.handed) { // no one is there to rerun it by hand: one more attempt, and the first failure stays on record
+      const firstError = r.error;
+      r = { ...(await attempt()), firstError };
+    }
     fs.writeFileSync(path.join(dir, "cases", `${c.key}.json`), JSON.stringify(r, null, 2));
+    if (opts.out) writeOut(opts.out, kit, c, r, id);
     if (r.answer) { // the answer as the case file would record it
       fs.mkdirSync(path.join(dir, "answers"), { recursive: true });
       fs.writeFileSync(path.join(dir, "answers", `${c.key}.md`), `# ${c.title}\n\n## Overview\n\n${r.answer.overview}\n\n## Next action at escalation\n\n${r.answer.next_action}\n`);
@@ -219,6 +233,8 @@ export function startRun(opts: { label?: string; keys: string[]; overrides?: Par
     meta.status = "done";
     meta.finishedAt = new Date().toISOString();
     save();
+    // settings, model presets and prompts this run used; the folder by name only, since the logs get published
+    if (opts.out) fs.writeFileSync(path.join(opts.out.logs, "run.json"), JSON.stringify({ ...meta, dir: opts.dir && path.basename(opts.dir) }, null, 2));
     return meta;
   });
   return { id, done };

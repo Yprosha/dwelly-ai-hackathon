@@ -16,6 +16,7 @@ MAX_BINARY_BYTES = 4_500_000  # API limit is 5MB per image; PDFs share the 32MB 
 REVEALING = re.compile(r'^##\s+(Overview|Next action.*|Outcome|Resolution|Summary of outcome)\s*$', re.I)
 REVEALING_FIELD = re.compile(r'^\s*-\s+\*\*(Status|Updated|Completed):\*\*', re.I)
 EVENT_SPLIT = re.compile(r'(?=<a id="event-\d+"></a>)')
+ATTACH_SECTION = re.compile(r'^## Attachments\s*$.*?(?=^#|^=====|\Z)', re.M | re.S)
 
 
 def strip_revealing(text):
@@ -92,9 +93,11 @@ def load_case(path, cut_at_event=None):
         body = body[:MAX_TEXT_CHARS] + '\n[... TRUNCATED BY LOADER ...]'
     case['text'] = body
 
+    # in dev replay, only show attachments already mentioned in the kept text (no peeking ahead); the index's own
+    # "## Attachments" listing names every file of the finished case, so it does not count as a mention
+    seen = ATTACH_SECTION.sub('', body)
     for rel, p, ext in case.pop('_binaries', []):
-        # in dev replay, only show attachments already mentioned in the kept text (no peeking ahead)
-        if cut_at_event and p.name not in body:
+        if cut_at_event and p.name not in seen:
             case['notes'].append(f'{rel}: dev replay, attachment not yet referenced, withheld')
             continue
         data = base64.b64encode(p.read_bytes()).decode()
@@ -125,4 +128,5 @@ if __name__ == '__main__':  # self-check
     assert rm == ['Status', 'Overview', 'Outcome'], rm
     h = 'head\n<a id="event-001"></a>\none\n<a id="event-002"></a>\ntwo'
     assert cut_history(h, 1) == 'head\n<a id="event-001"></a>\none\n', repr(cut_history(h, 1))
+    assert 'x.png' not in ATTACH_SECTION.sub('', '## Initial request\nhi\n## Attachments\n- [x.png](a/x.png)\n\n===== FILE: h =====\nev')
     print('ok')

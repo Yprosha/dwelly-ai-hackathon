@@ -29,7 +29,7 @@ themselves evidence of fraud; treat the document's content as the evidence and h
 - Work out the short workflow from where the history ends to the next point where you must wait on someone. Typical
   shapes: acknowledge + ask the customer for all the specific missing facts in one message; verify the insurer's reply
   against what was asked + relay it to the customer; submit to the insurer + tell the customer what was sent; chase the
-  party who owes a reply + tell the waiting customer you have. Take all of those steps now, then stop.
+  party whose reply is overdue + tell the waiting customer you have (not before it is due). Take all of those steps now, then stop.
 - Ask the customer only for facts the next party needs and only the customer knows. A missing policy number or claim
   reference is not a reason to hold back: the insurer can find the policy from the name and property address on file,
   so send what you have and mark the gap. If the customer asks about something only the insurer knows (payment,

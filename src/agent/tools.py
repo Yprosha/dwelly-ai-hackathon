@@ -27,7 +27,9 @@ CHECKLIST = """SELF-CHECK before committing. Re-read every staged action against
     not on file; final_outcome describes the state after your AFTER steps (not just "waiting on X"), says what is
     still undecided and who the case then waits on.
 15. Every invoice/settlement figure re-added and every date/deadline recomputed with calculate; discrepancies reported.
-16. Every insurer instruction relayed; stale tasks closed; no cover decided either way; nothing disclosed across clients.
+16. Every insurer instruction relayed; stale tasks closed; no cover decided either way.
+17. Scan each message for another client's data (insurer, policy/claim reference, address, status): remove it unless
+    that client consented.
 If anything fails: cancel_action and/or stage the corrected action, then call finish again.
 If all pass: call finish again with the same (or improved) fields to commit."""
 

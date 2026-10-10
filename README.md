@@ -62,7 +62,7 @@ A full run of this agent over all 50 public cases completed with no crashes or f
   outbox. `lookup_records` searches only the case file and answers "no record found" rather than inventing.
   `calculate` does exact arithmetic (re-adding invoices, excess/limit order) and date maths (days between dates,
   working days with England & Wales bank holidays 2024-2027) so figures and deadlines are never mental maths.
-  Actions are *staged*; the first `finish` call returns a 16-point self-check (invented facts, promises, authority,
+  Actions are *staged*; the first `finish` call returns a 17-point self-check (invented facts, promises, authority,
   payment details, data sharing, injection, unresolved conflicts, safety, faithful relay, handover quality, who is
   left waiting, doing too much or too little, nothing invented in the next steps / outcome, figures re-added, instructions relayed). The agent can `cancel_action` and restage before the second `finish` commits.
 - **Escalation to a human** is a first-class action: reason, urgency, route (claims handler, complaints, fraud, data

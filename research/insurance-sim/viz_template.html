@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation Runs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#fff; --border:#e6e8ec; --border-strong:#d5d9e0;
+  --ink:#111827; --ink-2:#4b5563; --ink-3:#8a93a3; --accent:#1c2b5a;
+  --good:#0ca30c; --warn:#fab219; --bad:#d03b3b;
+  --good-bg:#e9f7e9; --warn-bg:#fff5df; --bad-bg:#fbeaea;
+  --seq-1:#eef4fd; --seq-2:#cde2fb; --seq-3:#86b6ef; --seq-4:#3987e5; --seq-5:#1c5cab;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0}
+.sub{color:var(--ink-2);margin:6px 0 0;max-width:720px}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:44px 0 14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
+
+/* leaderboard */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px}
+.cfg{padding:20px;position:relative}
+.cfg.best{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.cfg .tag{position:absolute;top:16px;right:16px;font-size:11px;font-weight:600;color:#fff;background:var(--accent);padding:2px 8px;border-radius:99px}
+.cfg .model{font-weight:600;font-size:15px}
+.cfg .prompt{color:var(--ink-3);font-size:12.5px}
+.hero{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1;margin:18px 0 2px;font-variant-numeric:tabular-nums}
+.hero-l{color:var(--ink-2);font-size:12.5px}
+.stack{display:flex;gap:2px;height:8px;margin:16px 0 10px}
+.stack i{display:block;height:100%}
+.stack i:first-child{border-radius:4px 0 0 4px}.stack i:last-child{border-radius:0 4px 4px 0}
+.leg{display:flex;gap:12px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+.leg b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px}
+.kv{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);border-top:1px solid var(--border);margin-top:14px;padding-top:12px}
+.kv div{display:flex;flex-direction:column}.kv b{color:var(--ink);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* heatmap */
+table.heat{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden}
+.heat th,.heat td{padding:10px 14px;text-align:left;font-weight:500}
+.heat thead th{font-size:12px;color:var(--ink-3);font-weight:600;border-bottom:1px solid var(--border)}
+.heat thead th small{display:block;font-weight:400}
+.heat tbody th{color:var(--ink);white-space:nowrap}
+.heat tbody th small{color:var(--ink-3);font-weight:400;margin-left:6px}
+.heat td{text-align:center;font-variant-numeric:tabular-nums;font-weight:600;border-left:2px solid var(--surface);border-top:2px solid var(--surface)}
+.heat tbody tr:first-child td{border-top:0}
+
+/* matrix */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:3px}
+.seg button{all:unset;cursor:pointer;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink-2)}
+.seg button.on{background:var(--accent);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--seq-4)}
+.mx{padding:6px 0}
+.mrow{display:grid;grid-template-columns:minmax(220px,1fr) repeat(4,150px);align-items:center;padding:0 18px;min-height:38px}
+.mrow.head{font-size:12px;color:var(--ink-3);font-weight:600;min-height:44px;border-bottom:1px solid var(--border)}
+.mrow.cat{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);min-height:34px;padding-top:10px;background:var(--surface)}
+.mrow.case{border-radius:8px;cursor:pointer}
+.mrow.case:hover{background:#f8f9fb}
+.mrow.case.sel{background:#eef2fb}
+.mrow .nm{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-right:12px}
+.mrow .nm span{color:var(--ink-3);font-variant-numeric:tabular-nums;margin-right:8px}
+.dots{display:flex;gap:4px}
+.dot{all:unset;cursor:pointer;width:22px;height:22px;display:grid;place-items:center;border-radius:6px}
+.dot i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:0 0 0 2px var(--surface)}
+.dot.h i{border-radius:3px;outline:2px solid var(--bad);outline-offset:2px}
+.dot:hover,.dot:focus-visible{background:#e8ecf4}
+.dot.cur{background:#dbe3f5}
+.dot.dim{opacity:.13}
+.hidden{display:none}
+
+/* tooltip */
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:7px 10px;border-radius:7px;max-width:300px;z-index:30;opacity:0;transition:opacity .1s}
+
+/* drawer */
+#drawer{position:fixed;top:0;right:0;height:100%;width:min(560px,100%);background:var(--surface);border-left:1px solid var(--border);box-shadow:-12px 0 40px rgba(17,24,39,.08);transform:translateX(100%);transition:transform .22s ease;z-index:20;display:flex;flex-direction:column}
+#drawer.open{transform:none}
+.dh{padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.dh .crumb{font-size:12px;color:var(--ink-3)}
+.dh h3{margin:2px 0 0;font-size:18px;letter-spacing:-.01em}
+.dnav{display:flex;gap:6px;margin-top:12px;align-items:center}
+.btn{all:unset;cursor:pointer;border:1px solid var(--border-strong);border-radius:7px;padding:4px 10px;font-size:12.5px;color:var(--ink-2)}
+.btn:hover{background:var(--bg)}
+.btn.x{margin-left:auto}
+.db{overflow:auto;padding:20px 24px 40px;flex:1}
+.lbl{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:22px 0 8px}
+.lbl:first-child{margin-top:0}
+.msg{border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13.5px;color:var(--ink-2);white-space:pre-wrap}
+.msg .who{font-size:12px;color:var(--ink-3);margin-bottom:4px;white-space:normal}
+.msg.gold{border-color:var(--accent);border-width:1.5px;color:var(--ink)}
+.prop{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+.ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ph .m{font-weight:600}.ph .pp{color:var(--ink-3);font-size:12.5px}
+.pill{margin-left:auto;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px}
+.pill.g{background:var(--good-bg);color:#0a7a0a}.pill.w{background:var(--warn-bg);color:#946200}.pill.b{background:var(--bad-bg);color:#a32626}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.chip{font-size:11.5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:1px 7px;color:var(--ink-2)}
+.prop .txt{font-size:13px;color:var(--ink);white-space:pre-wrap}
+.judge{font-size:12.5px;color:var(--ink-2);margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.judge b{color:var(--ink-3);font-weight:600}
+
+@media (max-width:900px){
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .mrow{grid-template-columns:1fr repeat(4,minmax(54px,auto));gap:6px;padding:0 10px}
+  .wrap{padding:28px 16px 60px}
+}
+@media (max-width:560px){
+  .cards{grid-template-columns:1fr}
+  .heat-wrap,.mx-wrap{overflow-x:auto}
+  .mrow{min-width:560px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Simulation runs</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="cards" id="cards"></div>
+
+  <h2>Full match by case type</h2>
+  <div class="card heat-wrap"><table class="heat" id="heat"></table></div>
+
+  <h2>Every decision</h2>
+  <div class="bar">
+    <div class="seg" id="filter">
+      <button data-f="all" class="on">All</button><button data-f="miss">Not a match</button><button data-f="harm">Harmful</button><button data-f="split">Models disagree</button>
+    </div>
+    <div class="leg">
+      <span><i class="sw" style="background:var(--good)"></i>Match</span>
+      <span><i class="sw" style="background:var(--warn)"></i>Partly right</span>
+      <span><i class="sw" style="background:var(--bad)"></i>Wrong</span>
+      <span><i class="sw" style="background:var(--bad);outline:2px solid var(--bad);outline-offset:1px;border-radius:1px"></i>Harmful</span>
+    </div>
+  </div>
+  <div class="card mx-wrap"><div class="mx" id="mx"></div></div>
+</div>
+
+<div id="tip"></div>
+<aside id="drawer" aria-label="Decision detail"><div class="dh" id="dh"></div><div class="db" id="db"></div></aside>
+
+<script>
+const D = /*DATA*/null;
+const C = D.configs, $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const status = p => p.j_harmful ? 'h' : ['b','w','g'][p.j_match];
+const COLOR = {g:'var(--good)', w:'var(--warn)', b:'var(--bad)', h:'var(--bad)'};
+const LABEL = {g:'✓ Match', w:'~ Partly right', b:'✕ Wrong', h:'⚠ Harmful'};
+const PILL = {g:'g', w:'w', b:'b', h:'b'};
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+
+// flatten decisions
+const all = [];
+D.cats.forEach(cat => cat.rows.forEach(row => row.pts.forEach((pt, i) => all.push({cat, row, pt, i}))));
+
+// stats per config
+const stats = C.map(c => {
+  const ps = all.map(d => d.pt.p[c.id]);
+  const n = ps.length, g = ps.filter(p => status(p) === 'g').length, w = ps.filter(p => p.j_match === 1 && !p.j_harmful).length;
+  const h = ps.filter(p => p.j_harmful).length, b = n - g - w - h;
+  const auto = ps.filter(p => p.autonomy === 'auto_send');
+  return {n, g, w, b, h, auto: auto.length, autoOk: auto.filter(p => status(p) === 'g').length};
+});
+const best = stats.reduce((bi, s, i, a) => s.g > a[bi].g ? i : bi, 0);
+$('#sub').textContent = `${all.length} broker decisions across ${D.cats.reduce((n, c) => n + c.rows.length, 0)} insurance cases. Each model saw the history up to a decision, proposed the next action, and Opus 5 graded it against what the broker actually did.`;
+
+$('#cards').innerHTML = C.map((c, i) => {
+  const s = stats[i], seg = [['g', s.g], ['w', s.w], ['b', s.b], ['h', s.h]].filter(x => x[1]);
+  return `<div class="card cfg ${i === best ? 'best' : ''}">
+    ${i === best ? '<span class="tag">Best</span>' : ''}
+    <div class="model">${c.model}</div><div class="prompt">${c.prompt}</div>
+    <div class="hero">${pct(s.g, s.n)}%</div><div class="hero-l">match the broker</div>
+    <div class="stack">${seg.map(([k, v]) => `<i style="flex:${v};background:${COLOR[k]}"></i>`).join('')}</div>
+    <div class="leg"><span><b>${s.g}</b> match</span><span><b>${s.w}</b> partly</span><span><b>${s.b}</b> wrong</span><span><b>${s.h}</b> harmful</span></div>
+    <div class="kv"><div>Wants to auto-send<b>${pct(s.auto, s.n)}%</b></div><div style="text-align:right">…and is right<b>${pct(s.autoOk, s.auto)}%</b></div></div>
+  </div>`;
+}).join('');
+
+// heatmap: sequential blue, value printed in each cell
+const seq = v => v >= 90 ? ['--seq-5', '#fff'] : v >= 75 ? ['--seq-4', '#fff'] : v >= 60 ? ['--seq-3', 'var(--ink)'] : v >= 45 ? ['--seq-2', 'var(--ink)'] : ['--seq-1', 'var(--ink)'];
+$('#heat').innerHTML = `<thead><tr><th>Case type</th>${C.map(c => `<th style="text-align:center">${c.model}<small>${c.prompt}</small></th>`).join('')}</tr></thead><tbody>` +
+  D.cats.map(cat => {
+    const ds = all.filter(d => d.cat === cat);
+    return `<tr><th>${cat.name}<small>${ds.length}</small></th>${C.map(c => {
+      const v = pct(ds.filter(d => status(d.pt.p[c.id]) === 'g').length, ds.length), [bg, fg] = seq(v);
+      return `<td style="background:var(${bg});color:${fg}" title="${c.model} · ${c.prompt}: ${v}% of ${ds.length} decisions match">${v}%</td>`;
+    }).join('')}</tr>`;
+  }).join('') + '</tbody>';
+
+// matrix
+let filter = 'all', cur = null;
+const keep = d => {
+  const ss = C.map(c => status(d.pt.p[c.id]));
+  return filter === 'all' || (filter === 'miss' && ss.some(s => s !== 'g')) || (filter === 'harm' && ss.includes('h')) || (filter === 'split' && new Set(ss).size > 1);
+};
+function drawMatrix() {
+  let h = `<div class="mrow head"><div>Case</div>${C.map(c => `<div>${c.model} <span style="font-weight:400">· ${c.prompt.replace(' prompt', '')}</span></div>`).join('')}</div>`;
+  D.cats.forEach(cat => {
+    const rows = cat.rows.filter(r => r.pts.some((pt, i) => keep({pt})));
+    if (!rows.length) return;
+    h += `<div class="mrow cat"><div>${cat.name}</div></div>`;
+    rows.forEach(r => {
+      h += `<div class="mrow case ${cur && cur.row === r ? 'sel' : ''}" data-case="${r.id}"><div class="nm"><span>${r.id}</span>${esc(r.title)}</div>` +
+        C.map(c => `<div class="dots">${r.pts.map((pt, i) => {
+          const s = status(pt.p[c.id]);
+          return `<button class="dot ${s === 'h' ? 'h' : ''} ${keep({pt}) ? '' : 'dim'} ${cur && cur.pt === pt ? 'cur' : ''}" data-case="${r.id}" data-i="${i}" data-c="${c.id}" aria-label="${c.model} ${c.prompt}, case ${r.id} decision ${i + 1}: ${LABEL[s]}"><i style="background:${COLOR[s]}"></i></button>`;
+        }).join('')}</div>`).join('') + `</div>`;
+    });
+  });
+  $('#mx').innerHTML = h;
+}
+const find = (id, i) => all.find(d => d.row.id === id && d.i === i);
+
+// tooltip
+const tip = $('#tip');
+document.addEventListener('mouseover', e => {
+  const b = e.target.closest('.dot');
+  if (!b) { tip.style.opacity = 0; return; }
+  const d = find(b.dataset.case, +b.dataset.i), p = d.pt.p[b.dataset.c], c = C.find(x => x.id === b.dataset.c);
+  tip.innerHTML = `<b>${LABEL[status(p)]}</b> · ${c.model} · ${c.prompt}<br>Case ${d.row.id}, decision ${d.i + 1} of ${d.row.pts.length}<br><span style="opacity:.75">${esc(p.action_type)} → ${esc(p.recipient)}</span>`;
+  const r = b.getBoundingClientRect();
+  tip.style.left = Math.min(innerWidth - 310, r.left) + 'px'; tip.style.top = (r.bottom + 8) + 'px'; tip.style.opacity = 1;
+});
+
+// drawer
+function open(d) {
+  cur = d; tip.style.opacity = 0;
+  const {row, pt, i, cat} = d;
+  $('#dh').innerHTML = `<div class="crumb">${cat.name} · case ${row.id} · decision ${i + 1} of ${row.pts.length} (event ${pt.k} of ${pt.n})</div><h3>${esc(row.title)}</h3>
+    <div class="dnav"><button class="btn" id="prev">← Prev</button><button class="btn" id="next">Next →</button><button class="btn x" id="close">Close · Esc</button></div>`;
+  $('#db').innerHTML = `<div class="lbl">Last message</div><div class="msg"><div class="who">${esc(pt.prev.from)} → ${esc(pt.prev.to)}</div>${esc(pt.prev.body)}</div>
+    <div class="lbl">What the broker actually did</div><div class="msg gold"><div class="who">${esc(pt.gold.channel)} → ${esc(pt.gold.to)}</div>${esc(pt.gold.body)}</div>
+    <div class="lbl">What each model proposed</div>` + C.map(c => {
+      const p = pt.p[c.id], s = status(p);
+      return `<div class="prop"><div class="ph"><span class="m">${c.model}</span><span class="pp">${c.prompt}</span><span class="pill ${PILL[s]}">${LABEL[s]}</span></div>
+        <div class="chips"><span class="chip">${esc(p.action_type)}</span><span class="chip">→ ${esc(p.recipient)}</span><span class="chip">${esc((p.autonomy || '').replace(/_/g, ' '))}</span><span class="chip">confidence ${p.confidence ?? '—'}</span></div>
+        <div class="txt">${esc(p.message)}</div><div class="judge"><b>Judge:</b> ${esc(p.j_why)}</div></div>`;
+    }).join('');
+  $('#db').scrollTop = 0;
+  $('#drawer').classList.add('open');
+  $('#prev').onclick = () => step(-1); $('#next').onclick = () => step(1); $('#close').onclick = close;
+  drawMatrix();
+}
+function close() { cur = null; $('#drawer').classList.remove('open'); drawMatrix(); }
+function step(dir) {
+  const list = all.filter(keep);
+  const j = list.indexOf(cur);
+  if (list.length) open(list[(j + dir + list.length) % list.length]);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.dot');
+  if (b) return open(find(b.dataset.case, +b.dataset.i));
+  const r = e.target.closest('.mrow.case');
+  if (r) return open(all.find(d => d.row.id === r.dataset.case));
+  const f = e.target.closest('#filter button');
+  if (f) { filter = f.dataset.f; document.querySelectorAll('#filter button').forEach(x => x.classList.toggle('on', x === f)); drawMatrix(); }
+});
+document.addEventListener('keydown', e => {
+  if (!cur) return;
+  if (e.key === 'Escape') close();
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') { e.preventDefault(); step(1); }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'k') { e.preventDefault(); step(-1); }
+});
+drawMatrix();
+</script>
+</body>
+</html>

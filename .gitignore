@@ -18,3 +18,6 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+
+# generated
+research/insurance-sim/webapp/index.html

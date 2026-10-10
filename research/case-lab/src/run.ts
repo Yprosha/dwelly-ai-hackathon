@@ -2,7 +2,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
+import { writeOut, type Out } from "./answers.ts";
 import { agentTurn, newAgent, writeAnswer, type AgentState, type Answer } from "./agent.ts";
+import { checkPanel, sitPanel, type Advice } from "./panel.ts";
 import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type Offense, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
@@ -27,6 +29,7 @@ export type CaseResult = {
   key: string;
   status: "done" | "error";
   error?: string;
+  firstError?: string; // a handed case is tried twice: why the first attempt failed
   stop: string; // closed | silence | turn limit | over-request | extra-message | error
   failure?: Offense & { turn: number }; // the agent message that ended the run, when settings.failOn caught one
   start: "escalation" | "seed" | "opening"; // how the takeover point was chosen (absent in runs made before escalation starts)
@@ -34,6 +37,7 @@ export type CaseResult = {
   handler: string[]; // names the handler's side goes by in the real case (from the simulator)
   replay: Msg[];
   agent: AgentState;
+  advice?: Advice[]; // what the preset panel proposed before agent turns (absent in runs without a panel)
   world: WorldTurn[];
   judge?: { output: Judgement; prompt: string; call: Call };
   answer?: Answer; // the agent's Overview and Next action at escalation
@@ -50,7 +54,7 @@ export type CaseSummary = {
   e2e?: boolean; // the judge's end-to-end verdict: the whole replay is correct and follows the real case
 };
 
-export type RunMeta = { id: string; label: string; createdAt: string; finishedAt?: string; status: "running" | "done"; kit: Kit; cases: Record<string, CaseSummary> };
+export type RunMeta = { id: string; label: string; dir?: string; createdAt: string; finishedAt?: string; status: "running" | "done"; kit: Kit; cases: Record<string, CaseSummary> };
 
 const RUNS = path.join(ROOT, "runs");
 
@@ -81,9 +85,12 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     });
     let silent = false;
     for (let turn = 1; ; turn++) {
+      // the preset panel sits first: its proposals go to the agent with this turn's input, and the agent decides
+      const advice = await sitPanel(ctx, turn);
+      if (advice) (res.advice ??= []).push(advice);
       const before = replay.length;
       const docsBefore = visibleDocs(ctx);
-      await agentTurn(ctx, agent, input, turn);
+      await agentTurn(ctx, agent, input + (advice?.text ?? ""), turn);
       if (turn === 1) res.answer = await writeAnswer(ctx, agent, turn);
       if (agent.closed) { res.stop = "closed"; break; }
       if (c.synthetic) { res.stop = "answer only"; break; } // no real future to replay: the answer is the result
@@ -100,7 +107,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
           documents: fresh.length ? `\nNow also on file:\n${fresh.map((d) => `/documents/${d}`).join("\n")}` : "",
         });
       } else if (silent) { res.stop = "silence"; break; }
-      else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice, like claimsorted's silence signal
+      else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice
     }
     if (s.runJudge && !c.synthetic) res.judge = await judge(ctx, res); // the judge compares with the real future, which a synthetic case has not got
     if (s.runReviewer && res.answer) res.review = await review(ctx, res);
@@ -110,7 +117,8 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     res.stop ||= "error";
   }
   res.handler = ctx.handler; // set by the first world turn
-  res.cost = [...agent.calls, ...agent.subagents.flatMap((s) => s.calls), ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
+  const panel = (res.advice ?? []).flatMap((a) => a.proposals.flatMap((p) => p.calls));
+  res.cost = [...agent.calls, ...agent.subagents.flatMap((s) => s.calls), ...panel, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
   res.ms = Date.now() - t0;
   return res;
 }
@@ -185,22 +193,35 @@ export function selectKeys(sel: { split?: string; tracks?: string[]; keys?: stri
   return keys.filter((k) => !sel.tracks?.length || sel.tracks.includes(k.split("-")[0]));
 }
 
-export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings> }, onCase?: (key: string, s: CaseSummary) => void) {
+// out: also write each case's ANSWER.md, REASONING.md and trace there (a folder of handed cases).
+// timeoutMin: with out, a case still running after that long gets its files anyway, saying it was not finished.
+export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings>; out?: Out; timeoutMin?: number; dir?: string }, onCase?: (key: string, s: CaseSummary) => void) {
   const kit = loadKit(opts.overrides);
+  checkPanel(kit);
   const cases = opts.keys.map(getCase);
   if (!cases.length) throw new Error("no cases selected");
   const label = opts.label?.trim() || "run";
   const id = `${new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15)}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   const dir = path.join(RUNS, id);
   fs.mkdirSync(path.join(dir, "cases"), { recursive: true });
-  const meta: RunMeta = { id, label, createdAt: new Date().toISOString(), status: "running", kit, cases: Object.fromEntries(cases.map((c) => [c.key, { status: "pending" }])) };
+  const meta: RunMeta = { id, label, dir: opts.dir, createdAt: new Date().toISOString(), status: "running", kit, cases: Object.fromEntries(cases.map((c) => [c.key, { status: "pending" }])) };
   const save = () => fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(meta, null, 2));
   save();
   const done = pool(cases, kit.settings.concurrency, async (c) => {
     meta.cases[c.key] = { status: "running" };
     save();
-    const r = await runCase(kit, c);
+    const until = Date.now() + (opts.timeoutMin ?? 0) * 60_000;
+    const attempt = () => !(opts.out && opts.timeoutMin) ? runCase(kit, c) : Promise.race([runCase(kit, c), new Promise<CaseResult>((ok) => {
+      const late: CaseResult = { key: c.key, status: "error", error: `not finished within ${opts.timeoutMin} minutes`, stop: "timeout", start: "escalation", takeover: 0, handler: [], replay: [], agent: newAgent(kit), world: [], extract: [], cost: 0, ms: opts.timeoutMin! * 60_000 };
+      setTimeout(() => ok(late), Math.max(0, until - Date.now())).unref();
+    })]);
+    let r = await attempt();
+    if (r.status === "error" && r.stop !== "timeout" && c.handed) { // no one is there to rerun it by hand: one more attempt, and the first failure stays on record
+      const firstError = r.error;
+      r = { ...(await attempt()), firstError };
+    }
     fs.writeFileSync(path.join(dir, "cases", `${c.key}.json`), JSON.stringify(r, null, 2));
+    if (opts.out) writeOut(opts.out, kit, c, r, id);
     if (r.answer) { // the answer as the case file would record it
       fs.mkdirSync(path.join(dir, "answers"), { recursive: true });
       fs.writeFileSync(path.join(dir, "answers", `${c.key}.md`), `# ${c.title}\n\n## Overview\n\n${r.answer.overview}\n\n## Next action at escalation\n\n${r.answer.next_action}\n`);
@@ -212,6 +233,8 @@ export function startRun(opts: { label?: string; keys: string[]; overrides?: Par
     meta.status = "done";
     meta.finishedAt = new Date().toISOString();
     save();
+    // settings, model presets and prompts this run used; the folder by name only, since the logs get published
+    if (opts.out) fs.writeFileSync(path.join(opts.out.logs, "run.json"), JSON.stringify({ ...meta, dir: opts.dir && path.basename(opts.dir) }, null, 2));
     return meta;
   });
   return { id, done };

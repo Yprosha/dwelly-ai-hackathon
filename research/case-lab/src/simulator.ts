@@ -1,5 +1,5 @@
-// The outside world: every party except the handler, replayed from the real history (claimsorted's replay engine),
-// with code-side guards borrowed from its dossier engine: real event ids only, real attachments only, no invented figures.
+// The outside world: every party except the handler, replayed from the real history,
+// with code-side guards: real event ids only, real attachments only, no invented figures.
 import type { Case, Event } from "./cases.ts";
 import { caseFile, docText, eventAttachments, push, type Ctx, type Msg } from "./casefs.ts";
 import { call, jsonOf, jsonPrompt, promptOf, render, type Call } from "./llm.ts";
@@ -26,7 +26,7 @@ export function renderReplay(m: Msg): string {
     .filter((x) => x !== false && x !== undefined).join("\n");
 }
 
-// Drop sentences carrying a 2+ digit number that appears in none of the supporting texts (claimsorted's strict grounding).
+// Drop sentences carrying a 2+ digit number that appears in none of the supporting texts (strict grounding).
 export function ground(body: string, support: string[]): { body: string; stripped: string[] } {
   const known = new Set(support.flatMap((s) => s.match(/\d+/g) ?? []));
   const stripped: string[] = [];

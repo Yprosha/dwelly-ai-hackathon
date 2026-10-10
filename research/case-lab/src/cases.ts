@@ -1,6 +1,7 @@
 // Parses the public insurance cases (<CASES_DIR>/<id>/{index.md,history.md,attachments/}) into plain objects, plus
 // synthetic eval cases (<EVAL_CASES_DIR>/<id>), whose history ends at the escalation point.
 // CASES_DIR follows the repo convention: data/public-cases/Insurance Claims Processing unless set.
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -8,7 +9,7 @@ const casesDir = () => process.env.CASES_DIR ?? path.resolve(import.meta.dirname
 const evalDir = () => process.env.EVAL_CASES_DIR ?? path.resolve(import.meta.dirname, "../../../eval/cases");
 
 export type Event = { n: number; ts: string; channel: string; from: string; to: string; subject?: string; stage?: string; body: string };
-export type Attachment = { name: string; firstEvent: number | null }; // first event whose body mentions the file
+export type Attachment = { name: string; firstEvent: number | null; file?: string }; // first event whose body mentions the file; file: where it is, when not in <dir>/attachments
 export type Case = {
   key: string; // "insurance-032"
   track: string;
@@ -22,6 +23,7 @@ export type Case = {
   events: Event[];
   attachments: Attachment[];
   synthetic?: boolean; // an eval case: no real future to replay; graded against expected_answer.md and rubric.json
+  handed?: { name: string; extra: string; notes: string[] }; // a case from a folder given to loadDir: its folder name, index.md sections the agent is also shown, what could not be parsed
   reference: { overview: string; next_action: string; full: string }; // what the reviewer grades the answer against; never shown to the agent
 };
 
@@ -127,6 +129,79 @@ function synthetic(root: string, id: string): Case {
   };
 }
 
+// A folder of cases handed over for a real run (the Reality Test). There is no answer key and no future to replay:
+// the history ends where the agent takes over, so each case runs like a synthetic one, without a reviewer.
+// The layout is whatever arrives. A case is any folder holding index.md or history.md, however deep; if there is
+// none, every entry of the folder is a case. Every other file of a case becomes a document, and a history that is
+// not in the events format is handed over as a document too.
+const ANSWER = new Set(["Overview", "Next action at escalation", "Outcome"]); // hidden if a handed case still has them
+const GRADER = new Set(["expected_answer.md", "rubric.json"]);
+
+function walk(dir: string, rel = ""): string[] {
+  return fs.readdirSync(path.join(dir, rel), { withFileTypes: true }).filter((e) => !e.name.startsWith(".")).sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((e) => (e.isDirectory() ? walk(dir, path.join(rel, e.name)) : [path.join(rel, e.name)]));
+}
+
+function findCases(dir: string, depth = 0): string[] {
+  const names = fs.readdirSync(dir).filter((f) => !f.startsWith("."));
+  if (names.includes("index.md") || names.includes("history.md")) return [dir];
+  if (depth >= 3) return [];
+  return names.map((n) => path.join(dir, n)).filter((p) => fs.statSync(p).isDirectory()).flatMap((p) => findCases(p, depth + 1));
+}
+
+function handedCase(p: string, tag: string): Case {
+  const isDir = fs.statSync(p).isDirectory();
+  const root = isDir ? p : path.dirname(p);
+  const files = isDir ? walk(p) : [path.basename(p)];
+  const name = isDir ? path.basename(p) : path.parse(p).name;
+  const notes: string[] = [];
+  const idx = files.includes("index.md") ? fs.readFileSync(path.join(root, "index.md"), "utf8") : "";
+  const sec = sections(idx);
+  let evs: Event[] = [];
+  if (files.includes("history.md")) {
+    try { evs = events(fs.readFileSync(path.join(root, "history.md"), "utf8")); } catch (e) { notes.push(`history.md could not be parsed as events (${e instanceof Error ? e.message.slice(0, 120) : e}); it was handed over as a document`); }
+    if (!evs.length && !notes.length) notes.push("history.md holds no events in the expected format; it was handed over as a document");
+  } else notes.push("no history.md; the files were handed over as documents");
+  const docs = files.filter((f) => f !== "index.md" && !GRADER.has(f) && !(f === "history.md" && evs.length > 0));
+  if (!evs.length) evs = [{ n: 1, ts: "", channel: "Case file", from: "Case file", to: "Handler", body: "This case arrived as files, not as a message history. Everything known about it is in /documents: read all of them before acting." }];
+  return {
+    key: `handed-${tag}-${name.replace(/[^A-Za-z0-9_.-]+/g, "-")}`,
+    track: "Handed over", id: name, title: idx.match(/^# (?:Case \S+: )?(.+)$/m)?.[1] ?? name, dir: root,
+    details: fields(sec["Case details"] ?? ""),
+    request: sec["Initial request"] ?? "",
+    context: sec["Context"] ?? "",
+    answer: {}, reference: { overview: "", next_action: "", full: "" },
+    events: evs,
+    attachments: docs.map((f) => {
+      const n = f.startsWith(`attachments${path.sep}`) ? f.slice(12) : f;
+      return { name: n, file: path.join(root, f), firstEvent: evs.find((e) => e.body.toLowerCase().includes(path.basename(n).toLowerCase()))?.n ?? null };
+    }),
+    synthetic: true,
+    handed: { name, notes, extra: Object.entries(sec).filter(([h]) => !NOT_ANSWER.has(h) && !ANSWER.has(h)).map(([h, b]) => `## ${h}\n\n${b}`).join("\n\n") },
+  };
+}
+
+let handed: Case[] = [];
+export function loadDir(dir: string): Case[] {
+  const root = path.resolve(dir);
+  if (!fs.existsSync(root)) throw new Error(`No such folder: ${root}`);
+  let found = fs.statSync(root).isDirectory() ? findCases(root) : [root];
+  if (!found.length) found = fs.readdirSync(root).filter((f) => !f.startsWith(".") && !/^(readme|license)/i.test(f)).map((f) => path.join(root, f));
+  // a folder beside the cases found is a case too, even without index.md or history.md
+  if (!found.includes(root)) for (const parent of new Set(found.map((p) => path.dirname(p)))) for (const n of fs.readdirSync(parent)) {
+    const p = path.join(parent, n);
+    if (!n.startsWith(".") && fs.statSync(p).isDirectory() && !found.includes(p) && walk(p).length) found.push(p);
+  }
+  found.sort((a, b) => path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true }));
+  const tag = createHash("sha1").update(root).digest("hex").slice(0, 6); // keeps the extraction cache of one folder apart from another's
+  handed = found.map((p) => handedCase(p, tag));
+  const names = handed.map((c) => c.handed!.name);
+  const twice = names.filter((n, i) => names.indexOf(n) !== i);
+  if (twice.length) throw new Error(`Two cases are called ${[...new Set(twice)].join(", ")} under ${root}: their answers would overwrite each other. Point --dir at one set of cases.`);
+  if (!handed.length) throw new Error(`No cases found in ${root}`);
+  return handed;
+}
+
 let cache: Case[] | undefined;
 export function allCases(): Case[] {
   if (cache) return cache;
@@ -138,7 +213,7 @@ export function allCases(): Case[] {
 }
 
 export function getCase(key: string): Case {
-  const c = allCases().find((x) => x.key === key);
+  const c = handed.find((x) => x.key === key) ?? allCases().find((x) => x.key === key);
   if (!c) throw new Error(`unknown case ${key}`);
   return c;
 }

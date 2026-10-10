@@ -1,10 +1,12 @@
 // npm run check: the smallest checks that fail if the parser or the grounding guard breaks.
 import assert from "node:assert/strict";
-import { allCases, getCase, handlerNames } from "./cases.ts";
+import path from "node:path";
+import { allCases, getCase, handlerNames, loadDir } from "./cases.ts";
 import { agentBrief, fsTool, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { ground, renderEvent, seed } from "./simulator.ts";
 import { loadEnv, loadKit, promptOf } from "./llm.ts";
 import { otherClaims, readClaim, searchClaims } from "./subagent.ts";
+import { checkPanel } from "./panel.ts";
 
 loadEnv();
 
@@ -96,10 +98,26 @@ assert.match(searchClaims(others, "zzzqqq"), /^No claim found/);
 assert.ok(readClaim(kitA, others, "016").includes("## Outcome") && readClaim(kitA, others, "insurance-016").includes("--- event 1 "));
 assert.ok(readClaim(kitA, otherClaims(c), "eval-108").includes(`subject: ${subject}`));
 assert.throws(() => readClaim(kitA, others, "insurance-017"), /NOT_FOUND/);
+// the preset panel: every member in config/panel.json has its prompt, and the templates take what sitPanel fills
+assert.ok(Object.keys(kitA.panel).length > 0 && !kitA.settings.panel?.length);
+checkPanel(loadKit({ panel: Object.keys(kitA.panel) }));
+assert.throws(() => checkPanel(loadKit({ panel: ["nobody"] })), /unknown panel member/);
+assert.ok(promptOf(kitA, "panel.task.md").includes("{{lens}}") && promptOf(kitA, "agent.panel.md").includes("{{proposals}}"));
 // the simulator and the judge are both handed the documents' text
 const prompts = loadKit().prompts;
 assert.ok(prompts["simulator.user.md"].includes("{{documents}}") && prompts["judge.user.md"].includes("{{documents}}"));
 // a sub-agent reads every other claim but never the one being worked on: 209 continues 201 on the same property
 const others201 = otherClaims(getCase("eval-201")).map((k) => k.key);
 assert.ok(!others201.includes("eval-201") && !others201.includes("eval-209") && others201.includes("insurance-032"));
+// a handed folder (a real run): every public case loads from its folder alone, keyed apart from the public set, with
+// every file on hand, the request in what the agent is told and the answer sections out of it
+const handedSet = loadDir(path.dirname(cases[0].dir));
+assert.equal(handedSet.length, 50);
+assert.ok(handedSet.every((k) => k.synthetic && k.handed && k.key.startsWith("handed-") && k.events.length > 0 && !k.handed.notes.length && !k.handed.extra));
+const kitH = loadKit();
+assert.ok(handedSet.every((k) => {
+  const pub = getCase(`insurance-${k.id}`), brief = agentBrief(kitH, k);
+  return brief.includes(pub.request) && !(pub.reference.overview && brief.includes(pub.reference.overview))
+    && visibleDocs({ kit: kitH, c: k, replay: [], handler: [], extract: [] }).length === pub.attachments.length;
+}));
 console.log("selfcheck ok");

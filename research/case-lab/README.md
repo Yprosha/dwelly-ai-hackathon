@@ -1,6 +1,6 @@
 # Case Lab
 
-An agent that works the **Insurance Claims Processing** cases end to end against simulated counterparties, plus a UI to read what happened. It is modelled on claimsorted's Sophie Lab: copilot loop, claim-as-file-system tools, replay-engine counterparty and comms-checklist judge, all simplified.
+An agent that works the **Insurance Claims Processing** cases end to end against simulated counterparties, plus a UI to read what happened. It has a copilot loop, claim-as-file-system tools, a replay-engine counterparty and a comms-checklist judge.
 
 ```bash
 cd research/case-lab
@@ -14,10 +14,12 @@ Then open http://localhost:5177.
 - **Cases:** read from `data/public-cases/Insurance Claims Processing`, the same place `research/insurance-sim` uses. Set `CASES_DIR` to read them from somewhere else.
 - **Baseline:** `runs/` ships with the holdout baseline, so the UI has something to show straight away. New runs stay local. That baseline was made before escalation starts and began at the opening; the UI says where each run started.
 
-The UI has two modes, like Sophie Lab:
+The UI has two modes:
 
 - **Simple** is for reviewing. It has a scorecard, the claim list, an "Agent vs the real claim" fold, an Emails mailbox (this run or the real claim) and the agent's Chat. The claims list and the Emails column can be dragged by their edge or hidden with the chevron on it (double-click the edge to reset), to give the chat more room.
 - **Full** is for building. It has the agent trace with thinking and tokens, simulator turns, judge details, a side-by-side replay, run config, New run, and Prompts & settings.
+
+**Demo run** (the link beside a claim's title in Simple, or `#/demo/<run>/<case>`) plays a finished claim back as if the agent were working on it now, for showing how it works. The page opens as it stood before the agent started; **Run** then fills the chat event by event and lands each email in the mailbox when it was sent or received. It calls no model: the pace is the recorded one (model calls, sub-agents and replies take as long as they took), and `#/demo/<run>/<case>/2` plays it twice as fast. The verdicts stay hidden until the run is over.
 
 To run from the terminal instead (runs show up in the UI either way):
 
@@ -28,6 +30,25 @@ npm run run -- --split holdout --label baseline
 ```bash
 npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 ```
+
+## A real run: a folder of cases in, `ANSWERS/` out
+
+For cases nobody has seen (the Reality Test), give the folder they arrived in:
+
+```bash
+npm run run -- --dir "<path to the folder of cases>"
+```
+
+Each case gets `ANSWERS/<case folder name>/ANSWER.md` and `REASONING.md` at the repo root, its full trace in `logs/<case folder name>.json`, and the run's settings, model presets and prompts in `logs/run.json`. `--out` and `--logs` change where they go; `--cases 3,7` runs only those folders; `--panel`, `--no-subagents`, `--agent` and `--concurrency` work as in any other run.
+
+- **What counts as a case.** Any folder holding `index.md` or `history.md`, however deep under the folder you give, and every folder beside one. If there is none, each entry of the folder is a case. Two cases with the same folder name stop the run before it starts, because their answers would overwrite each other.
+- **What the agent gets.** The whole history, since it ends where the agent takes over, and every other file of the case as a document: PDFs and images are transcribed, anything else that is text is read as it is. From `index.md` it gets what `caseCard` allows, plus any section that is not part of the public layout (a question, an instruction). `Overview`, `Next action at escalation` and `Outcome` stay hidden if a case still has them. A history that is not in the events format is handed over as a document and `REASONING.md` says so.
+- **What runs.** The agent's first turn and its answer. There is no simulated counterparty, judge or reviewer: there is no answer key to hold them to.
+- **`ANSWER.md`**: the agent's Overview and Next action at escalation, then every message, note and closure it issued, word for word. **`REASONING.md`**: what the system received, each step it took (reads, searches, sub-agents, model thinking summaries), the panel's and sub-agents' reports, what failed, models, cost and time.
+- **A case still running after 15 minutes** (`--timeout`, in minutes, counted from when the case started) gets both files saying it was not finished, so a run always ends with every case accounted for.
+- **A case that fails** is tried once more. If it fails again, it still gets both files: `ANSWER.md` says the system wrote no answer and the case needs a human, and `REASONING.md` gives the error. Nothing is filled in by hand.
+
+The run shows up in the UI like any other, as long as the folder is still where it was.
 
 ## Cases
 
@@ -71,6 +92,27 @@ The main agent checks completeness before acting and before every final answer, 
 - A sub-agent gets up to 25 model rounds, 10 web searches and 6 page fetches per round; one that fails or is still working after 15 minutes comes back to the agent as a tool error.
 - In the UI, Simple shows each call as a **Sub-agent** step in the agent chat: its task, its work drawn like the agent's (case files, other claims, web searches with the pages they found), its report, cost and time. Full → Agent trace lists the same with its tool calls. Runs made with the earlier advisory council still show their **Advisers** folds and traces.
 
+## Preset panel
+
+Instead of leaving it to the agent, the harness can launch a fixed set of sub-agents itself, each with a brief of its own. Their proposals are appended to the agent's input for that turn (`prompts/agent.panel.md`); the agent decides and only the agent acts. Off by default: set `panel` in `config/settings.json`, or pass `--panel` on the command line.
+
+```bash
+npm run run -- --cases insurance-017,insurance-030 --panel all --no-subagents --label panel
+```
+
+| Sub-agent | Angle |
+|---|---|
+| `researcher` | UK rules and guidance (FCA, Financial Ombudsman, ABI, gov.uk) and what UK insurers' wordings say on the clause in question |
+| `conservative` | what could go wrong, the smallest safe set of steps |
+| `creative` | the move a routine handler would miss |
+| `precedent` | how the other claims in the database were handled |
+| `simplifier` | the shortest plan that still does the job, and what to leave out |
+
+- `config/panel.json` says who can sit, with which prompt file and when (`first`: only when the agent picks the case up; `every`: before each of its turns). `prompts/panel.task.md` is the task they all get, `prompts/panelist.*.md` the angles.
+- They run as ordinary sub-agents: the `subagent` model preset, the same tools and limits. One that fails or times out is shown as "no proposal" and the turn goes on without it.
+- `--panel` and `--no-subagents` are independent: with both, only the panel runs; without `--no-subagents` the agent can still launch sub-agents of its own.
+- In the UI a sitting is the **Advisers** fold under the turn header in the agent chat, with **trace ›** on each sub-agent; Full → Agent trace lists their proposals, tool calls, cost and time.
+
 ## Where things live
 
 | Path | What |
@@ -79,9 +121,10 @@ The main agent checks completeness before acting and before every final answer, 
 | `config/models.json` | Model presets, sent to the Messages API as-is (model, max_tokens, thinking, effort, betas). |
 | `config/settings.json` | Defaults for new runs: the preset per role, loop limits, judge on or off. |
 | `config/splits.json` | Insurance dev split (40 claims) and holdout split (10, every 5th claim). |
+| `config/panel.json` | The preset panel: per sub-agent its title, prompt file and when it sits. `settings.json` → `panel` picks who sits on a run. |
 | `config/escalation.json` | Each claim's escalation point: the agent sees real events 1..`after`. Editable in the UI like the other config. |
 | `runs/<id>/` | `run.json` (summary, plus a snapshot of the settings, presets and prompts used) and `cases/<key>.json` (replay, agent transcript, simulator turns, judge). Only the holdout baseline is committed. |
-| `src/` | `cases.ts` parser, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `subagent.ts` sub-agents, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
+| `src/` | `cases.ts` parser and the handed-folder loader, `answers.ts` the `ANSWER.md` / `REASONING.md` writer, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `subagent.ts` sub-agents, `panel.ts` the preset panel, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
 | `ui/` | One page, plain JS, no build step. |
 
 You can edit prompts and config in the UI under **Full → Prompts & settings**. Changes apply to the next run, with no restart needed. `npm run check` runs the self-check, and `npm run typecheck` runs the TypeScript compiler.

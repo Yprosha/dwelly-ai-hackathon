@@ -5,7 +5,7 @@ Submission for the **Real-World Agents Hackathon** (10 October 2026).
 - **Team:** sorted
 - **Team members:** Prohor Yakuba, Daniil Maksimov, Mikhail Primakov
 - **Track:** Insurance Claims Processing
-- **Demo video:** [`demo/`](demo/) — TODO exact file path
+- **Demo video:** [`demo/Sorted-demo.mp4`](demo/Sorted-demo.mp4)
 - **Reality Test results:** [`ANSWERS/`](ANSWERS/)
 - **Submission metadata:** [`SUBMISSION.md`](SUBMISSION.md)
 
@@ -126,6 +126,15 @@ cp .env.example .env
 # process every case folder and write ANSWERS/<case>/ + logs/<case>.jsonl
 uv run python -m agent run "<path>/Insurance Claims Processing" --out ANSWERS --workers 8
 # or, after install: agent run <cases_dir> --out ANSWERS
+```
+
+The same folder can be given to Case Lab, the agent harness in [`research/case-lab`](research/case-lab/README.md)
+(Node 20.12 or newer, `npm install` there first). It writes the same `ANSWERS/<case>/ANSWER.md` and `REASONING.md`, with the
+full trace of each case in `logs/<case>.json` and the settings and prompts used in `logs/run.json`:
+
+```bash
+cd research/case-lab
+npm run run -- --dir "<path>/Insurance Claims Processing"
 ```
 
 Options: `--model` (default `claude-sonnet-5`), `--workers`, `--only 001,022`, `--skip-existing` (resume an

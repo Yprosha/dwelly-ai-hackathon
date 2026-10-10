@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broker Voice Line</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e4e4e0; --accent:#1f5eff;
+          --act:#0a7d4f; --ask:#a26100; --esc:#c4291c; --none:#55555a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  header { grid-column:1/-1; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .muted { color:var(--muted); font-size:13px; }
+  #mic { width:100%; padding:18px; font-size:17px; border:0; border-radius:12px; background:var(--accent); color:#fff; cursor:pointer; }
+  #mic.rec { background:var(--esc); animation:pulse 1.2s infinite; }
+  #mic:disabled { background:#9aa6c4; cursor:wait; }
+  @keyframes pulse { 50% { opacity:.75; } }
+  textarea { width:100%; min-height:56px; margin-top:10px; border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; }
+  .row { display:flex; gap:8px; margin-top:6px; } .row button { flex:1; }
+  button.ghost { background:none; border:1px solid var(--line); border-radius:8px; padding:7px 10px; cursor:pointer; font:inherit; }
+  #status { margin:10px 0 0; min-height:22px; font-size:14px; }
+  .turn { padding:10px 12px; border-radius:10px; margin:8px 0; white-space:pre-wrap; }
+  .caller { background:#eef1f8; } .broker { background:#eaf6ef; }
+  .who { font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:2px; }
+  .badge { display:inline-block; padding:3px 10px; border-radius:99px; color:#fff; font-weight:600; font-size:13px; text-transform:uppercase; }
+  .action { border-left:3px solid var(--line); padding:6px 10px; margin:10px 0; white-space:pre-wrap; }
+  .action.escalation { border-color:var(--esc); background:#fdf1f0; } .action.message { border-color:var(--act); }
+  .action b { display:block; font-size:13px; }
+  pre { white-space:pre-wrap; font-size:12px; color:var(--muted); max-height:160px; overflow:auto; margin:0; }
+  audio { width:100%; margin-top:6px; }
+  @media (max-width:760px) { main { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Broker voice line</h1><span class="muted">ElevenLabs Scribe (speech-to-text) &rarr; broker agent &rarr; ElevenLabs voice reply</span></header>
+
+  <section>
+    <div class="card">
+      <h2>Caller</h2>
+      <button id="mic">Press to speak</button>
+      <textarea id="typed" placeholder="...or type what the caller says (no microphone)"></textarea>
+      <div class="row"><button class="ghost" id="send">Send typed line</button><button class="ghost" id="reset">New call</button></div>
+      <div id="status" class="muted" role="status" aria-live="polite"></div>
+    </div>
+    <div class="card" style="margin-top:20px"><h2>Call</h2><div id="turns"><p class="muted">No call yet.</p></div></div>
+    <div class="card" style="margin-top:20px"><h2>Case on file <span id="caseid"></span></h2><pre id="casetext"></pre></div>
+  </section>
+
+  <section class="card"><h2>Agent decision</h2><div id="decision"><p class="muted">Waiting for the caller.</p></div></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const colour = d => ({act:'var(--act)', ask_for_info:'var(--ask)', escalate:'var(--esc)', no_action:'var(--none)'})[d] || 'var(--esc)';
+let rec, chunks = [], ack = null;
+fetch('/api/ack').then(r => r.ok ? r.json() : null).then(j => { if (j) ack = j.audio; }).catch(() => {});
+
+async function loadCase() {
+  const c = await (await fetch('/api/case')).json();
+  $('caseid').textContent = c.id; $('casetext').textContent = c.text;
+}
+function addTurn(who, text, audio) {
+  if (!$('turns').querySelector('.turn')) $('turns').innerHTML = '';
+  const d = document.createElement('div');
+  d.className = 'turn ' + who;
+  d.innerHTML = `<span class="who">${who === 'caller' ? 'Caller (transcribed)' : 'Broker agent (spoken)'}</span>${esc(text)}`;
+  if (audio) { const a = new Audio('data:audio/mpeg;base64,' + audio); a.controls = true; d.appendChild(a); a.play().catch(() => {}); }
+  $('turns').appendChild(d);
+}
+function status(s) { $('status').textContent = s; }
+function busy(b) { $('mic').disabled = b; $('send').disabled = b; }
+
+async function decide(transcript) {
+  addTurn('caller', transcript);
+  if (ack) new Audio('data:audio/mpeg;base64,' + ack).play().catch(() => {});
+  status('Broker agent is deciding...'); const t = Date.now();
+  const r = await fetch('/api/decide', {method:'POST', body: JSON.stringify({transcript})});
+  const j = await r.json();
+  if (!r.ok) { status('Error: ' + j.error); return; }
+  status(`Decided in ${((Date.now() - t) / 1000).toFixed(0)}s` + (j.tts_error ? ' (voice reply unavailable: ' + j.tts_error + ')' : ''));
+  if (j.reply) addTurn('broker', j.reply, j.audio);
+  const acts = j.actions.map(a => {
+    if (a.kind === 'message') return `<div class="action message"><b>Message to ${esc(a.to)} via ${esc(a.channel)}${a.approval ? ' (held for human approval)' : ''}</b>${esc(a.body)}</div>`;
+    if (a.kind === 'escalation') return `<div class="action escalation"><b>Escalated to ${esc(a.route_to || 'a human')} &middot; urgency ${esc(a.urgency)}</b>${esc(a.reason)}\n\n${esc(a.body)}</div>`;
+    if (a.kind === 'note') return `<div class="action"><b>Case note</b>${esc(a.body)}</div>`;
+    return `<div class="action"><b>No action</b>${esc(a.body)}${a.next ? '\nNext trigger: ' + esc(a.next) : ''}</div>`;
+  }).join('');
+  $('decision').innerHTML =
+    `<span class="badge" style="background:${colour(j.decision)}">${esc((j.decision || 'none').replace(/_/g, ' '))}</span>` +
+    (j.confidence != null ? ` <span class="muted">confidence ${esc(j.confidence)}</span>` : '') +
+    (j.situation ? `<p>${esc(j.situation)}</p>` : '') + acts +
+    (j.issues.length ? `<p><b>Issues detected</b><br>${j.issues.map(esc).join('<br>')}</p>` : '') +
+    (j.rationale ? `<p class="muted"><b>Why:</b> ${esc(j.rationale)}</p>` : '') +
+    (j.error ? `<p style="color:var(--esc)">${esc(j.error)}</p>` : '') +
+    `<p class="muted">Trace: ${esc(j.trace)} &middot; ${esc(j.duration_s)}s &middot; $${esc(j.cost_usd)}</p>`;
+}
+
+$('mic').onclick = async () => {
+  if (rec && rec.state === 'recording') { rec.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    rec = new MediaRecorder(stream); chunks = [];
+    rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      $('mic').classList.remove('rec'); $('mic').textContent = 'Press to speak'; busy(true);
+      try {
+        status('Transcribing with ElevenLabs Scribe...');
+        const blob = new Blob(chunks, {type: rec.mimeType});
+        const r = await fetch('/api/transcribe', {method:'POST', headers:{'Content-Type': rec.mimeType}, body: blob});
+        const j = await r.json();
+        if (!r.ok || !j.transcript) { status('Transcription failed: ' + (j.error || 'no speech heard')); return; }
+        await decide(j.transcript);
+      } catch (e) { status('Error: ' + e); } finally { busy(false); }
+    };
+    rec.start();
+    $('mic').classList.add('rec'); $('mic').textContent = 'Listening... press to stop'; status('');
+  } catch (e) { status('Microphone unavailable: ' + e.message + '. Type the caller line instead.'); }
+};
+$('send').onclick = async () => {
+  const t = $('typed').value.trim(); if (!t) return;
+  busy(true); $('typed').value = '';
+  try { await decide(t); } catch (e) { status('Error: ' + e); } finally { busy(false); }
+};
+$('reset').onclick = async () => {
+  await fetch('/api/reset', {method:'POST'});
+  $('turns').innerHTML = '<p class="muted">No call yet.</p>'; $('decision').innerHTML = '<p class="muted">Waiting for the caller.</p>'; status('New call.');
+  loadCase();
+};
+loadCase();
+</script>
+</body>
+</html>

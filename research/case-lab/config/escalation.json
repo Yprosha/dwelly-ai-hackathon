@@ -1,0 +1,202 @@
+{
+  "insurance-001": {
+    "after": 1,
+    "trigger": "Client asked for letting quotation without any risk details"
+  },
+  "insurance-002": {
+    "after": 2,
+    "trigger": "Oliver asks to proceed while start-date field blank"
+  },
+  "insurance-003": {
+    "after": 3,
+    "trigger": "Insurer offer received; client hasn't seen terms yet"
+  },
+  "insurance-004": {
+    "after": 3,
+    "trigger": "Team specified submission route and recording instructions for acceptance"
+  },
+  "insurance-005": {
+    "after": 1,
+    "trigger": "Insurer flags construction year missing from the application"
+  },
+  "insurance-006": {
+    "after": 2,
+    "trigger": "Broker had no record of insurer issuing documents"
+  },
+  "insurance-007": {
+    "after": 1,
+    "trigger": "Client lost her policy copy and requested a replacement"
+  },
+  "insurance-008": {
+    "after": 2,
+    "trigger": "File review found no certificate despite policy in place"
+  },
+  "insurance-009": {
+    "after": 1,
+    "trigger": "Client reports issued policy shows incorrect flat number"
+  },
+  "insurance-010": {
+    "after": 1,
+    "trigger": "Client asked to insure a second property separately"
+  },
+  "insurance-011": {
+    "after": 2,
+    "trigger": "Renewal offer with deadline received; Beth not yet informed"
+  },
+  "insurance-012": {
+    "after": 2,
+    "trigger": "Finn accepted offer INS-012 and asked Katie to relay it"
+  },
+  "insurance-013": {
+    "after": 4,
+    "trigger": "Insurer replied with status but no cover confirmation"
+  },
+  "insurance-014": {
+    "after": 1,
+    "trigger": "Insurer required Jamie's confirmation of recorded property details"
+  },
+  "insurance-015": {
+    "after": 1,
+    "trigger": "Client reported tenancy ended, unsure what insurer needs"
+  },
+  "insurance-016": {
+    "after": 2,
+    "trigger": "Tenant already moved in but exact move-in date still missing"
+  },
+  "insurance-017": {
+    "after": 1,
+    "trigger": "Client reports property will be empty between tenancies"
+  },
+  "insurance-018": {
+    "after": 2,
+    "trigger": "Note flags correspondence-only change, escalate distinction before insurer update"
+  },
+  "insurance-019": {
+    "after": 1,
+    "trigger": "Client requested quotation-only terms for higher buildings sum insured"
+  },
+  "insurance-020": {
+    "after": 1,
+    "trigger": "Sale reported with cancellation request but no completion date"
+  },
+  "insurance-021": {
+    "after": 1,
+    "trigger": "Insurer reports scheduled instalment failed, needs secure payment"
+  },
+  "insurance-022": {
+    "after": 1,
+    "trigger": "Customer reports transferred premium missing from insurer's payment log"
+  },
+  "insurance-023": {
+    "after": 2,
+    "trigger": "Neil has no invoice on file; must request from insurer"
+  },
+  "insurance-024": {
+    "after": 1,
+    "trigger": "Client reports payment recorded but no receipt issued"
+  },
+  "insurance-025": {
+    "after": 1,
+    "trigger": "Insurer reported £286.40 outstanding balance with 10-day deadline"
+  },
+  "insurance-026": {
+    "after": 1,
+    "trigger": "Client asks to change payment method, needs insurer's approved procedure"
+  },
+  "insurance-027": {
+    "after": 1,
+    "trigger": "Client can't tell which of two policies the bill covers"
+  },
+  "insurance-028": {
+    "after": 2,
+    "trigger": "Purpose of each identical £286.40 debit unverified by broker"
+  },
+  "insurance-029": {
+    "after": 3,
+    "trigger": "Leak start time, source and extent still unknown"
+  },
+  "insurance-030": {
+    "after": 2,
+    "trigger": "Insurer requested the date damage was first noticed"
+  },
+  "insurance-031": {
+    "after": 1,
+    "trigger": "Customer reports storm roof damage, timing unknown"
+  },
+  "insurance-032": {
+    "after": 1,
+    "trigger": "Landlord reports broken window with unknown time and cause"
+  },
+  "insurance-033": {
+    "after": 2,
+    "trigger": "Landlord reports tenant's missing belongings, lacking list and discovery date"
+  },
+  "insurance-034": {
+    "after": 2,
+    "trigger": "Client supplied damage description and asked insurer be notified"
+  },
+  "insurance-035": {
+    "after": 1,
+    "trigger": "Sarah reports heating failure and water near radiator"
+  },
+  "insurance-036": {
+    "after": 1,
+    "trigger": "Client reports door damage but cannot identify which property/policy"
+  },
+  "insurance-037": {
+    "after": 1,
+    "trigger": "Client sent contractor estimate needing submission to insurer"
+  },
+  "insurance-038": {
+    "after": 2,
+    "trigger": "Images missing from insurer's file for open claim CLM-038"
+  },
+  "insurance-039": {
+    "after": 3,
+    "trigger": "Broker verified reference CLM-039 against claim and address"
+  },
+  "insurance-040": {
+    "after": 2,
+    "trigger": "Insurer specified two missing views needed for the claim"
+  },
+  "insurance-041": {
+    "after": 1,
+    "trigger": "Insurer offered two inspection slots needing Millie's access choice"
+  },
+  "insurance-042": {
+    "after": 2,
+    "trigger": "Insurer not yet informed of Mark's confirmed slot"
+  },
+  "insurance-043": {
+    "after": 1,
+    "trigger": "Lucy chases for CLM-043 update; no recent status held"
+  },
+  "insurance-044": {
+    "after": 2,
+    "trigger": "Insurer rejected work description, demanded actual contractor invoice"
+  },
+  "insurance-045": {
+    "after": 4,
+    "trigger": "Insurer supplied exact confirmed decision wording to relay"
+  },
+  "insurance-046": {
+    "after": 1,
+    "trigger": "Insurer gave amount and only an expected transfer date"
+  },
+  "insurance-047": {
+    "after": 1,
+    "trigger": "Client reports expected payment missing; broker cannot confirm dispatch"
+  },
+  "insurance-048": {
+    "after": 1,
+    "trigger": "Reported possibly active leak with unknown source and extent"
+  },
+  "insurance-049": {
+    "after": 1,
+    "trigger": "Neighbour's letter alleges property-linked water damage — third-party liability claim"
+  },
+  "insurance-050": {
+    "after": 1,
+    "trigger": "Insurer requested the estimate author's work contact details"
+  }
+}

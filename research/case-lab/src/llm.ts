@@ -17,7 +17,8 @@ export function loadEnv() {
 
 export type Settings = {
   agent: string; simulator: string; judge: string; extractor: string; // model preset names from config/models.json
-  seedEvents: number; // 0: the simulator opens the case; N: hand the agent the first N real events verbatim
+  startAt: "escalation" | "opening"; // escalation: the agent takes over at the case's escalation point (config/escalation.json); opening: at the start
+  seedEvents: number; // 0: follow startAt; N: hand the agent the first N real events verbatim, whatever startAt says
   maxWorldTurns: number; maxToolRounds: number; concurrency: number;
   runJudge: boolean; hiddenDetails: string[];
 };
@@ -27,6 +28,7 @@ export type Kit = {
   models: Record<string, Record<string, unknown>>;
   pricing: Record<string, [number, number]>;
   prompts: Record<string, string>; // file name -> contents, every file in prompts/
+  escalation: Record<string, { after: number; trigger?: string }>; // case key -> last real event before its escalation point
 };
 
 export function loadKit(overrides: Partial<Settings> = {}): Kit {
@@ -36,6 +38,7 @@ export function loadKit(overrides: Partial<Settings> = {}): Kit {
     models: readJson("config/models.json"),
     pricing: readJson("config/pricing.json"),
     prompts: Object.fromEntries(fs.readdirSync(dir).sort().map((f) => [f, fs.readFileSync(path.join(dir, f), "utf8")])),
+    escalation: fs.existsSync(path.join(ROOT, "config/escalation.json")) ? readJson("config/escalation.json") : {},
   };
 }
 

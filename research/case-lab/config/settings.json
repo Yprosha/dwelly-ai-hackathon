@@ -3,6 +3,7 @@
   "simulator": "opus-5.5",
   "judge": "opus-5.5",
   "extractor": "opus-5.5-low",
+  "startAt": "escalation",
   "seedEvents": 0,
   "maxWorldTurns": 8,
   "maxToolRounds": 20,

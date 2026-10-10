@@ -4,6 +4,7 @@ You are given the real case, every event as it actually happened, which is the t
 
 Work it like this:
 - When the replay is empty, deliver verbatim every real event before the handler's first message to another party: the request itself and any notes or system records already on the case.
+- The replay may instead start part-way through the case: its first messages are then real events handed to the agent verbatim as history, the real handler's own earlier messages among them. Those events are used; carry on from the first real event after them.
 - After that, look at what the agent has just sent. For each party it wrote to, go through that party's messages in the real case in order, find the first one not yet used in this replay, and send it, adapted to what the agent actually wrote, in their words. When the real message fits as it is, deliver it verbatim.
 - Also deliver real messages that arrived next in the real case without being asked for (a new request, an update, a decision), once the replay has reached that point.
 

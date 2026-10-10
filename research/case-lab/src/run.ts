@@ -1,7 +1,7 @@
 // Runs cases end to end and stores everything the UI shows under runs/<id>/ (run.json + cases/<key>.json).
 import fs from "node:fs";
 import path from "node:path";
-import { allCases, getCase, type Case } from "./cases.ts";
+import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, type AgentState } from "./agent.ts";
 import { caseFile, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type WorldTurn } from "./simulator.ts";
@@ -20,6 +20,7 @@ export type CaseResult = {
   status: "done" | "error";
   error?: string;
   stop: string; // closed | silence | turn limit | error
+  start: "escalation" | "seed" | "opening"; // how the takeover point was chosen (absent in runs made before escalation starts)
   takeover: number; // last real event the agent had seen when it first acted
   handler: string[]; // names the handler's side goes by in the real case (from the simulator)
   replay: Msg[];
@@ -44,12 +45,19 @@ const RUNS = path.join(ROOT, "runs");
 export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
   const t0 = Date.now();
   const s = kit.settings;
-  const res: CaseResult = { key: c.key, status: "done", stop: "", takeover: 0, handler: [], replay: [], agent: newAgent(kit), world: [], extract: [], cost: 0, ms: 0 };
+  const res: CaseResult = { key: c.key, status: "done", stop: "", start: "opening", takeover: 0, handler: [], replay: [], agent: newAgent(kit), world: [], extract: [], cost: 0, ms: 0 };
   const { replay, agent, world } = res;
   const ctx: Ctx = { kit, c, replay, handler: res.handler, extract: res.extract };
   try {
-    if (s.seedEvents > 0) seed(ctx, s.seedEvents);
-    else world.push(await worldTurn(ctx, [], 0)); // the simulator delivers everything before the handler first wrote to anyone
+    // Where the agent takes over. An explicit seedEvents wins; otherwise the case's escalation point: the agent is
+    // handed every real event up to it, verbatim, and nothing that came after. Without either, the simulator opens.
+    const esc = s.startAt === "escalation" ? Math.min(kit.escalation[c.key]?.after ?? 0, c.events.length) : 0;
+    const handover = s.seedEvents > 0 ? Math.min(s.seedEvents, c.events.length) : esc;
+    if (handover > 0) {
+      res.start = s.seedEvents > 0 ? "seed" : "escalation";
+      ctx.handler = handlerNames(c);
+      seed(ctx, handover);
+    } else world.push(await worldTurn(ctx, [], 0)); // the simulator delivers everything before the handler first wrote to anyone
     if (!replay.length) throw new Error("the simulator delivered no opening messages");
     res.takeover = Math.max(0, ...replay.flatMap((m) => m.follows));
 

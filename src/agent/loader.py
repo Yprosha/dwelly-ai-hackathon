@@ -33,7 +33,9 @@ def strip_revealing(text):
 def cut_history(text, n):
     """Keep only the first n events of an event-anchored history (dev: replay a decision point)."""
     parts = EVENT_SPLIT.split(text)
-    return ''.join(parts[:n + 1]) if len(parts) > 1 else text
+    if len(parts) <= 1:
+        return text
+    return re.sub(r'Total events: \d+', f'Total events: {min(n, len(parts) - 1)}', ''.join(parts[:n + 1]))
 
 
 def load_case(path, cut_at_event=None):

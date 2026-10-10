@@ -79,6 +79,7 @@ class CaseEnv:
         self.calls = []        # (tool, input, result, is_error)
         self.final = None
         self.finish_calls = 0
+        self.first_finish = {}
 
     @staticmethod
     def _chunk(text):
@@ -127,12 +128,20 @@ class CaseEnv:
         return f'staged as {aid} (mock outbox; committed when you finish)'
 
     def _run(self, name, inp):
+        spec = next((t for t in TOOLS if t['name'] == name), None)
+        if not spec:
+            raise ValueError(f'unknown tool {name}')
+        if name == 'finish' and self.finish_calls:  # second call may only restate changes; keep the first call's fields
+            inp = {**self.first_finish, **{k: v for k, v in inp.items() if v not in (None, '', [])}}
+        missing = [k for k in spec['input_schema']['required'] if inp.get(k) in (None, '', [])
+                   and not (k == 'issues_detected' or k == 'open_risks') and inp.get(k) is not False]
+        if missing:
+            raise ValueError(f'missing required field(s): {", ".join(missing)}; call {name} again with every field')
+        if any('<parameter' in v or '</parameter>' in v for v in map(str, inp.values())):
+            raise ValueError('malformed arguments (markup inside a field); call again with each field as its own JSON value')
         if name == 'lookup_records':
             return self.lookup(inp.get('query', ''))
         if name in ('send_message', 'create_internal_note', 'escalate_to_human', 'no_action'):
-            missing = [k for k in next(t for t in TOOLS if t['name'] == name)['input_schema']['required'] if not inp.get(k) and inp.get(k) is not False]
-            if missing:
-                raise ValueError(f'missing required field(s): {", ".join(missing)}')
             return self._stage(name, inp)
         if name == 'cancel_action':
             a = next((a for a in self.actions if a['id'] == inp.get('action_id')), None)
@@ -147,13 +156,13 @@ class CaseEnv:
                                  'no_action / create_internal_note before finishing')
             self.finish_calls += 1
             if self.finish_calls == 1:
+                self.first_finish = inp
                 listing = '\n'.join(f'- {a["id"]} {a["tool"]}: {_short(a["input"])}' for a in live)
                 return f'Staged actions:\n{listing}\n\n{CHECKLIST}'
             for a in live:
                 a['status'] = 'committed'
             self.final = inp
             return 'committed. Done.'
-        raise ValueError(f'unknown tool {name}')
 
 
 def _short(inp):
@@ -168,6 +177,11 @@ if __name__ == '__main__':  # self-check
     assert env.run('finish', {})[1]  # nothing staged -> error
     assert env.run('send_message', {'to': 'x'})[1]  # missing fields -> error
     env.run('no_action', {'reason': 'waiting'})
-    assert 'SELF-CHECK' in env.run('finish', {'decision_type': 'no_action'})[0]
-    assert env.run('finish', {'decision_type': 'no_action'})[0].startswith('committed') and env.final
+    fin = {'decision_type': 'no_action', 'situation': 's', 'key_facts': ['f'], 'issues_detected': [], 'options_considered': ['o'],
+           'rationale': 'r', 'open_risks': [], 'confidence': 0.7}
+    assert env.run('finish', {**fin, 'situation': 'x</parameter>'})[1]  # malformed -> error
+    assert env.run('finish', {'decision_type': 'no_action'})[1]  # incomplete first finish -> error
+    assert 'SELF-CHECK' in env.run('finish', fin)[0]
+    assert env.run('finish', {'decision_type': 'no_action', 'situation': 's2'})[0].startswith('committed')
+    assert env.final['confidence'] == 0.7 and env.final['situation'] == 's2'
     print('ok')

@@ -39,7 +39,7 @@ def process(path, args, client, prefix):
         else:
             env, meta = safe_run(case, client, prefix, args.model, not args.no_thinking, log)
         for name, fn in (('ANSWER.md', lambda: answer_md(case, env, meta)),
-                         ('REASONING.md', lambda: reasoning_md(case, env, meta, args.model, trace_path))):
+                         ('REASONING.md', lambda: reasoning_md(case, env, meta, args.model, f'{Path(args.logs).name}/{cid}.jsonl'))):
             try:
                 text = fn()
             except Exception:

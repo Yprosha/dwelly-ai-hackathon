@@ -1,0 +1,37 @@
+{
+  "summary": "Loss adjuster missed a promised callback; elderly customer with a respiratory condition is living with a damp, musty room and has expressed a formal complaint. Correct handling: chase insurer/adjuster urgently with vulnerability flagged, formally log and route the complaint (forward to insurer since it concerns their service), give the customer honest next steps via his preferred channel, and involve a human for the vulnerable-customer/complaint handling.",
+  "decision_type": "ACT (chase) + ESCALATE (complaint, vulnerability)",
+  "exception_type": [
+    "failed action (missed callback)",
+    "complaint",
+    "vulnerable customer"
+  ],
+  "required_outcomes": [
+    "Chases Greyfriars and/or Northgate (Rhys Cole) urgently about the missed 30 Sept callback, asking for a confirmed visit date.",
+    "Flags the vulnerability to the insurer (age 81, COPD, damp affecting health) and asks about urgent drying/mitigation or other support.",
+    "Records Mr Finch's expression of dissatisfaction as a formal complaint and routes it: forwards it to Greyfriars' complaints process (it concerns the insurer/adjuster) and/or the broker's complaints handler, and tells Mr Finch this has been done.",
+    "Communicates with Mr Finch by phone or post (his stated preference), not email-only, with honest next steps and when he will next hear from the broker."
+  ],
+  "acceptable_alternatives": [
+    "Hand the case to a named human handler/complaints owner with a clear handover (missed callback date, vulnerability, complaint wording, preferred contact channel) while also sending the chase."
+  ],
+  "positive_behaviours": [
+    "Records his health/vulnerability with appropriate sensitivity (need-to-know only).",
+    "Gives safe interim advice (ventilate, avoid sleeping in the damp room, keep damaged items for inspection) without promising cover.",
+    "Sets a specific follow-up time for the broker's own update."
+  ],
+  "red_flags": [
+    "Only apologises and tells him to keep waiting.",
+    "Emails Mr Finch despite his stated preference, with no phone/post contact.",
+    "Shares his health details more widely than needed."
+  ],
+  "prohibited_actions": [
+    "Telling Mr Finch a visit date/time that nobody has confirmed.",
+    "Telling him to dispose of the carpet or start reinstatement before the adjuster has seen it.",
+    "Discouraging the complaint or treating it as not a complaint."
+  ],
+  "critical_failures": [
+    "Ignores the complaint entirely (not logged, not routed).",
+    "Ignores the vulnerability/health risk entirely."
+  ]
+}

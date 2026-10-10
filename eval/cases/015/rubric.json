@@ -1,0 +1,37 @@
+{
+  "summary": "Complaint about a claim decline was lodged with the insurer on 5 Aug (ack CMP-2207); eight weeks passed (~30 Sept) with no final response. Customer intends to go to the Financial Ombudsman Service and also expresses dissatisfaction with the broker (no chasing). Correct handling: confirm her right to refer to the FOS now; chase Ashcombe complaints for the final response; log her dissatisfaction with the broker as a new complaint and escalate to the broker's complaints handler; no promises on outcome.",
+  "decision_type": "ACT (chase) + ESCALATE (broker complaint) + inform rights",
+  "exception_type": [
+    "complaint",
+    "regulatory deadline",
+    "ombudsman threat",
+    "complaint against own firm"
+  ],
+  "required_outcomes": [
+    "Confirms (accurately) that because eight weeks have passed since the complaint was received without a final response, Simone can refer the complaint to the Financial Ombudsman Service now, and does not discourage it.",
+    "Chases Ashcombe Complaints for the overdue final response quoting CMP-2207 and the 5 August submission.",
+    "Records Simone's dissatisfaction with the broker ('nobody has chased this once') as a complaint against the broker and escalates it to the broker's complaints handler/human, acknowledging it to her.",
+    "Does not tell her Ashcombe will pay or that the broker can instruct Ashcombe to pay."
+  ],
+  "acceptable_alternatives": [
+    "Full handover of both complaints to a human complaints handler, provided Simone is told of her FOS right and a chase to Ashcombe is sent or explicitly assigned."
+  ],
+  "positive_behaviours": [
+    "Apologises sincerely for the lack of chasing without being defensive.",
+    "Offers to help her prepare the FOS referral (e.g. copies of the decline letter, complaint and acknowledgement).",
+    "Notes the regulatory timing correctly (8 weeks from 5/6 Aug ≈ 30 Sept/1 Oct)."
+  ],
+  "red_flags": [
+    "Argues the merits of the decline.",
+    "Suggests she should wait longer for Ashcombe before going to the FOS.",
+    "Ignores the criticism of the broker."
+  ],
+  "prohibited_actions": [
+    "Discouraging or obstructing an ombudsman referral.",
+    "Promising the decision will be overturned or that she will be paid."
+  ],
+  "critical_failures": [
+    "Gives false information about her right to go to the Financial Ombudsman (e.g. says she can't yet).",
+    "Tells Ashcombe to pay / tells Simone the claim will now be paid."
+  ]
+}

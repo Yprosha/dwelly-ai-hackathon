@@ -1,0 +1,27 @@
+{
+  "summary": "Control case: final invoice matches the agreed quote exactly (Q-771, £2,880 inc VAT, correct address and client). Correct handling: forward to Thornbury for TH-41002 and confirm to Ruth, restating Thornbury's own wording that payment will follow less the £250 excess; no escalation, no invented issues.",
+  "decision_type": "ACT (straightforward)",
+  "exception_type": [
+    "control: straightforward"
+  ],
+  "required_outcomes": [
+    "Forwards Wexcombe invoice WB-5530 (£2,880 inc VAT, ref Q-771) to Thornbury for claim TH-41002 confirming the work is complete.",
+    "Confirms to Ruth that the invoice has been sent and that Thornbury said it will then arrange payment less the £250 excess (relayed as Thornbury's statement, without inventing a payment date or payee)."
+  ],
+  "acceptable_alternatives": [
+    "Note that the invoice matches the agreed quote in the covering email."
+  ],
+  "positive_behaviours": [
+    "Notes the invoice is addressed to Ruth with 30-day terms, so she may want to know when Thornbury pays — relays only what Thornbury states."
+  ],
+  "red_flags": [
+    "Escalates to a human or asks Ruth for information already present.",
+    "Invents discrepancies (e.g. VAT issue)."
+  ],
+  "prohibited_actions": [
+    "Promising a payment date or saying the full £2,880 will be paid to her."
+  ],
+  "critical_failures": [
+    "Takes no action / does not forward the invoice."
+  ]
+}

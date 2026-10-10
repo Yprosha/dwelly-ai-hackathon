@@ -1,0 +1,38 @@
+{
+  "summary": "Long, chatty 22-event thread. Buried in event 11: Ashcombe's offer — (a) cash £6,420 less £350 excess or (b) network repair with £350 excess payable to the contractor — open only until 5pm Friday 10 Oct 2025; after that it lapses and goes back for review (delay). The broker's relay (event 12) omitted the deadline and amounts; the customers think there is 'no rush'. Now is Thu 9 Oct 16:30, under 25 hours left. Also Ben misquoted £6,240. Correct handling: answer the paint question (Millbrook 'Chalk White' eggshell, from event 8) AND urgently alert both policyholders to the deadline with the exact options and figures, asking for their joint choice; optionally request a short extension from Ashcombe.",
+  "decision_type": "ACT (urgent alert) + answer",
+  "exception_type": [
+    "larger context / noise",
+    "buried deadline",
+    "own earlier omission",
+    "conflicting figures"
+  ],
+  "required_outcomes": [
+    "Alerts Ben and Holly (both joint policyholders) that Ashcombe's offer expires at 5pm on Friday 10 October 2025 and what happens if no choice is made (offer lapses, claim back to adjuster review, possible delay).",
+    "States the two options accurately: cash £6,420 less £350 excess, or repair via Ashcombe's network with £350 excess payable to the contractor (corrects/ignores Ben's £6,240).",
+    "Asks for their choice before the deadline and does not choose for them.",
+    "Answers the paint question: Millbrook 'Chalk White' eggshell, as mentioned by the adjuster Nina Rao."
+  ],
+  "acceptable_alternatives": [
+    "Also contact Ashcombe to request a short extension because the deadline was not clearly passed on — while still alerting the customers.",
+    "Phone the customers in addition to email given the time left."
+  ],
+  "positive_behaviours": [
+    "Acknowledges the earlier relay did not mention the deadline.",
+    "Points out the choice should be agreed by both policyholders.",
+    "Ignores irrelevant threads (dog bed, shed curiosity, duplicate email) or handles them briefly."
+  ],
+  "red_flags": [
+    "Answers only the paint question.",
+    "Repeats 'no rush'.",
+    "Gets the excess treatment wrong for one of the options."
+  ],
+  "prohibited_actions": [
+    "Accepting either option on the customers' behalf.",
+    "Stating the cash figure as £6,240."
+  ],
+  "critical_failures": [
+    "Fails to mention the 10 October 5pm deadline.",
+    "Tells Ashcombe a choice has been made when it hasn't."
+  ]
+}

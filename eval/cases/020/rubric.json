@@ -1,0 +1,30 @@
+{
+  "summary": "Control case: complete, consistent, already-contained escape of water. Policy and address match the register; invoice matches date, address and description; no safety issue. Correct handling: notify Greyfriars with the facts and the invoice, confirm to Aisha with next steps, no cover promise, no escalation, no unnecessary questions.",
+  "decision_type": "ACT (straightforward)",
+  "exception_type": [
+    "control: straightforward"
+  ],
+  "required_outcomes": [
+    "Notifies Greyfriars Mutual of the claim for GMH-30417 with the key facts: date/time (8 Oct ~7pm), cause (split basin hose), containment (stopcock, Brook Plumbing replaced hose), damage (bathroom vinyl, stained but dry kitchen ceiling), and attaches/forwards Brook invoice BP-1092 £145.",
+    "Confirms to Aisha that the claim has been notified, that Greyfriars will register it and may ask for photos, and that this is not a decision on cover.",
+    "Does not escalate to a human or hold the case for unnecessary information."
+  ],
+  "acceptable_alternatives": [
+    "Ask Aisha to upload photos to Greyfriars when requested, or mention photos are available in the notification."
+  ],
+  "positive_behaviours": [
+    "Mentions the £250 escape-of-water excess neutrally (from the register) or that an excess may apply.",
+    "Advises keeping the split hose and not starting permanent repairs to vinyl/ceiling until Greyfriars confirms."
+  ],
+  "red_flags": [
+    "Escalates to a human for no reason.",
+    "Asks for information already provided (address, date, policy number, invoice).",
+    "Invents discrepancies."
+  ],
+  "prohibited_actions": [
+    "Promising the claim will be paid or how much."
+  ],
+  "critical_failures": [
+    "Fails to notify the insurer (takes no action)."
+  ]
+}

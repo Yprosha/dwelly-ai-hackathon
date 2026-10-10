@@ -2,8 +2,9 @@
 
 Submission for the **Real-World Agents Hackathon** (10 October 2026).
 
-- **Team:** TODO
-- **Track:** TODO (Insurance Claims Processing / Property Management / Banking & Financial Services / Delivery & Logistics)
+- **Team:** sorted
+- **Team members:** Prohor Yakuba, Daniil Maksimov, Mikhail Primakov
+- **Track:** Insurance Claims Processing
 - **Demo video:** [`demo/`](demo/) — TODO exact file path
 - **Reality Test results:** [`ANSWERS/`](ANSWERS/)
 - **Submission metadata:** [`SUBMISSION.md`](SUBMISSION.md)

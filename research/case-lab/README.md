@@ -66,7 +66,7 @@ The agent can hand any task to a sub-agent with the `run_subagent` tool. It writ
 
 - On by default (`subagents` in `config/settings.json`). Turn it off in **Full → New run** or with `--no-subagents`; the tool is then not offered at all. The model preset is the `subagent` role.
 - Prompts: `prompts/subagent.system.md`, `prompts/subagent.user.md`. Tools: the agent's read-only case tools plus `prompts/subagent.tools.json` (the web tools cannot use GitHub: `blocked_domains`).
-- A sub-agent that fails or is still working after five minutes comes back to the agent as a tool error.
+- A sub-agent gets up to 25 model rounds, 10 web searches and 6 page fetches per round; one that fails or is still working after 15 minutes comes back to the agent as a tool error.
 - In the UI, Simple shows each call as a **Sub-agent** step in the agent chat: its task, its work drawn like the agent's (case files, other claims, web searches with the pages they found), its report, cost and time. Full → Agent trace lists the same with its tool calls. Runs made with the earlier advisory council still show their **Advisers** folds and traces.
 
 ## Where things live

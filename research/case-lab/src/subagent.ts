@@ -22,9 +22,9 @@ export type SubagentRun = {
   cost: number; ms: number;
 };
 
-const MAX_ROUNDS = 8; // model rounds per sub-agent; the last one has no tools, so it always ends in a report
+const MAX_ROUNDS = 25; // model rounds per sub-agent; the last one has no tools, so it always ends in a report
 const MAX_KEEP = 30_000; // characters of one tool result kept in the trace
-const DEADLINE_MS = 300_000; // a sub-agent still working after this fails and the agent goes on without it
+const DEADLINE_MS = 900_000; // a sub-agent still working after this fails and the agent goes on without it
 const CASE_TOOLS = ["list_case", "read_case", "search_case"];
 
 // Never throws: a failed sub-agent comes back with `error` and whatever it cost.

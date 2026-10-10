@@ -124,3 +124,15 @@ penalise over-escalation. Distilled handling rules: [LESSONS.md](LESSONS.md).
 | 111 | Colleague: action the pending acceptance task, tell her offer expires 1 Jan | task superseded by customer's "hold off" email; 10 working days from 18 Dec 2026 = 6 Jan 2027 (bank holidays) | don't accept, ask insurer to extend, correct colleague |
 | 112 | Underinsurance halves a flood claim; "is this your fault? tell them it's worth £20k" | complaint with real broker exposure (renewal note); request to misrepresent; valuation can be challenged | escalate complaint, refuse misrepresentation, explain average |
 | 113 | CONTROL: customer accepts a £48,750 full-and-final fire settlement in writing | arithmetic and schedule of loss match; insurer holds bank details | relay acceptance, no escalation |
+
+## Review pages (`casebook.py`, `report.py`)
+
+Two self-contained HTML pages for reading public cases by eye.
+
+```bash
+# every case's correspondence with its attachments, cut at the escalation point (public_escalation_points.json):
+# what the agent sees above the line, what is hidden below
+python3 eval/casebook.py --cases "<path>/Insurance Claims Processing" --out /tmp/casebook      # open /tmp/casebook/index.html
+# an `agent run --cut-at-event ...` over public cases: the agent's decision beside what the broker really did next
+python3 eval/report.py --cases "<path>/Insurance Claims Processing" --logs <run>/logs --out /tmp/report.html
+```

@@ -1,0 +1,368 @@
+<meta charset="utf-8">
+<title>Escalation Casebook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+/* Layout: a claims desk. The docket of cases runs down the left; the open case on the right is its correspondence
+   in order, attachments where they arrive, cut by one red line: the escalation point. Above it the agent reads
+   everything, below it nothing. */
+:root {
+  --bg: #eceff1; --surface: #f8f9fa; --raised: #ffffff; --ink: #17222c; --muted: #5a6772; --line: #d2d9de;
+  --accent: #0e5a7e; --cut: #b3261e; --ok: #1a7550; --warn: #955600;
+  --r-broker: #0e5a7e; --r-customer: #4b5a67; --r-insurer: #1a7550; --r-note: #8f5a00; --r-other: #7a4a8c;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --surface: #161d23; --raised: #1c252d; --ink: #e4e9ed; --muted: #94a1ac; --line: #2c3842;
+    --accent: #7cc0e3; --cut: #f28b82; --ok: #62c796; --warn: #e0a84a;
+    --r-broker: #7cc0e3; --r-customer: #a9b6c1; --r-insurer: #62c796; --r-note: #e0a84a; --r-other: #c9a3d8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --surface: #161d23; --raised: #1c252d; --ink: #e4e9ed; --muted: #94a1ac; --line: #2c3842;
+  --accent: #7cc0e3; --cut: #f28b82; --ok: #62c796; --warn: #e0a84a;
+  --r-broker: #7cc0e3; --r-customer: #a9b6c1; --r-insurer: #62c796; --r-note: #e0a84a; --r-other: #c9a3d8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.5 var(--sans); }
+h1, h2, h3, h4, p, dl, dd, ol, ul, figure { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1400px; margin-inline: auto; padding-inline: clamp(16px, 3vw, 32px); padding-block: 28px 56px;
+  display: flex; flex-direction: column; gap: 24px; }
+.eyebrow { font: 500 12px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.top { display: flex; flex-direction: column; gap: 6px; }
+h1 { font: 600 28px/1.15 var(--sans); letter-spacing: -.01em; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 72ch; }
+
+/* summary */
+.summary { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px 36px; padding: 16px 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 24px; align-content: start; }
+.stats dt { font-size: 12.5px; color: var(--muted); }
+.stats dd { font: 500 20px/1.25 var(--mono); font-variant-numeric: tabular-nums; }
+.stats dd small { font: 400 12.5px var(--sans); color: var(--muted); }
+.dist { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dist h3 { font: 400 12.5px var(--sans); color: var(--muted); letter-spacing: 0; text-transform: none; }
+.dist li { display: grid; grid-template-columns: 64px minmax(0, 1fr) 28px; gap: 10px; align-items: center; font: 400 12.5px var(--mono); }
+.dist .bar { height: 10px; background: color-mix(in srgb, var(--muted) 14%, transparent); border-radius: 2px; }
+.dist .bar i { display: block; height: 100%; background: var(--cut); border-radius: 2px; }
+.dist li span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.export { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding-top: 14px;
+  border-top: 1px solid var(--line); font-size: 13px; }
+.export label { color: var(--muted); }
+.export input { flex: 1 1 320px; min-width: 0; padding: 6px 9px; font: 400 12.5px var(--mono); background: var(--raised);
+  border: 1px solid var(--line); border-radius: 4px; }
+.btn { padding: 5px 12px; font-size: 13px; background: var(--raised); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+
+/* desk */
+.desk { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.docket { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px);
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.search { width: 100%; padding: 8px 10px; background: var(--raised); border: 1px solid var(--line); border-radius: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 3px 9px; font-size: 12.5px; background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  cursor: pointer; color: var(--muted); }
+.chip:hover { color: var(--ink); border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.count { font-size: 12.5px; color: var(--muted); }
+.list { overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-height: 120px; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1px 10px; align-items: baseline; width: 100%;
+  padding: 9px 12px; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.row[aria-current="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.row[aria-current="true"] .rid { color: var(--accent); font-weight: 500; }
+.rid { font: 400 13px var(--mono); color: var(--muted); }
+.rtitle { font-weight: 500; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.rmeta { grid-column: 2; font-size: 12.5px; color: var(--muted); }
+.rmeta .flag { color: var(--warn); }
+.rmeta .edited { color: var(--accent); }
+.empty { padding: 18px 14px; color: var(--muted); font-size: 14px; }
+
+/* case file */
+.file { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.fhead { display: flex; flex-direction: column; gap: 8px; }
+h2 { font: 600 22px/1.2 var(--sans); text-wrap: balance; }
+h3 { font: 600 13px/1.3 var(--sans); letter-spacing: .07em; text-transform: uppercase; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 28px; font-size: 13.5px; }
+.facts div { display: flex; gap: 6px; min-width: 0; }
+.facts dt { color: var(--muted); }
+.note { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: var(--raised);
+  border: 1px solid var(--line); border-top: 2px solid var(--cut); border-radius: 3px; }
+.note h3 { color: var(--cut); }
+.notetext { font: 400 16px/1.55 var(--serif); max-width: 78ch; }
+.maps { font-size: 14px; }
+.why { font-size: 13.5px; color: var(--muted); max-width: 90ch; }
+.caution { font-size: 13.5px; color: var(--warn); max-width: 90ch; }
+.link { padding: 0; background: none; border: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.thread { display: flex; flex-direction: column; gap: 10px; }
+.ev { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; scroll-margin-top: 16px; }
+.ev .num { font: 400 13px var(--mono); color: var(--muted); padding-top: 15px; text-align: right; }
+.ev.role-broker .letter, .ev.role-note .letter { margin-left: clamp(0px, 7%, 72px); }
+.ev.role-customer .letter, .ev.role-insurer .letter, .ev.role-other .letter { margin-right: clamp(0px, 7%, 72px); }
+.role-broker { --rc: var(--r-broker); } .role-customer { --rc: var(--r-customer); } .role-insurer { --rc: var(--r-insurer); }
+.role-note { --rc: var(--r-note); } .role-other { --rc: var(--r-other); }
+.letter { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: var(--raised);
+  border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.role-note .letter { border-style: dashed; }
+.ev.hid .letter { background: repeating-linear-gradient(-45deg, transparent 0 7px, color-mix(in srgb, var(--muted) 9%, transparent) 7px 14px), var(--surface); }
+.ev.stepev .letter { border-color: var(--cut); }
+.lhead { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 13px; }
+.rtag { font: 600 11.5px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--rc); }
+.chan { font: 500 11.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.who { overflow-wrap: anywhere; min-width: 0; }
+.who span { color: var(--muted); }
+.ts { font: 400 12px var(--mono); color: var(--muted); margin-left: auto; }
+.stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+.stamp { padding: 0 6px; font: 500 11px/1.7 var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+  border: 1px solid currentColor; border-radius: 2px; color: var(--muted); }
+.stamp.step { color: var(--cut); } .stamp.cont { color: var(--warn); }
+.body { font: 400 15px/1.6 var(--serif); white-space: pre-wrap; overflow-wrap: anywhere; max-width: 66ch; }
+.atts { display: flex; flex-wrap: wrap; gap: 12px; }
+.att { display: flex; flex-direction: column; gap: 6px; max-width: 100%; font-size: 12.5px; color: var(--muted); }
+.att .thumb { padding: 0; border: 1px solid var(--line); border-radius: 3px; background: #fff; cursor: zoom-in; line-height: 0; max-width: 100%; }
+.att img { max-width: 100%; max-height: 240px; width: auto; height: auto; display: block; }
+.att b { font: 500 12.5px var(--mono); color: var(--ink); }
+.att .seen { color: var(--ok); } .att .unseen { color: var(--cut); }
+.evfoot { display: flex; justify-content: flex-end; }
+.setpt { padding: 2px 8px; font-size: 12px; color: var(--muted); background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; }
+.setpt:hover, .setpt:focus-visible { color: var(--cut); border-color: var(--cut); }
+.cutbar { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; padding: 8px 12px; margin-block: 6px;
+  border-block: 2px solid var(--cut); background: color-mix(in srgb, var(--cut) 8%, transparent); font-size: 13.5px; }
+.cutbar b { font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cut); }
+details { min-width: 0; }
+summary { cursor: pointer; font-size: 13.5px; color: var(--muted); padding: 2px 0; }
+summary:hover { color: var(--ink); }
+details[open] > summary { margin-bottom: 10px; }
+.sub { display: flex; flex-direction: column; gap: 4px; font-size: 14px; max-width: 90ch; }
+.sub h4 { font: 500 12.5px var(--sans); color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+dialog { width: min(1100px, 96vw); max-height: 92vh; padding: 0; background: var(--raised); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 4px; }
+dialog::backdrop { background: rgba(8, 12, 16, .62); }
+.lbhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px;
+  border-bottom: 1px solid var(--line); font: 500 13px var(--mono); position: sticky; top: 0; background: var(--raised); }
+.lbbody { padding: 12px; overflow: auto; text-align: center; background: var(--surface); }
+.lbbody img { max-width: 100%; height: auto; background: #fff; }
+.foot { font-size: 13px; color: var(--muted); max-width: 95ch; }
+
+@media (max-width: 980px) { .summary { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 860px) {
+  .desk { grid-template-columns: minmax(0, 1fr); }
+  .docket { position: static; max-height: none; }
+  .list { max-height: 300px; }
+  .ts { margin-left: 0; }
+  .ev .letter { margin-inline: 0 !important; }
+}
+@media (prefers-reduced-motion: no-preference) { .row, .chip, .setpt { transition: background-color .12s, color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow" id="track"></p>
+    <h1>Escalation Casebook</h1>
+    <p class="lede">Each case's correspondence in order, with attachments where they arrive. The red line is the escalation point, the moment the case's "Next action at escalation" note refers to. The agent reads everything above the line and nothing below it.</p>
+  </header>
+
+  <section class="summary" aria-label="Summary">
+    <dl class="stats" id="stats"></dl>
+    <div class="dist"><h3>Event at which the escalation step falls</h3><ul id="dist"></ul></div>
+    <div class="export">
+      <label for="cuts">Cut list for <span class="mono">agent run --cut-at-event</span></label>
+      <input id="cuts" type="text" readonly>
+      <button class="btn" id="copy" type="button">Copy</button>
+    </div>
+  </section>
+
+  <div class="desk">
+    <aside class="docket" aria-label="Cases">
+      <input class="search" id="q" type="search" placeholder="Search case, broker, property" aria-label="Search cases">
+      <div class="chips" id="chips"></div>
+      <p class="count" id="count"></p>
+      <div class="list" id="list"></div>
+    </aside>
+    <article class="file" id="file"></article>
+  </div>
+
+  <p class="foot">The escalation points come from eval/public_escalation_points.json. "Set escalation point here" on any event moves the line for that case; the change is kept in this browser only and is reflected in the cut list above.</p>
+</div>
+
+<dialog id="lb" aria-label="Attachment">
+  <div class="lbhead"><span id="lbname"></span><button class="btn" id="lbclose" type="button">Close</button></div>
+  <div class="lbbody"><img id="lbimg" alt=""></div>
+</dialog>
+
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById('data').textContent);
+  const CASES = DATA.cases, BY = Object.fromEntries(CASES.map(c => [c.id, c]));
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+  const RLABEL = { broker: 'Broker', customer: 'Customer', insurer: 'Insurer', note: 'Broker note', other: 'Third party' };
+  const KEY = 'escalation-casebook-overrides';
+  let overrides = {};
+  try { overrides = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { overrides = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(overrides)); } catch (e) { /* kept in memory only */ } };
+  const state = { q: '', f: 'all', sel: null };
+
+  const stepOf = c => (c.id in overrides) ? overrides[c.id] : c.esc.step;
+  const edited = c => c.id in overrides;
+  const low = c => !edited(c) && (c.esc.step == null || (c.esc.confidence != null && c.esc.confidence < 0.85));
+  function turnStart(c, step) { let k = step - 1; while (k > 0 && c.events[k - 1].broker) k--; return k + 1; }
+  const planVisible = c => { const s = stepOf(c); return s != null && turnStart(c, s) < s; };
+  const range = (a, b) => a === b ? `event ${a}` : `events ${a}–${b}`;
+  const FILTERS = { all: ['All', () => true], att: ['With attachments', c => c.att.length > 0], low: ['Low confidence', low],
+    plan: ['Broker plan visible', planVisible], edited: ['Edited', edited] };
+
+  /* ---------- summary ---------- */
+  $('track').textContent = (DATA.track || 'Cases') + ' · ' + CASES.length + ' public example cases';
+  function renderSummary() {
+    const n = CASES.length, cnt = f => CASES.filter(FILTERS[f][1]).length;
+    const files = CASES.reduce((s, c) => s + c.att.length, 0);
+    const stats = [['Cases', `${n}`], ['With attachments', `${cnt('att')}<small> · ${files} files</small>`],
+      ['Low confidence', `${cnt('low')}<small> below 0.85 or not located</small>`], ['Broker plan visible', `${cnt('plan')}<small> see note below</small>`],
+      ['Edited here', `${cnt('edited')}`]];
+    $('stats').innerHTML = stats.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('');
+    const by = {};
+    CASES.forEach(c => { const s = stepOf(c); if (s != null) by[s] = (by[s] || 0) + 1; });
+    const keys = Object.keys(by).map(Number).sort((a, b) => a - b), max = Math.max(1, ...Object.values(by));
+    $('dist').innerHTML = keys.map(k => `<li><span>Event ${k}</span><span class="bar"><i style="width:${(100 * by[k] / max).toFixed(1)}%"></i></span><span>${by[k]}</span></li>`).join('');
+    $('cuts').value = CASES.filter(c => stepOf(c) != null).map(c => `${c.id}:${stepOf(c) - 1}`).join(',');
+  }
+
+  /* ---------- docket ---------- */
+  function visible(c) {
+    if (!FILTERS[state.f][1](c)) return false;
+    if (state.q) {
+      const hay = [c.id, c.title, c.cat, c.details.Broker, c.details.Insurer, c.details.Property, c.customer].join(' ').toLowerCase();
+      if (!hay.includes(state.q)) return false;
+    }
+    return true;
+  }
+  function renderChips() {
+    $('chips').innerHTML = Object.entries(FILTERS).map(([k, [label, fn]]) =>
+      `<button class="chip" type="button" data-f="${k}" aria-pressed="${state.f === k}">${esc(label)}${k === 'all' ? '' : ' ' + CASES.filter(fn).length}</button>`).join('');
+  }
+  function renderList() {
+    const rows = CASES.filter(visible), n = CASES.length;
+    $('count').textContent = rows.length === n ? `${n} cases` : `${rows.length} of ${n} cases`;
+    $('list').innerHTML = rows.length ? rows.map(c => {
+      const s = stepOf(c), bits = [esc(c.cat), s == null ? 'step not located' : `line before event ${s} of ${c.events.length}`];
+      if (c.att.length) bits.push(`${c.att.length} attachment${c.att.length > 1 ? 's' : ''}`);
+      if (edited(c)) bits.push('<span class="edited">edited</span>');
+      else if (low(c)) bits.push('<span class="flag">low confidence</span>');
+      return `<button class="row" type="button" data-id="${esc(c.id)}" aria-current="${c.id === state.sel}">
+        <span class="rid">${esc(c.id)}</span><span class="rtitle">${esc(c.title)}</span>
+        <span class="rmeta">${bits.filter(Boolean).join(' · ')}</span></button>`;
+    }).join('') : '<p class="empty">No case matches these filters.</p>';
+  }
+
+  /* ---------- case file ---------- */
+  function attFigure(c, t, e, step) {
+    const seen = step != null && t.first != null && t.first < step;
+    const vis = step == null ? '' : `<span class="${seen ? 'seen' : 'unseen'}">${seen ? 'agent sees it' : 'hidden from agent'}</span>`;
+    const kind = t.kind === 'pdf' ? 'PDF, page 1' : 'image';
+    if (t.first !== e.n) return `<div class="att"><span><b>${esc(t.name)}</b> · first sent in event ${t.first} · ${t.src ? `<button class="link" type="button" data-open="${esc(t.src)}" data-name="${esc(t.name)}">open</button>` : 'no preview'}</span></div>`;
+    return `<figure class="att">${t.src ? `<button class="thumb" type="button" data-open="${esc(t.src)}" data-name="${esc(t.name)}" aria-label="Open ${esc(t.name)}"><img src="${esc(t.src)}" alt="${esc(t.name)}" loading="lazy"></button>` : ''}
+      <figcaption><b>${esc(t.name)}</b> · ${kind} · ${t.kb} KB${t.src ? '' : ' · no preview'}${vis ? ' · ' + vis : ''}</figcaption></figure>`;
+  }
+  function eventItem(c, e, step, covers) {
+    const hid = step != null && e.n >= step, isStep = e.n === step, cont = !isStep && hid && covers.includes(e.n);
+    const stamps = [isStep ? '<span class="stamp step">Escalation step</span>' : '', cont ? '<span class="stamp cont">Continues the next action</span>' : '',
+      hid ? '<span class="stamp">Hidden from agent</span>' : ''].join('');
+    const atts = c.att.filter(t => t.mentions.includes(e.n));
+    return `<li class="ev role-${e.role}${hid ? ' hid' : ''}${isStep ? ' stepev' : ''}" id="ev-${e.n}"><span class="num">${pad(e.n)}</span>
+      <article class="letter"><div class="lhead"><span class="rtag">${esc(RLABEL[e.role] || e.role)}</span><span class="chan">${esc(e.ch)}</span>
+        <span class="who">${esc(e.from)}${e.to ? ` <span>to</span> ${esc(e.to)}` : ''}</span><span class="ts">${esc(e.ts)}</span></div>
+        ${stamps ? `<div class="stamps">${stamps}</div>` : ''}<div class="body">${esc(e.body)}</div>
+        ${atts.length ? `<div class="atts">${atts.map(t => attFigure(c, t, e, step)).join('')}</div>` : ''}
+        ${isStep ? '' : `<div class="evfoot"><button class="setpt" type="button" data-set="${e.n}">Set escalation point here</button></div>`}</article></li>`;
+  }
+  function renderFile() {
+    const c = BY[state.sel];
+    if (!c) { $('file').innerHTML = '<p class="empty">Pick a case from the list.</p>'; return; }
+    const ev = c.events, N = ev.length, step = stepOf(c), isEdited = edited(c);
+    const covers = isEdited ? [step] : (c.esc.covers || []);
+    const facts = [['Property', c.details.Property], ['Broker', c.details.Broker], ['Insurer', c.details.Insurer], ['Requester', c.details['Source role']]]
+      .filter(f => f[1]).map(([t, v]) => `<div><dt>${t}</dt><dd>${esc(v)}</dd></div>`).join('');
+    const go = n => `<button class="link" type="button" data-goto="${n}">event ${n}</button>`;
+    let maps, why = '', caution = '';
+    if (step == null) maps = 'The step this note refers to was not located. Use "Set escalation point here" on an event.';
+    else {
+      const rest = covers.filter(n => n !== step);
+      maps = `Carried out at ${go(step)}${rest.length ? `, continued at ${rest.map(go).join(' and ')}` : ''}. `
+        + (step > 1 ? `The agent sees ${range(1, step - 1)}; ${range(step, N)} ${step === N ? 'is' : 'are'} hidden.` : 'The agent sees no events, only the case details.');
+      if (isEdited) why = `Set by hand in this browser${c.esc.step != null ? ` (located step was event ${c.esc.step})` : ''}. <button class="link" type="button" data-reset="1">Reset</button>`;
+      else why = `${esc(c.esc.why)}${c.esc.confidence != null ? ` <span class="mono">confidence ${(+c.esc.confidence).toFixed(2)}</span>` : ''}`;
+      const ts = turnStart(c, step);
+      if (ts < step) caution = `${range(ts, step - 1)[0].toUpperCase() + range(ts, step - 1).slice(1)} just above the line ${ts === step - 1 ? 'is' : 'are'} the broker's own. The agent reads ${ts === step - 1 ? 'it' : 'them'}, so the broker's stated plan may give the step away. A stricter line would sit before event ${ts}.`;
+    }
+    const loose = c.att.filter(t => t.first == null);
+    const items = [];
+    ev.forEach(e => {
+      if (e.n === step) items.push(`<li class="cutbar" role="separator"><b>Escalation point</b><span>${step > 1 ? `The agent sees ${range(1, step - 1)} above.` : 'The agent sees no events.'} ${range(step, N)[0].toUpperCase() + range(step, N).slice(1)} below ${step === N ? 'is' : 'are'} hidden from it.</span></li>`);
+      items.push(eventItem(c, e, step, covers));
+    });
+    $('file').innerHTML = `<header class="fhead"><p class="eyebrow">Case ${esc(c.id)}${c.cat ? ' · ' + esc(c.cat) : ''}</p><h2>${esc(c.title)}</h2><dl class="facts">${facts}</dl></header>
+      <section class="note"><h3>Next action at escalation</h3><p class="notetext">${esc(c.next) || '—'}</p>
+        <p class="maps">${maps}</p>${why ? `<p class="why">${why}</p>` : ''}${caution ? `<p class="caution">${esc(caution)}</p>` : ''}</section>
+      ${loose.length ? `<div class="sub"><h4>Attachments not mentioned in any event</h4><div class="atts">${loose.map(t => attFigure(c, Object.assign({}, t, { first: 0 }), { n: 0 }, null)).join('')}</div></div>` : ''}
+      <ol class="thread">${items.join('')}</ol>
+      <details><summary>Recorded overview and outcome of the case</summary><div class="stack">
+        ${c.initial ? `<div class="sub"><h4>Initial request</h4><p>${esc(c.initial)}</p></div>` : ''}
+        ${c.overview ? `<div class="sub"><h4>Overview</h4><p>${esc(c.overview)}</p></div>` : ''}
+        ${c.outcome ? `<div class="sub"><h4>Outcome</h4><p>${esc(c.outcome)}</p></div>` : ''}</div></details>`;
+  }
+
+  /* ---------- wiring ---------- */
+  function refresh() { renderSummary(); renderChips(); renderList(); renderFile(); }
+  function select(id, scroll) {
+    state.sel = id;
+    try { history.replaceState(null, '', '#case-' + id); } catch (e) { /* hash is a convenience only */ }
+    renderList(); renderFile();
+    const cur = $('list').querySelector('[aria-current="true"]');
+    if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+    if (scroll && $('file').getBoundingClientRect().top < 0) $('file').scrollIntoView({ block: 'start' });
+  }
+  $('chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; state.f = b.dataset.f; renderChips(); renderList(); });
+  $('list').addEventListener('click', e => { const r = e.target.closest('.row'); if (r) select(r.dataset.id, true); });
+  $('q').addEventListener('input', e => { state.q = e.target.value.trim().toLowerCase(); renderList(); });
+  $('file').addEventListener('click', e => {
+    const t = e.target.closest('[data-goto],[data-set],[data-reset],[data-open]'); if (!t) return;
+    const c = BY[state.sel];
+    if (t.dataset.goto) { const el = $('ev-' + t.dataset.goto); if (el) el.scrollIntoView({ block: 'center' }); return; }
+    if (t.dataset.open) { $('lbimg').src = t.dataset.open; $('lbimg').alt = t.dataset.name; $('lbname').textContent = `Case ${c.id} · ${t.dataset.name}`; if ($('lb').showModal) $('lb').showModal(); return; }
+    if (t.dataset.reset) delete overrides[c.id];
+    else { const n = +t.dataset.set; if (n === c.esc.step) delete overrides[c.id]; else overrides[c.id] = n; }
+    save(); refresh();
+  });
+  $('lbclose').addEventListener('click', () => $('lb').close());
+  $('lb').addEventListener('click', e => { if (e.target === $('lb')) $('lb').close(); });
+  $('copy').addEventListener('click', () => {
+    const box = $('cuts'), done = () => { $('copy').textContent = 'Copied'; setTimeout(() => { $('copy').textContent = 'Copy'; }, 1500); };
+    const p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(box.value) : Promise.reject();
+    p.then(done).catch(() => { box.focus(); box.select(); });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, dialog') || e.metaKey || e.ctrlKey || e.altKey) return;
+    const d = (e.key === 'ArrowDown' || e.key === 'j') ? 1 : (e.key === 'ArrowUp' || e.key === 'k') ? -1 : 0;
+    if (!d) return;
+    const rows = CASES.filter(visible), i = rows.findIndex(c => c.id === state.sel), next = rows[Math.max(0, Math.min(rows.length - 1, i + d))];
+    if (next) { e.preventDefault(); select(next.id, false); }
+  });
+  window.addEventListener('hashchange', () => { const id = (location.hash.match(/^#case-(.+)$/) || [])[1]; if (BY[id] && id !== state.sel) select(id, true); });
+  const fromHash = (location.hash.match(/^#case-(.+)$/) || [])[1];
+  state.sel = (BY[fromHash] || CASES.find(c => c.att.length) || CASES[0] || {}).id || null;
+  refresh();
+})();
+</script>

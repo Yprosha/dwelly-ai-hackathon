@@ -148,7 +148,7 @@ class CaseEnv:
         if name == 'finish' and self.finish_calls:  # second call may only restate changes; keep the first call's fields
             inp = {**self.first_finish, **{k: v for k, v in inp.items() if v not in (None, '', [])}}
         if any('<parameter' in v or '</parameter>' in v for v in map(str, inp.values())):
-            raise ValueError('malformed arguments (tool-call markup inside a field); call again with each field as its own '
+            raise ValueError('malformed arguments (tool-call markup inside a field); call again with real values (never test or placeholder values), each field as its own '
                              'JSON value and arrays as JSON arrays')
         missing = [k for k in spec['input_schema']['required'] if inp.get(k) in (None, '', [])
                    and not (k == 'issues_detected' or k == 'open_risks') and inp.get(k) is not False]
@@ -184,36 +184,53 @@ class CaseEnv:
         self.final = final
 
 
-LEAK = re.compile(r'</parameter>\s*<parameter name="([^"]+)">')
+OPEN_TAG = re.compile(r'<parameter name="(\w+)">|<(\w+)>')
+
+
+def _coerce(val, typ):
+    """Turn a leaked string segment into the field's type: strip closing tags, parse arrays/booleans/numbers."""
+    if typ == 'array' and isinstance(val, str):
+        items = re.findall(r'<item>(.*?)</item>', val, re.S)
+        if items:
+            return [i.strip() for i in items]
+        val = _strip_close(val)
+        try:
+            parsed = json.loads(val)
+            return parsed if isinstance(parsed, list) else [str(parsed)]
+        except ValueError:
+            return [line.strip('-* ').strip() for line in val.splitlines() if line.strip()]
+    if typ in ('boolean', 'number') and isinstance(val, str):
+        try:
+            return json.loads(_strip_close(val).lower())
+        except ValueError:
+            return val
+    return _strip_close(val) if isinstance(val, str) else val
+
+
+def _strip_close(val):
+    return re.sub(r'(\s*</\w+>)+\s*$', '', val).strip()
 
 
 def _repair(name, inp):
-    """The model sometimes leaks raw tool-call markup into a long string field
-    ('...text</parameter>\n<parameter name="open_questions">["a"]'), which swallows the fields after it.
-    Recover those fields instead of bouncing the call (it tends to repeat the same glitch until the turn limit)."""
+    """The model sometimes leaks raw tool-call markup into a string field ('...text</parameter>\n<parameter
+    name="open_questions">["a"]' or '<item>..</item></key_facts>\n<issues_detected>[..]'), which swallows the
+    fields after it. Recover those fields and fix their types instead of bouncing the call: bounced, the model
+    tends to repeat the glitch (or 'test' with placeholder values) until the turn limit."""
     spec = next((t for t in TOOLS if t['name'] == name), None)
-    if not spec or not any(isinstance(v, str) and '<parameter' in v for v in inp.values()):
+    if not spec:
         return inp
     props, out = spec['input_schema']['properties'], dict(inp)
     for k, v in inp.items():
-        if not (isinstance(v, str) and '<parameter' in v):
+        typ = props.get(k, {}).get('type')
+        if not isinstance(v, str):
             continue
-        parts = LEAK.split(v)
-        out[k] = parts[0].strip()
-        for field, val in zip(parts[1::2], parts[2::2]):
-            val = val.replace('</parameter>', '').strip()
-            if props.get(field, {}).get('type') == 'array':
-                try:
-                    val = json.loads(val)
-                except ValueError:
-                    val = [line.strip('-* ').strip() for line in val.splitlines() if line.strip()]
-            elif props.get(field, {}).get('type') in ('boolean', 'number'):
-                try:
-                    val = json.loads(val.lower())
-                except ValueError:
-                    continue
-            if field in props and out.get(field) in (None, '', []):
-                out[field] = val
+        cuts = [(m.start(), m.end(), m.group(1) or m.group(2)) for m in OPEN_TAG.finditer(v)
+                if (m.group(1) or m.group(2)) in props and (m.group(1) or m.group(2)) != k]
+        out[k] = _coerce(v[:cuts[0][0]] if cuts else v, typ)
+        for i, (_, end, field) in enumerate(cuts):
+            seg = v[end:cuts[i + 1][0] if i + 1 < len(cuts) else len(v)]
+            if out.get(field) in (None, '', []) or field not in inp:
+                out[field] = _coerce(seg, props[field].get('type'))
     return out
 
 
@@ -236,9 +253,17 @@ if __name__ == '__main__':  # self-check
     assert env.actions[-1]['input'] == {'reason': 'r', 'urgency': 'high', 'handover_summary': 'long text',
                                         'open_questions': ['q1', 'q2'], 'recommended_next_steps': ['s1', 's2']}, env.actions[-1]
     env.run('cancel_action', {'action_id': env.actions[-1]['id'], 'reason': 'test'})
+    fin_leak = {'decision_type': 'act', 'situation': 's', 'key_facts': '\n<item>a</item>\n<item>b</item>\n</key_facts>\n'
+                '<issues_detected>["i1"]</issues_detected>\n<options_considered>["o1"]</options_considered>\n<rationale>r'}
+    fixed = _repair('finish', fin_leak)
+    assert fixed['key_facts'] == ['a', 'b'] and fixed['issues_detected'] == ['i1'] and fixed['rationale'] == 'r', fixed
+    assert _repair('finish', {'key_facts': '["x"]', 'confidence': 0.5})['key_facts'] == ['x']
+    assert _repair('escalate_to_human', {'reason': 'r</parameter>\n<parameter name="open_questions">["q"]</parameter>\n</invoke>\n'}
+                   )['open_questions'] == ['q']
     fin = {'decision_type': 'no_action', 'situation': 's', 'key_facts': ['f'], 'issues_detected': [], 'options_considered': ['o'],
            'rationale': 'r', 'next_steps': ['NOW - wait'], 'final_outcome': 'o', 'open_risks': [], 'confidence': 0.7}
-    assert env.run('finish', {**fin, 'situation': 'x</parameter>'})[1]  # malformed -> error
+    assert _repair('finish', {'situation': 'x</parameter>'})['situation'] == 'x'  # stray closing tag stripped
+    assert env.run('finish', {**fin, 'situation': 'x <parameter'})[1]  # unrepairable markup -> error
     assert env.run('finish', {'decision_type': 'no_action'})[1]  # incomplete first finish -> error
     assert 'SELF-CHECK' in env.run('finish', fin)[0]
     assert env.run('finish', {'decision_type': 'no_action', 'situation': 's2'})[0].startswith('committed')

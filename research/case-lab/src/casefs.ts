@@ -48,7 +48,8 @@ export function caseFile(kit: Kit, c: Case): string {
 export function agentBrief(kit: Kit, c: Case): string {
   const mode = kit.settings.caseCard ?? "full"; // kits saved before this setting showed the whole card
   const me = [...handlerNames(c)].sort((a, b) => b.length - a.length)[0] ?? c.details.Broker ?? "the broker";
-  const identity = `You are handling this case as ${me}.`;
+  // a handed case without a case card names no broker, and guessing one from the first message is wrong in about 1 case in 25
+  const identity = c.handed && !c.details.Broker ? "You are the broker handling this case: the person at the brokerage in the correspondence below." : `You are handling this case as ${me}.`;
   if (mode === "full") return `${identity}\n\n${caseFile(kit, c)}`;
   const source = c.details["Source role"] ? `Requester role: ${c.details["Source role"]}\n\n` : "";
   // a handed case may bring sections of its own (a question, an instruction): they are task input too

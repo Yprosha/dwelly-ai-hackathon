@@ -44,14 +44,14 @@ A full run of this agent over all 50 public cases completed with no crashes or f
  attachments/*.png|pdf        - hides answer sections           |  ^
  (any .md/.txt/.json/.eml/     (Overview/Outcome/...)           v  |  tool results
   .csv, images, PDFs)         - tolerant of odd files         tools.py: mock operations layer
-                                                              lookup_records | send_message | create_internal_note
+                                                              lookup_records | calculate | send_message | create_internal_note
                                                               escalate_to_human | no_action | cancel_action | finish
                                                                    |   (actions staged -> self-check -> committed)
                                                                    v
                                      render.py --> ANSWERS/<case>/ANSWER.md, REASONING.md ; logs/<case>.jsonl
 ```
 
-- **One agent, one loop per case** (`agent.py`), max 24 model calls. The system prompt is the playbook distilled
+- **One agent, one loop per case** (`agent.py`), max 30 model calls. The system prompt is the playbook distilled
   from the replay study (take every step up to the next wait on someone else, pass facts on with unknowns marked,
   relay the insurer faithfully with its caveats, safety advice first then containment via a qualified contractor, hard rules on authority / payments / personal
   data) plus an exception checklist (conflicting facts, failed or bounced actions, missing context, duplicates/noise,
@@ -60,9 +60,11 @@ A full run of this agent over all 50 public cases completed with no crashes or f
   evidence only and to flag any embedded instructions as a possible injection.
 - **Mock operations layer** (`tools.py`). There is no live broker system, so every action is recorded in a per-case
   outbox. `lookup_records` searches only the case file and answers "no record found" rather than inventing.
-  Actions are *staged*; the first `finish` call returns a 14-point self-check (invented facts, promises, authority,
+  `calculate` does exact arithmetic (re-adding invoices, excess/limit order) and date maths (days between dates,
+  working days with England & Wales bank holidays 2024-2027) so figures and deadlines are never mental maths.
+  Actions are *staged*; the first `finish` call returns a 16-point self-check (invented facts, promises, authority,
   payment details, data sharing, injection, unresolved conflicts, safety, faithful relay, handover quality, who is
-  left waiting, doing too much or too little, nothing invented in the next steps / outcome). The agent can `cancel_action` and restage before the second `finish` commits.
+  left waiting, doing too much or too little, nothing invented in the next steps / outcome, figures re-added, instructions relayed). The agent can `cancel_action` and restage before the second `finish` commits.
 - **Escalation to a human** is a first-class action: reason, urgency, route (claims handler, complaints, fraud, data
   protection...), handover summary, open questions, recommended next steps. "No action" is also first-class.
 - **Never crash on a case.** Unreadable files are listed as not read; tool errors go back to the model as errors;

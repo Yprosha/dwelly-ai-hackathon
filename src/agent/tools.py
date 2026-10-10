@@ -1,7 +1,10 @@
 """Mock operations layer. Nothing leaves the machine: every action is staged in a per-case outbox and
 committed only when the agent finishes (after a self-check), so it can cancel a staged action it regrets."""
+import ast
 import json
+import operator
 import re
+from datetime import date, timedelta
 
 CHECKLIST = """SELF-CHECK before committing. Re-read every staged action against these rules:
 1. Every fact, date, amount, reference and name in outgoing text is on file (cite-able); unknowns are marked as unknown/estimate.
@@ -23,6 +26,8 @@ CHECKLIST = """SELF-CHECK before committing. Re-read every staged action against
 14. next_steps and final_outcome invent nothing: no decision, cover, liability, price, date or reply content that is
     not on file; final_outcome describes the state after your AFTER steps (not just "waiting on X"), says what is
     still undecided and who the case then waits on.
+15. Every invoice/settlement figure re-added and every date/deadline recomputed with calculate; discrepancies reported.
+16. Every insurer instruction relayed; stale tasks closed; no cover decided either way; nothing disclosed across clients.
 If anything fails: cancel_action and/or stage the corrected action, then call finish again.
 If all pass: call finish again with the same (or improved) fields to commit."""
 
@@ -34,6 +39,14 @@ TOOLS = [
      'e.g. a policy number, address, name or amount. Returns matching excerpts with their source. Use to double-check a fact '
      'before relying on it. Returns "no record found" if nothing matches - it never invents records.',
      'input_schema': {'type': 'object', 'properties': {'query': STR}, 'required': ['query']}},
+    {'name': 'calculate', 'description': 'Exact arithmetic and date maths - use it instead of mental maths for every invoice, '
+     'settlement and deadline. op="arithmetic": evaluate expression (numbers, + - * / and brackets), e.g. re-add invoice lines '
+     '"1200+640+640+840" or apply excess/limits "min(2500, 1900) - 350" (min/max allowed). op="days_between": calendar days '
+     'from date to date2. op="add_working_days": the date n working days after date (England & Wales bank holidays '
+     '2024-2027 excluded). op="working_days_between": working days after date up to and including date2. Dates YYYY-MM-DD.',
+     'input_schema': {'type': 'object', 'properties': {
+         'op': {'type': 'string', 'enum': ['arithmetic', 'days_between', 'add_working_days', 'working_days_between']},
+         'expression': STR, 'date': STR, 'date2': STR, 'n': {'type': 'integer'}}, 'required': ['op']}},
     {'name': 'send_message', 'description': 'Stage an outgoing message (to customer, insurer, third party, contractor, colleague). '
      'Write the complete final text exactly as it would be sent.',
      'input_schema': {'type': 'object', 'properties': {
@@ -42,7 +55,7 @@ TOOLS = [
          'channel': {'type': 'string', 'enum': ['email', 'phone_call', 'sms', 'portal', 'protected_claim_channel', 'letter']},
          'subject': STR, 'body': STR,
          'purpose': {'type': 'string', 'description': 'One line: why this message, now'},
-         'needs_human_approval': {'type': 'boolean', 'description': 'True if it touches money, a decision, safety, a complaint, '
+         'needs_human_approval': {'type': 'boolean', 'description': 'True if it touches a disputed or changed payment, a decision, safety, a complaint, '
                                   'personal data or anything sensitive - a human should approve before it is sent'}},
          'required': ['to', 'recipient_role', 'channel', 'body', 'purpose', 'needs_human_approval']}},
     {'name': 'create_internal_note', 'description': 'Stage a note on the case file (facts recorded, plan, anomalies noticed).',
@@ -156,6 +169,8 @@ class CaseEnv:
             raise ValueError(f'missing required field(s): {", ".join(missing)}; call {name} again with every field')
         if name == 'lookup_records':
             return self.lookup(inp.get('query', ''))
+        if name == 'calculate':
+            return calculate(inp)
         if name in ('send_message', 'create_internal_note', 'escalate_to_human', 'no_action'):
             return self._stage(name, inp)
         if name == 'cancel_action':
@@ -234,6 +249,62 @@ def _repair(name, inp):
     return out
 
 
+# England & Wales bank holidays (gov.uk), incl. substitute days.
+BANK_HOLIDAYS = {date.fromisoformat(d) for d in (
+    '2024-01-01 2024-03-29 2024-04-01 2024-05-06 2024-05-27 2024-08-26 2024-12-25 2024-12-26 '
+    '2025-01-01 2025-04-18 2025-04-21 2025-05-05 2025-05-26 2025-08-25 2025-12-25 2025-12-26 '
+    '2026-01-01 2026-04-03 2026-04-06 2026-05-04 2026-05-25 2026-08-31 2026-12-25 2026-12-28 '
+    '2027-01-01 2027-03-26 2027-03-29 2027-05-03 2027-05-31 2027-08-30 2027-12-27 2027-12-28').split()}
+OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
+       ast.USub: operator.neg, ast.UAdd: operator.pos}
+
+
+def _eval(node):
+    if isinstance(node, ast.Expression):
+        return _eval(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in OPS:
+        return OPS[type(node.op)](_eval(node.left), _eval(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in OPS:
+        return OPS[type(node.op)](_eval(node.operand))
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ('min', 'max') and node.args:
+        return {'min': min, 'max': max}[node.func.id](*map(_eval, node.args))
+    raise ValueError('only numbers, + - * /, brackets, min() and max() are allowed')
+
+
+def _working(d):
+    return d.weekday() < 5 and d not in BANK_HOLIDAYS
+
+
+def calculate(inp):
+    op = inp.get('op')
+    if op == 'arithmetic':
+        expr = re.sub(r'(?<=\d),(?=\d{3}\b)', '', str(inp.get('expression', '')).replace('£', ''))  # 1,200 -> 1200
+        v = _eval(ast.parse(expr, mode='eval'))
+        return f'{inp.get("expression")} = {round(v, 2):,}'
+    d = date.fromisoformat(str(inp.get('date', '')))
+    if d.year < 2024 or d.year > 2027:
+        note = ' (bank holidays only known for 2024-2027; weekends only outside that range)'
+    else:
+        note = ''
+    if op == 'days_between':
+        d2 = date.fromisoformat(str(inp.get('date2', '')))
+        return f'{(d2 - d).days} calendar days from {d} to {d2}'
+    if op == 'add_working_days':
+        n, cur = int(inp.get('n')), d
+        for _ in range(n):
+            cur += timedelta(days=1)
+            while not _working(cur):
+                cur += timedelta(days=1)
+        return f'{n} working days after {d:%a %d %b %Y} is {cur:%a %d %b %Y}{note}'
+    if op == 'working_days_between':
+        d2 = date.fromisoformat(str(inp.get('date2', '')))
+        n = sum(_working(d + timedelta(days=i)) for i in range(1, (d2 - d).days + 1))
+        return f'{n} working days after {d:%a %d %b %Y} up to and including {d2:%a %d %b %Y}{note}'
+    raise ValueError(f'unknown op {op}')
+
+
 def _short(inp):
     s = inp.get('body') or inp.get('text') or inp.get('handover_summary') or inp.get('reason') or ''
     return (f'to {inp["to"]}: ' if inp.get('to') else '') + s[:200].replace('\n', ' ')
@@ -268,4 +339,9 @@ if __name__ == '__main__':  # self-check
     assert 'SELF-CHECK' in env.run('finish', fin)[0]
     assert env.run('finish', {'decision_type': 'no_action', 'situation': 's2'})[0].startswith('committed')
     assert env.final['confidence'] == 0.7 and env.final['situation'] == 's2'
+    assert calculate({'op': 'add_working_days', 'date': '2026-12-18', 'n': 10}).endswith('Wed 06 Jan 2027')
+    assert calculate({'op': 'arithmetic', 'expression': '£1,200 + 640*2 + min(2500, 1900) - 350'}).endswith('= 4,030')
+    assert calculate({'op': 'days_between', 'date': '2025-08-15', 'date2': '2025-10-01'}).startswith('47 ')
+    assert calculate({'op': 'working_days_between', 'date': '2026-12-18', 'date2': '2027-01-06'}).startswith('10 ')
+    assert env.run('calculate', {'op': 'arithmetic', 'expression': '__import__("os")'})[1]
     print('ok')

@@ -16,12 +16,18 @@ export type AdviserSpec = {
   when: "first" | "every"; // first: only when the agent picks the case up; every: before each of its turns
 };
 
+// What an adviser did, in order: what it said between tool calls, the tools it called and what came back. Enough for
+// the UI to replay its work the way it shows the agent's own chat. The content of web pages is not kept.
+export type ToolStep = { name: string; input: unknown; result?: string; error?: boolean; links?: { title: string; url: string }[] };
+export type Step = { text: string } | ToolStep;
+
 export type Proposal = {
   name: string; title: string; preset: string;
   status: "ok" | "failed";
   note?: string; // why there is no proposal
   proposal: string;
-  steps: { name: string; input: unknown; result?: string }[]; // tool calls, in order
+  input?: string; // what the adviser was shown (absent in runs made before traces were kept)
+  steps: Step[];
   calls: Call[];
   cost: number; ms: number;
 };
@@ -30,6 +36,7 @@ export type Proposal = {
 export type Advice = { turn: number; proposals: Proposal[]; text: string };
 
 const MAX_ROUNDS = 8; // model rounds per adviser; the last one has no tools, so it always ends in a proposal
+const MAX_KEEP = 30_000; // characters of one tool result kept in the trace
 const DEADLINE_MS = 300_000; // an adviser still working after this is reported as failed and the turn goes on
 
 export function checkAdvisers(kit: Kit) {
@@ -72,18 +79,26 @@ async function runAdviser(ctx: Ctx, name: string, latest: number[]): Promise<Pro
       latest: latest.map((n) => `/messages/${pad(n)}`).join(", ") || "(none)",
     }) + (others.length ? render(promptOf(kit, "adviser.claims.md"), { catalogue: others.map(gist).join("\n") }) : "");
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: user }];
+    p.input = user;
+    const pending = new Map<string, ToolStep>(); // server-side tool calls waiting for their result block
     for (let round = 1; round <= MAX_ROUNDS && !late; round++) {
       const { message, call: meta } = await call(kit, "adviser", { preset: spec.preset, system, messages, tools: tools.length ? tools : undefined, toolChoiceNone: tools.length > 0 && round === MAX_ROUNDS });
       if (late) return; // timed out while this call was in flight: its result is dropped
       p.calls.push(meta);
       messages.push({ role: "assistant", content: message.content });
-      for (const b of message.content) if (b.type === "server_tool_use") p.steps.push({ name: b.name, input: b.input });
-      if (message.stop_reason === "refusal" || message.stop_reason === "max_tokens") throw new Error(`adviser stopped: ${message.stop_reason}`);
-      if (message.stop_reason === "pause_turn") continue; // a long server-side tool loop paused: sent again as is, it resumes
       const uses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+      const paused = message.stop_reason === "pause_turn";
+      // the answer is the text after the last tool block of the last message; any text before that is said along the way
+      const last = message.content.findLastIndex((b) => b.type !== "text" && b.type !== "thinking" && b.type !== "redacted_thinking");
+      message.content.forEach((b, i) => {
+        const id = (b as { tool_use_id?: unknown }).tool_use_id;
+        if (b.type === "text") { if (b.text.trim() && (uses.length || paused || i < last)) p.steps.push({ text: b.text.trim() }); }
+        else if (b.type === "server_tool_use") { const s: ToolStep = { name: b.name, input: b.input }; p.steps.push(s); pending.set(b.id, s); }
+        else if (typeof id === "string" && pending.has(id)) Object.assign(pending.get(id)!, serverResult((b as { content?: unknown }).content));
+      });
+      if (message.stop_reason === "refusal" || message.stop_reason === "max_tokens") throw new Error(`adviser stopped: ${message.stop_reason}`);
+      if (paused) continue; // a long server-side tool loop paused: sent again as is, it resumes
       if (!uses.length) {
-        // the text after the last tool block, without any "I have enough" preamble
-        const last = message.content.findLastIndex((b) => b.type !== "text" && b.type !== "thinking" && b.type !== "redacted_thinking");
         const text = message.content.slice(last + 1).flatMap((b) => (b.type === "text" ? [b.text] : [])).join("").trim();
         p.proposal = text.slice(Math.max(text.indexOf("PROPOSAL"), 0));
         break;
@@ -97,7 +112,7 @@ async function runAdviser(ctx: Ctx, name: string, latest: number[]): Promise<Pro
             : u.name === "read_claim" ? readClaim(kit, others, String(input?.claim_id ?? ""))
             : await fsTool(ctx, u.name, input);
         } catch (e) { content = e instanceof Error ? e.message : String(e); failed = true; }
-        p.steps.push({ name: u.name, input, result: content.slice(0, 300) });
+        p.steps.push({ name: u.name, input, result: content.slice(0, MAX_KEEP), ...(failed ? { error: true } : {}) });
         results.push({ type: "tool_result", tool_use_id: u.id, content, ...(failed ? { is_error: true } : {}) });
       }
       messages.push({ role: "user", content: results });
@@ -117,6 +132,17 @@ async function runAdviser(ctx: Ctx, name: string, latest: number[]): Promise<Pro
   p.cost = p.calls.reduce((a, x) => a + x.cost, 0);
   p.ms = Date.now() - t0;
   return p;
+}
+
+// What a server-side tool returned, reduced to what a reader needs: the pages a search found, the page a fetch opened,
+// what the code printed.
+function serverResult(c: any): Partial<ToolStep> {
+  const link = (x: any) => ({ title: String(x.title ?? x.content?.title ?? x.url), url: String(x.url) });
+  if (Array.isArray(c)) return { links: c.filter((x) => x?.url).map(link) };
+  if (c?.error_code) return { result: String(c.error_code), error: true };
+  if (c?.url) return { links: [link(c)] };
+  const out = [c?.stdout, c?.stderr].filter((s) => typeof s === "string" && s.trim()).join("\n");
+  return out ? { result: out.slice(0, 4000) } : {};
 }
 
 // ---- the other claims on the books: closed cases with their recorded overview and outcome ----

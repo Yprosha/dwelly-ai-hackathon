@@ -16,7 +16,7 @@ Then open http://localhost:5177.
 
 The UI has two modes, like Sophie Lab:
 
-- **Simple** is for reviewing. It has a scorecard, the claim list, an "Agent vs the real claim" fold, an Emails mailbox (this run or the real claim) and the agent's Chat.
+- **Simple** is for reviewing. It has a scorecard, the claim list, an "Agent vs the real claim" fold, an Emails mailbox (this run or the real claim) and the agent's Chat. The claims list and the Emails column can be dragged by their edge or hidden with the chevron on it (double-click the edge to reset), to give the chat more room.
 - **Full** is for building. It has the agent trace with thinking and tokens, simulator turns, judge details, a side-by-side replay, run config, New run, and Prompts & settings.
 
 To run from the terminal instead (runs show up in the UI either way):
@@ -72,7 +72,7 @@ npm run run -- --cases insurance-017,insurance-030 --advisers all --label counci
 - The two web advisers sit only when the agent picks the case up, because reading policy booklets is the expensive part and their findings stay in the agent's conversation. Set `"when": "every"` to have them sit before every turn.
 - The precedent analyst reads the other 49 public cases in full, recorded overview and outcome included, and never the case being worked on.
 - An adviser that fails or is still working after five minutes is shown as "no proposal" and the turn goes on without it.
-- In the UI, Simple shows an **Advisers** fold under each turn header in the agent chat; Full → Agent trace shows each adviser's proposal, tool calls, cost and time.
+- In the UI, Simple shows an **Advisers** fold under each turn header in the agent chat. **trace ›** on an adviser opens its own work in the chat column, drawn like the agent's chat: what it was asked, each tool call as a step (case files, other claims, web searches with the pages they found), what it said along the way and its proposal. Full → Agent trace lists each adviser's proposal, tool calls, cost and time.
 
 ## Where things live
 

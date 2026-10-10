@@ -42,6 +42,26 @@ plus which required outcomes were met (`req`) and which **critical failures**, *
 action at 4. A missing answer scores 0. Agent output is passed to the judge as untrusted data; text in it
 addressed to the grader is ignored and counts as a critical failure.
 
+## Public-case backtest (`public.py`)
+
+Replays the 50 public insurance cases at a decision point and grades the agent's ANSWER.md with the same Opus judge
+client. The agent sees events 1..k-1 (later attachments withheld, Overview / Next action / Outcome hidden).
+
+```bash
+python eval/public.py "<path>/Insurance Claims Processing" --run v1 --parity odd           # escalation points
+python eval/public.py "<path>/Insurance Claims Processing" --run v1all --points all        # every broker step
+```
+
+- `--points escalation` (default, primary metric): k = `esc_after` + 1 from `public_escalation_points.json`; gold =
+  the case's "Next action at escalation", "Outcome" and the later events.
+- `--points all`: every event k > 1 sent by the broker (144 points); gold = the broker's real event k onwards.
+
+Scores per point: `next_steps_score`, `outcome_score`, `judgement_score` (0-10), `harmful`, `invented_facts`. Output:
+`eval/results/public_<run>.json` with `totals` (escalation / all points, odd / even) and one row per point
+(`case, k, esc, esc_after, decision, next_steps_score, outcome_score, judgement_score, harmful, invented_facts, reason,
+final_outcome, next_steps, cost_usd, duration_s, turns, agent_error`); answers and traces in `eval/results/public_<run>/`.
+Iterate on odd cases, check even ones at the end.
+
 ## Rubric schema
 
 ```json

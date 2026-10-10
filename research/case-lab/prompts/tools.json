@@ -66,5 +66,15 @@
       "required": ["outcome"],
       "additionalProperties": false
     }
+  },
+  {
+    "name": "run_subagent",
+    "description": "Hand a task to a sub-agent and get its reply. It sees this case as it stands and can search the other claims in the brokerage's database and the web; it cannot act on the case. You decide whether and when one helps and what it does: for example a reviewer for a draft, a policy-wording searcher, a web precedent search, a simplifier. Several calls in one response run in parallel.",
+    "input_schema": {
+      "type": "object",
+      "properties": { "instruction": { "type": "string", "description": "The task, self-contained: the sub-agent sees the case but not your thinking." } },
+      "required": ["instruction"],
+      "additionalProperties": false
+    }
   }
 ]

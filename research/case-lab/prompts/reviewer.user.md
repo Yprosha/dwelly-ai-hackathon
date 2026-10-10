@@ -22,6 +22,4 @@ Next action at escalation: {{next_action}}
 
 ## REFERENCE
 
-Overview: {{reference_overview}}
-
-Next action at escalation: {{reference_next_action}}
+{{reference}}

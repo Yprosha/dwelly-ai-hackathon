@@ -1,7 +1,0 @@
-{
-  "creative": { "title": "Creative problem-solver", "preset": "opus-5.5", "prompt": "adviser.creative.md", "tools": ["case"], "when": "every" },
-  "risk": { "title": "Conservative risk assessor", "preset": "opus-5.5-high", "prompt": "adviser.risk.md", "tools": ["case"], "when": "every" },
-  "web": { "title": "Web researcher (UK guidance)", "preset": "opus-5.5", "prompt": "adviser.web.md", "tools": ["case", "web"], "when": "first" },
-  "wordings": { "title": "Policy-wording researcher (UK market)", "preset": "opus-5.5", "prompt": "adviser.wordings.md", "tools": ["case", "web"], "when": "first" },
-  "precedent": { "title": "Precedent analyst (other claims)", "preset": "opus-5.5-low", "prompt": "adviser.precedent.md", "tools": ["case", "claims"], "when": "every" }
-}

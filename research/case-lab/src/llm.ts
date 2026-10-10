@@ -4,7 +4,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";
 import path from "node:path";
-import type { AdviserSpec } from "./council.ts";
 
 export const ROOT = path.resolve(import.meta.dirname, "..");
 export const readJson = <T = any>(rel: string): T => JSON.parse(fs.readFileSync(path.join(ROOT, rel), "utf8"));
@@ -17,12 +16,12 @@ export function loadEnv() {
 }
 
 export type Settings = {
-  agent: string; simulator: string; judge: string; reviewer: string; extractor: string; // model preset names from config/models.json
+  agent: string; simulator: string; judge: string; reviewer: string; extractor: string; subagent: string; // model preset names from config/models.json
   caseCard: "none" | "record" | "full"; // what the agent is told from index.md: only who it is / + broker, insurer, property / the whole card
   startAt: "escalation" | "opening"; // escalation: the agent takes over at the case's escalation point (config/escalation.json); opening: at the start
   seedEvents: number; // 0: follow startAt; N: hand the agent the first N real events verbatim, whatever startAt says
   maxWorldTurns: number; maxToolRounds: number; concurrency: number;
-  advisers?: string[]; // names from config/advisers.json that propose next steps before the agent's turns; empty or absent: no council
+  subagents?: boolean; // the agent has run_subagent (absent in kits saved before it existed)
   runJudge: boolean; runReviewer: boolean; hiddenDetails: string[];
   failOn: string[]; // simulator verdicts that end a run as failed: over_request, extra_message
 };
@@ -31,7 +30,6 @@ export type Kit = {
   settings: Settings;
   models: Record<string, Record<string, unknown>>;
   pricing: Record<string, [number, number]>;
-  advisers: Record<string, AdviserSpec>; // config/advisers.json: who can sit on the council (absent in kits saved before it existed)
   prompts: Record<string, string>; // file name -> contents, every file in prompts/
   escalation: Record<string, { after: number; trigger?: string }>; // case key -> last real event before its escalation point
 };
@@ -42,7 +40,6 @@ export function loadKit(overrides: Partial<Settings> = {}): Kit {
     settings: { ...readJson<Settings>("config/settings.json"), ...overrides },
     models: readJson("config/models.json"),
     pricing: readJson("config/pricing.json"),
-    advisers: fs.existsSync(path.join(ROOT, "config/advisers.json")) ? readJson("config/advisers.json") : {},
     prompts: Object.fromEntries(fs.readdirSync(dir).sort().map((f) => [f, fs.readFileSync(path.join(dir, f), "utf8")])),
     escalation: fs.existsSync(path.join(ROOT, "config/escalation.json")) ? readJson("config/escalation.json") : {},
   };
@@ -68,10 +65,10 @@ let client: Anthropic | undefined; // lazy: entrypoints load .env first
 
 export async function call(
   kit: Kit,
-  role: "agent" | "simulator" | "judge" | "reviewer" | "extractor" | "adviser",
-  req: { system: string; messages: Anthropic.Beta.BetaMessageParam[]; tools?: unknown[]; toolChoiceNone?: boolean; schema?: object; preset?: string },
+  role: "agent" | "simulator" | "judge" | "reviewer" | "extractor" | "subagent",
+  req: { system: string; messages: Anthropic.Beta.BetaMessageParam[]; tools?: unknown[]; toolChoiceNone?: boolean; schema?: object },
 ): Promise<{ message: Anthropic.Beta.BetaMessage; call: Call }> {
-  const preset = req.preset ?? kit.settings[role as "agent"]; // advisers bring their own preset (config/advisers.json)
+  const preset = kit.settings[role];
   const params = kit.models[preset];
   if (!params) throw new Error(`model preset "${preset}" (${role}) is not in config/models.json`);
   const body: any = { ...params, system: req.system, messages: req.messages };

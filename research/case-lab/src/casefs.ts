@@ -87,8 +87,15 @@ const IMAGE: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg
 const TEXT = new Set([".txt", ".csv", ".md", ".json"]);
 
 // Text of an attachment. PDFs and images go through Claude once (prompts/extract.*), then live in cache/extracted/.
-export async function extract({ kit, c, extract: calls }: Ctx, name: string): Promise<string> {
-  const cached = path.join(ROOT, "cache/extracted", c.key, `${name}.md`);
+// Reads of the same file at the same time (parallel tool calls, sub-agents) share one extraction.
+const extracting = new Map<string, Promise<string>>();
+export function extract(ctx: Ctx, name: string): Promise<string> {
+  const cached = path.join(ROOT, "cache/extracted", ctx.c.key, `${name}.md`);
+  if (!extracting.has(cached)) extracting.set(cached, extractOnce(ctx, name, cached).finally(() => extracting.delete(cached)));
+  return extracting.get(cached)!;
+}
+
+async function extractOnce({ kit, c, extract: calls }: Ctx, name: string, cached: string): Promise<string> {
   if (fs.existsSync(cached)) return fs.readFileSync(cached, "utf8");
   const file = path.join(c.dir, "attachments", name);
   const ext = path.extname(name).toLowerCase();

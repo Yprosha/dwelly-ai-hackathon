@@ -52,5 +52,29 @@
     "insurance-040",
     "insurance-045",
     "insurance-050"
+  ],
+  "synthetic": [
+    "eval-101",
+    "eval-102",
+    "eval-103",
+    "eval-104",
+    "eval-105",
+    "eval-106",
+    "eval-107",
+    "eval-108",
+    "eval-109",
+    "eval-110",
+    "eval-111",
+    "eval-112",
+    "eval-113",
+    "eval-201",
+    "eval-202",
+    "eval-203",
+    "eval-204",
+    "eval-205",
+    "eval-206",
+    "eval-207",
+    "eval-208",
+    "eval-209"
   ]
 }

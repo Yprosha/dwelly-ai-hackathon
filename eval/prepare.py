@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy eval cases to a clean agent-input directory, dropping grader-only files (rubric.json).
+"""Copy eval cases to a clean agent-input directory, dropping grader-only files (rubric.json, expected_answer.md).
 
 Usage: python3 eval/prepare.py --out /tmp/rt_input [--cases eval/cases]
 """
@@ -14,7 +14,8 @@ out = Path(a.out)
 if out.exists():  # only wipe a previous prepare.py output, never an arbitrary directory
     assert all((p / "index.md").exists() for p in out.iterdir()), f"{out} exists and is not a previous case dir; refusing to delete"
     shutil.rmtree(out)
-shutil.copytree(a.cases, out, ignore=shutil.ignore_patterns("rubric.json", ".*"))
-leaked = list(out.rglob("rubric.json"))
+GRADER_ONLY = ("rubric.json", "expected_answer.md")
+shutil.copytree(a.cases, out, ignore=shutil.ignore_patterns(*GRADER_ONLY, ".*"))
+leaked = [f for g in GRADER_ONLY for f in out.rglob(g)]
 assert not leaked, leaked
 print(f"{len([p for p in out.iterdir() if p.is_dir()])} cases -> {out}")

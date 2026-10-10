@@ -1,9 +1,11 @@
-// Parses the public insurance cases (<CASES_DIR>/<id>/{index.md,history.md,attachments/}) into plain objects.
+// Parses the public insurance cases (<CASES_DIR>/<id>/{index.md,history.md,attachments/}) into plain objects, plus
+// the hard and complex synthetic eval cases (<EVAL_CASES_DIR>/<id>, ids 101+), whose history ends at the escalation point.
 // CASES_DIR follows the repo convention: data/public-cases/Insurance Claims Processing unless set.
 import fs from "node:fs";
 import path from "node:path";
 
 const casesDir = () => process.env.CASES_DIR ?? path.resolve(import.meta.dirname, "../../../data/public-cases/Insurance Claims Processing");
+const evalDir = () => process.env.EVAL_CASES_DIR ?? path.resolve(import.meta.dirname, "../../../eval/cases");
 
 export type Event = { n: number; ts: string; channel: string; from: string; to: string; stage?: string; body: string };
 export type Attachment = { name: string; firstEvent: number | null }; // first event whose body mentions the file
@@ -19,6 +21,8 @@ export type Case = {
   answer: Record<string, string>; // Overview / Next action / Outcome / Boundaries: never shown to the agent
   events: Event[];
   attachments: Attachment[];
+  synthetic?: boolean; // an eval case: no real future to replay; graded against expected_answer.md and rubric.json
+  reference: { overview: string; next_action: string; full: string }; // what the reviewer grades the answer against; never shown to the agent
 };
 
 const NOT_ANSWER = new Set(["Case details", "Initial request", "Context", "History", "Attachments"]);
@@ -65,6 +69,11 @@ function parse(root: string, id: string): Case {
     request: sec["Initial request"] ?? "",
     context: sec["Context"] ?? "",
     answer: Object.fromEntries(Object.entries(sec).filter(([h]) => !NOT_ANSWER.has(h))),
+    reference: {
+      overview: sec["Overview"] ?? "",
+      next_action: sec["Next action at escalation"] ?? "",
+      full: `Overview: ${sec["Overview"] ?? "(none)"}\n\nNext action at escalation: ${sec["Next action at escalation"] ?? "(none)"}`,
+    },
     events: evs,
     attachments: names.map((name) => ({
       name,
@@ -92,12 +101,33 @@ export function handlerNames(c: Case): string[] {
   return [...new Set(c.events.filter((e) => ours(e.from)).map((e) => e.from))];
 }
 
+const section = (md: string, heading: string) => md.split(/^## /m).find((s) => s.startsWith(heading + "\n"))?.slice(heading.length).trim() ?? "";
+
+// An eval case: same layout as a public case, with the gold answer and rubric beside it (grader-only).
+function synthetic(root: string, id: string): Case {
+  const c = parse(root, id);
+  const read = (f: string) => (fs.existsSync(path.join(c.dir, f)) ? fs.readFileSync(path.join(c.dir, f), "utf8") : "");
+  const expected = read("expected_answer.md");
+  const rubric = read("rubric.json") ? JSON.parse(read("rubric.json")) : {};
+  const list = (xs: unknown) => (Array.isArray(xs) ? xs.map((x) => `- ${typeof x === "string" ? x : JSON.stringify(x)}`).join("\n") : "");
+  return {
+    ...c, key: `eval-${id}`, track: "Synthetic eval", synthetic: true,
+    reference: {
+      overview: section(expected, "Situation") || String(rubric.summary ?? ""),
+      next_action: section(expected, "Next steps") || list(rubric.required_outcomes),
+      full: [expected && `## Expected answer\n\n${expected}`, Object.keys(rubric).length > 0 && `## Grading rubric\n\n${JSON.stringify(rubric, null, 2)}`].filter(Boolean).join("\n\n"),
+    },
+  };
+}
+
 let cache: Case[] | undefined;
 export function allCases(): Case[] {
+  if (cache) return cache;
   const root = casesDir();
   if (!fs.existsSync(root)) throw new Error(`No cases at ${root}. Put the public Insurance Claims Processing cases there or set CASES_DIR.`);
-  cache ??= fs.readdirSync(root).filter((id) => /^\d+$/.test(id)).sort().map((id) => parse(root, id));
-  return cache;
+  const ev = evalDir(); // the hard (1xx) and complex (2xx) synthetic sets; the easy 0xx rehearsal set stays out
+  const syn = fs.existsSync(ev) ? fs.readdirSync(ev).filter((id) => /^\d+$/.test(id) && Number(id) >= 101).sort().map((id) => synthetic(ev, id)) : [];
+  return (cache = [...fs.readdirSync(root).filter((id) => /^\d+$/.test(id)).sort().map((id) => parse(root, id)), ...syn]);
 }
 
 export function getCase(key: string): Case {

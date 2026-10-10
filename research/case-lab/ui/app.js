@@ -120,9 +120,13 @@ const stat = (label, a, b) => { const r = pct(a, b); return `<span>${label}<b cl
 
 function scoreSimple(run) {
   const { cs, judged, fin, cov, tot, e2e, derived } = counts(run);
-  const graded = cs.filter((c) => escOf(c) !== undefined);
+  const isSyn = Object.fromEntries(Object.keys(run.cases).map((k) => [k, k.startsWith("eval-")]));
+  const entries = Object.entries(run.cases);
+  const graded = entries.filter(([k, c]) => !isSyn[k] && escOf(c) !== undefined).map(([, c]) => c);
+  const synth = entries.filter(([k, c]) => isSyn[k] && c.correct !== undefined).map(([, c]) => c);
   return [
-    stat("Correct escalations", graded.filter(escOf).length, graded.length),
+    graded.length || !synth.length ? stat("Correct escalations", graded.filter(escOf).length, graded.length) : "",
+    synth.length ? stat("Synthetic correct", synth.filter((c) => c.correct).length, synth.length) : "",
     stat(`Solved end to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Broker actions covered", cov, tot),
     stat("No red flags", judged.filter((c) => !c.violations).length, judged.length),
@@ -157,17 +161,17 @@ async function renderSimple(runs, run, key, tab) {
   const agentSent = r.replay.filter((m) => m.author === "agent" && m.kind === "message").length;
   const covered = j ? j.acts.filter((a) => a.covered).length : 0;
   const ans = r.answer, rv = r.review?.output;
-  const verdictRow = (label, text, part, real) => ({ label, real: esc(real ?? "—"), tone: part ? (part.verdict === "correct" ? "match" : "miss") : "",
+  const verdictRow = (label, text, part, real) => ({ label, real: real ? md(real) : "—", tone: part ? (part.verdict === "correct" ? "match" : "miss") : "",
     agent: esc(text) + (part ? `<div class="muted">${esc(part.reason)}</div>` : ""), diff: part?.verdict === "incorrect" && label.toLowerCase() });
   const rows = [
-    ans && verdictRow("Overview", ans.overview, rv?.overview, c.answer.Overview),
-    ans && verdictRow("Next action", ans.next_action, rv?.next_action, c.answer["Next action at escalation"]),
+    ans && verdictRow("Overview", ans.overview, rv?.overview, c.reference?.overview ?? c.answer.Overview),
+    ans && verdictRow("Next action", ans.next_action, rv?.next_action, c.reference?.next_action ?? c.answer["Next action at escalation"]),
     !ans && j && { label: "Escalation", tone: j.first_action.verdict, agent: esc(j.first_action.reason), real: esc(c.answer["Next action at escalation"] ?? "—"), diff: j.first_action.verdict !== "match" && "escalation" },
     j && { label: "End to end", tone: e2eVerdict(j).ok ? "match" : "miss", agent: `${e2eVerdict(j).ok ? "Correct" : "Not correct"}<div class="muted">${esc(e2eVerdict(j).reason)}</div>`, real: "—", diff: !e2eVerdict(j).ok && "end to end" },
     j && { label: "Broker actions", tone: covered === j.acts.length ? "match" : covered ? "partial" : "miss", agent: `${covered} of ${j.acts.length}${j.acts.some((a) => !a.covered) ? `<div class="muted">Missed: ${esc(j.acts.filter((a) => !a.covered).map((a) => a.act).join("; "))}</div>` : ""}`, real: String(j.acts.length), diff: covered < j.acts.length && "actions" },
     { label: "Emails sent", tone: agentSent === realSent ? "match" : "partial", agent: String(agentSent), real: String(realSent), diff: agentSent !== realSent && "emails sent" },
     j && { label: "Red flags", tone: j.violations.length ? "miss" : "match", agent: j.violations.length ? j.violations.map((v) => `<div><span class="quote">“${esc(v.quote)}”</span> <span class="muted">${esc(v.explanation)}</span></div>`).join("") : "None", real: "—", diff: j.violations.length > 0 && "red flags" },
-    run.kit.settings.failOn && { label: "On script", tone: r.failure ? "miss" : "match", real: "—", diff: r.failure && (OFF[r.failure.verdict] ?? r.failure.verdict).toLowerCase(),
+    run.kit.settings.failOn && r.world.length > 0 && { label: "On script", tone: r.failure ? "miss" : "match", real: "—", diff: r.failure && (OFF[r.failure.verdict] ?? r.failure.verdict).toLowerCase(),
       agent: r.failure ? `<b class="bad">${esc(OFF[r.failure.verdict] ?? r.failure.verdict)}</b>, so the run stopped. ${r.failure.quotes.map((q) => `<span class="quote">“${esc(q)}”</span>`).join(" ")} <span class="muted">${esc(r.failure.reason)}</span>` : "Asked only for what the real claim had" },
     { label: "Outcome", tone: "", agent: r.agent.closed ? esc(r.agent.closed.outcome) : `<span class="muted">Left open</span>`, real: esc(c.answer.Outcome ?? "—") },
   ].filter(Boolean);
@@ -316,17 +320,10 @@ const pad3 = (n) => String(n).padStart(3, "0");
 const linkAttr = (ns, origin) => (ns.length ? ` data-ns="${ns.join(",")}"${origin ? ' data-origin="1"' : ""}` : "");
 const refChips = (ns) => ns.slice(0, 4).map((n) => `<span class="ref">#${pad3(n)}</span>`).join("") + (ns.length > 4 ? `<span class="ref">+${ns.length - 4}</span>` : "");
 
-// The council's sitting before an agent turn (absent in runs without advisers), and that turn's input without the
-// proposals that were appended to it.
-const adviceOf = (r, turn) => (r.advice ?? []).find((a) => a.turn === turn);
-const ownInput = (r, turn, content) => { const a = adviceOf(r, turn); return a && content.endsWith(a.text) ? content.slice(0, -a.text.length) : content; };
-const toolCount = (p) => Object.entries(p.steps.reduce((t, s) => ({ ...t, [s.name]: (t[s.name] ?? 0) + 1 }), {})).map(([n, k]) => `${n} ×${k}`).join(", ");
-
-function council(a) {
-  const ok = a.proposals.filter((p) => p.status === "ok").length;
-  const rows = a.proposals.map((p) => `<details class="step read"><summary><span class="si">${ICON.search}</span><span class="sl"><b>${esc(p.title)}</b>${p.status === "ok" ? "" : '<span class="fail">no proposal</span>'}</span><span class="sx">${esc(p.status === "ok" ? firstLine(p.proposal.replace(/^PROPOSAL\s*/, "")) : p.note)}</span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(p.status === "ok" ? p.proposal : p.note)}</div><div class="meta">${esc(p.preset)}${p.steps.length ? ` · ${esc(toolCount(p))}` : ""} · ${money(p.cost)} · ${dur(p.ms)}</div></div></details>`).join("");
-  return `<details class="step turnhead"><summary><span class="si">${ICON.folder}</span><span class="sl">Advisers · ${ok} of ${a.proposals.length} proposals</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb">${rows}</div></details>`;
-}
+// What a run_subagent call did behind its tool result (absent in runs made before sub-agents).
+const subOf = (r, b) => (b.name === "run_subagent" ? (r.agent.subagents ?? []).find((s) => s.id === b.id) : undefined);
+const toolCount = (s) => Object.entries(s.steps.reduce((t, x) => ({ ...t, [x.name]: (t[x.name] ?? 0) + 1 }), {})).map(([n, k]) => `${n} ×${k}`).join(", ");
+const subMeta = (s) => [s.calls[0]?.preset, `${s.calls.length} calls`, s.steps.length && toolCount(s), money(s.cost), dur(s.ms)].filter(Boolean).map(esc).join(" · ");
 
 function chat(run, r) {
   const silence = run.kit.prompts["agent.silence.md"], answerAsk = run.kit.prompts["agent.answer.md"];
@@ -345,11 +342,10 @@ function chat(run, r) {
     }
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
-      const own = ownInput(r, turn, m.content), adv = adviceOf(r, turn);
+      const own = m.content;
       const label = turn === 1 ? (r.start === "escalation" ? "Picked up at the escalation point" : "New case") : own === silence ? "No replies" : "New messages";
       const ns = [...own.matchAll(/^\/messages\/(\d+)$/gm)].map((x) => Number(x[1])); // the messages this turn handed to the agent
       out.push(`<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(own.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
-      if (adv) out.push(council(adv));
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "text" && b.text.trim()) out.push(`<div class="row"><span class="ai">AI</span><div class="md">${md(b.text)}</div></div>`);
@@ -379,6 +375,7 @@ function step(b, res, r) {
     `${off || partly ? `<div class="why${partly ? " soft" : ""}">${esc(off || "Partly unavailable")}: ${esc(msg.reason)}</div>` : ""}<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
   if (b.name === "add_note") return row("note", ICON.note, "<b>Added a note</b>", firstLine(x.body), `<div class="md">${md(x.body)}</div>`);
   if (b.name === "close_case") return row("close", ICON.done, "<b>Closed the case</b>", firstLine(x.outcome), `<div class="md">${md(x.outcome)}</div>`);
+  if (b.name === "run_subagent") { const s = subOf(r, b); return row("read", ICON.search, "<b>Sub-agent</b>", firstLine(x.instruction), `<div class="md"><p><b>Task</b></p>${md(x.instruction)}<p><b>Report</b></p>${md(result)}</div>${s ? `<div class="meta">${subMeta(s)}</div>` : ""}`); }
   if (b.name === "read_case") return row("read", ICON.file, `Read <code>${esc(x.path)}</code>`, "", /^\/messages\//.test(x.path) ? `<pre class="plain">${esc(result)}</pre>` : `<div class="md">${md(result)}</div>`);
   if (b.name === "list_case") return row("read", ICON.folder, `Listed <code>${esc(x.path || "/")}</code>`, "", `<pre>${esc(result)}</pre>`);
   if (b.name === "search_case") return row("read", ICON.search, `Searched for <code>${esc(x.pattern)}</code>`, "", `<pre>${esc(result)}</pre>`);
@@ -467,19 +464,18 @@ function traceTab(run, r) {
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
       if (m.content === run.kit.prompts["agent.answer.md"]) { turn--; out.push(`<div class="turn"><span class="lbl">Answer</span><span class="muted">agent.answer.md</span></div>`); continue; }
-      out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : ownInput(r, turn, m.content) === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
-      const adv = adviceOf(r, turn);
-      if (adv) out.push(`<div class="round">advisers before this turn · ${adv.proposals.filter((p) => p.status === "ok").length}/${adv.proposals.length} proposals · ${money(adv.proposals.reduce((t, p) => t + p.cost, 0))} · their proposals are appended to the input above</div>`,
-        ...adv.proposals.map((p) => `<details class="box"><summary><b>${esc(p.title)}</b><span class="x">${esc(p.name)} · ${esc(p.preset)} · ${p.calls.length} calls${p.steps.length ? ` · ${esc(toolCount(p))}` : ""} · ${money(p.cost)} · ${dur(p.ms)}</span>${p.status === "ok" ? "" : `<span class="chip bad">no proposal</span>`}</summary><div class="io"><pre>${esc(p.status === "ok" ? p.proposal : p.note)}</pre></div>${p.steps.length ? `<div class="io"><span class="lbl">Tool calls</span><pre>${esc(p.steps.map((s) => `${s.name} ${JSON.stringify(s.input)}${s.result ? `\n  → ${s.result.replace(/\s+/g, " ").slice(0, 160)}` : ""}`).join("\n"))}</pre></div>` : ""}</details>`));
+      out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : m.content === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "thinking" && b.thinking) out.push(`<div class="thinking">${esc(b.thinking)}</div>`);
         else if (b.type === "text" && b.text.trim()) out.push(`<div class="say">${esc(b.text)}</div>`);
         else if (b.type === "tool_use") {
           const x = res.get(b.id), i = b.input || {};
-          const brief = i.path ?? i.pattern ?? (i.to ? `to ${i.to}: ${i.body ?? ""}` : (i.body ?? i.outcome ?? ""));
+          const brief = i.path ?? i.pattern ?? (i.to ? `to ${i.to}: ${i.body ?? ""}` : (i.body ?? i.outcome ?? i.instruction ?? ""));
+          const s = subOf(r, b);
+          const steps = s ? `<div class="io"><span class="lbl">Sub-agent · ${subMeta(s)}</span>${s.steps.length ? `<pre>${esc(s.steps.map((t) => `${t.name} ${JSON.stringify(t.input)}${t.result ? `\n  → ${t.result.replace(/\s+/g, " ").slice(0, 160)}` : ""}`).join("\n"))}</pre>` : ""}</div>` : "";
           const content = typeof x?.content === "string" ? x.content : JSON.stringify(x?.content ?? "(no result)");
-          out.push(`<details class="box"><summary><b class="mono">${esc(b.name)}</b><span class="x">${esc(String(brief).replace(/\s+/g, " ").slice(0, 300))}</span>${x?.is_error ? `<span class="chip bad">error</span>` : ""}</summary><div class="io">${fields(i) || '<span class="muted">no input</span>'}</div><div class="io"><span class="lbl">Result</span><pre class="${x?.is_error ? "err" : ""}">${esc(content)}</pre></div></details>`);
+          out.push(`<details class="box"><summary><b class="mono">${esc(b.name)}</b><span class="x">${esc(String(brief).replace(/\s+/g, " ").slice(0, 300))}</span>${x?.is_error ? `<span class="chip bad">error</span>` : ""}</summary><div class="io">${fields(i) || '<span class="muted">no input</span>'}</div><div class="io"><span class="lbl">Result</span><pre class="${x?.is_error ? "err" : ""}">${esc(content)}</pre></div>${steps}</details>`);
         }
       }
       const meta = r.agent.calls[idx++];
@@ -511,8 +507,8 @@ function reviewerTab(r, c) {
   return `<div class="trace">
     ${v ? `<div><span class="lbl">Decision</span> ${chip(v.decision)}<div class="say">${esc(v.summary)}</div></div>` : `<p class="muted">Not reviewed in this run.</p>`}
     <table class="t"><thead><tr><th></th><th>Agent's answer</th><th>Reference</th><th>Verdict</th></tr></thead><tbody>
-      ${row("Overview", r.answer.overview, c.answer.Overview, v?.overview)}
-      ${row("Next action", r.answer.next_action, c.answer["Next action at escalation"], v?.next_action)}
+      ${row("Overview", r.answer.overview, c.reference?.overview ?? c.answer.Overview, v?.overview)}
+      ${row("Next action", r.answer.next_action, c.reference?.next_action ?? c.answer["Next action at escalation"], v?.next_action)}
     </tbody></table>
     ${r.review ? `<details class="box"><summary>Prompt sent to the reviewer · ${money(r.review.call.cost)}</summary><div class="io"><pre>${esc(r.review.prompt)}</pre></div></details>` : ""}
   </div>`;
@@ -570,8 +566,7 @@ function showConfig(run) {
     <div class="db">
       <p class="muted">Snapshot taken when this run started. Edit the live files under Prompts &amp; settings.</p>
       <details class="box" open><summary>config/settings.json</summary><div class="io"><pre>${esc(JSON.stringify(s, null, 2))}</pre></div></details>
-      ${(s.advisers ?? []).length ? `<details class="box"><summary>config/advisers.json</summary><div class="io"><pre>${esc(JSON.stringify(Object.fromEntries(s.advisers.map((n) => [n, kit.advisers?.[n]])), null, 2))}</pre></div></details>` : ""}
-      ${[...new Set([s.agent, s.simulator, s.judge, s.extractor, ...(s.advisers ?? []).map((n) => kit.advisers?.[n]?.preset).filter(Boolean)])].map((p) => `<details class="box"><summary>model preset · ${esc(p)}</summary><div class="io"><pre>${esc(JSON.stringify(kit.models[p], null, 2))}</pre></div></details>`).join("")}
+      ${[...new Set([s.agent, s.simulator, s.judge, s.extractor, s.subagents && s.subagent].filter(Boolean))].map((p) => `<details class="box"><summary>model preset · ${esc(p)}</summary><div class="io"><pre>${esc(JSON.stringify(kit.models[p], null, 2))}</pre></div></details>`).join("")}
       ${Object.entries(kit.prompts).map(([n, t]) => `<details class="box"><summary>prompts/${esc(n)}</summary><div class="io"><pre>${esc(t)}</pre></div></details>`).join("")}
     </div>`;
   document.body.append(d);
@@ -588,26 +583,22 @@ function plainHeader(title) {
 const presetLine = (p) => (p ? [p.model, `max_tokens ${p.max_tokens}`, p.thinking ? `thinking ${p.thinking.type}` : "no thinking", p.output_config?.effort && `effort ${p.output_config.effort}`].filter(Boolean).join(" · ") : "");
 
 async function renderNew() {
-  const [{ cases, splits }, models, settings, advisers] = await Promise.all([
+  const [{ cases, splits }, models, settings] = await Promise.all([
     api("/api/cases"),
     api("/api/files?path=config/models.json").then(JSON.parse),
     api("/api/files?path=config/settings.json").then(JSON.parse),
-    api("/api/files?path=config/advisers.json").then(JSON.parse).catch(() => ({})),
   ]);
-  const roles = ["agent", "simulator", "judge", "reviewer", "extractor"];
+  const roles = ["agent", "simulator", "judge", "reviewer", "extractor", "subagent"];
   app.innerHTML = `${plainHeader("New run")}<div class="full">${subnav("new")}
     <form class="form" id="f">
       <label>Label <input id="label" value="baseline" required></label>
       <fieldset><legend>Claims</legend>
-        <div class="row">${[["holdout", `Holdout (${splits.holdout.length})`], ["dev", `Dev (${splits.dev.length})`], ["all", `All (${cases.length})`], ["pick", "Pick claims"]].map(([v, l], i) => `<label><input type="radio" name="split" value="${v}" ${i === 0 ? "checked" : ""}> ${l}</label>`).join("")}</div>
+        <div class="row">${[["holdout", `Holdout (${splits.holdout.length})`], ["dev", `Dev (${splits.dev.length})`], ["synthetic", `Synthetic (${splits.synthetic?.length ?? 0})`], ["all", `All (${cases.length})`], ["pick", "Pick claims"]].map(([v, l], i) => `<label><input type="radio" name="split" value="${v}" ${i === 0 ? "checked" : ""}> ${l}</label>`).join("")}</div>
         <textarea id="keys" rows="2" placeholder="insurance-032, insurance-037" hidden></textarea>
         <div id="count" class="muted"></div>
       </fieldset>
       <fieldset><legend>Models · presets from config/models.json</legend>
         <div class="fields">${roles.map((r) => `<label>${r}<select id="p-${r}">${Object.keys(models).map((m) => `<option ${m === settings[r] ? "selected" : ""}>${esc(m)}</option>`).join("")}</select><span class="n" id="d-${r}"></span></label>`).join("")}</div>
-      </fieldset>
-      <fieldset><legend>Advisers · sub-agents that each propose next steps before the agent decides (config/advisers.json)</legend>
-        <div class="row">${Object.entries(advisers).map(([n, a]) => `<label title="${esc(presetLine(models[a.preset]))} · tools: ${esc(a.tools.join(", "))} · ${a.when === "first" ? "only when the agent picks the case up" : "before every agent turn"}"><input type="checkbox" name="adviser" value="${esc(n)}" ${(settings.advisers ?? []).includes(n) ? "checked" : ""}> ${esc(a.title)}</label>`).join("") || '<span class="muted">none configured</span>'}</div>
       </fieldset>
       <fieldset><legend>Loop</legend>
         <div class="fields">
@@ -617,6 +608,7 @@ async function renderNew() {
           <label>Max world turns<input id="maxWorldTurns" type="number" min="0" value="${settings.maxWorldTurns}"></label>
           <label>Max tool rounds per agent turn<input id="maxToolRounds" type="number" min="1" value="${settings.maxToolRounds}"></label>
           <label>Claims in parallel<input id="concurrency" type="number" min="1" value="${settings.concurrency}"></label>
+          <label><span><input id="subagents" type="checkbox" ${settings.subagents ? "checked" : ""}> Agent can run sub-agents</span></label>
           <label><span><input id="runJudge" type="checkbox" ${settings.runJudge ? "checked" : ""}> Run the judge</span></label>
           <label><span><input id="runReviewer" type="checkbox" ${settings.runReviewer ? "checked" : ""}> Run the reviewer</span></label>
           <label><span><input id="failOR" type="checkbox" ${settings.failOn?.includes("over_request") ? "checked" : ""}> Fail on an over-request</span></label>
@@ -646,7 +638,7 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
-          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, runReviewer: $("runReviewer").checked, advisers: [...f.querySelectorAll("input[name=adviser]:checked")].map((x) => x.value),
+          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, runReviewer: $("runReviewer").checked, subagents: $("subagents").checked,
             failOn: [$("failOR").checked && "over_request", $("failXE").checked && "extra_message"].filter(Boolean) },
         }),
       });
@@ -663,17 +655,9 @@ const HINTS = {
   "pricing.json": "Dollars per million tokens [input, output], for cost figures.",
   "splits.json": "Dev and holdout claim lists.",
   "escalation.json": "Each claim's escalation point: the agent is handed real events 1..after and nothing later. From eval/public_escalation_points.json.",
-  "advisers.json": "The council: sub-agents that each propose next steps before the agent's turn. Per adviser: title, model preset, prompt file, tool groups (case, web, claims) and when it sits (first: when the agent picks the case up; every: before each turn). settings.json → advisers picks who sits.",
-  "adviser.system.md": "System prompt shared by every adviser. Variables: {{lens}} (the adviser's own prompt file)",
-  "adviser.user.md": "What an adviser is shown. Variables: {{case_file}} {{messages}} {{documents}} {{latest}}",
-  "adviser.claims.md": "Appended for advisers with the claims tools. Variables: {{catalogue}}",
-  "adviser.tools.json": "Tool groups for advisers: case (names from tools.json), web (server-side web search and fetch), claims (the other claims in the database).",
-  "adviser.creative.md": "Angle of the creative adviser.",
-  "adviser.risk.md": "Angle of the conservative risk assessor.",
-  "adviser.web.md": "Angle of the web researcher (UK guidance).",
-  "adviser.wordings.md": "Angle of the policy-wording researcher (UK insurers' wordings).",
-  "adviser.precedent.md": "Angle of the precedent analyst (other claims in the database).",
-  "agent.advice.md": "Appended to the agent's input when advisers sat before the turn. Variables: {{proposals}}",
+  "subagent.system.md": "System prompt for every sub-agent the agent launches with run_subagent.",
+  "subagent.user.md": "What a sub-agent is shown. Variables: {{case_file}} {{messages}} {{documents}} {{claims}} {{instruction}} (the agent's run_subagent input)",
+  "subagent.tools.json": "Sub-agent tools besides the agent's read-only case tools: server-side web search and fetch, and search_claims / read_claim over the other claims in the database.",
   "agent.system.md": "The agent's system prompt.",
   "agent.kickoff.md": "First message to the agent. Variables: {{case_file}} {{messages}} {{documents}}",
   "agent.update.md": "Sent when new messages arrive. Variables: {{messages}} {{documents}}",

@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, writeAnswer, type AgentState, type Answer } from "./agent.ts";
-import { advise, checkAdvisers, type Advice } from "./council.ts";
 import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type Offense, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
@@ -35,7 +34,6 @@ export type CaseResult = {
   handler: string[]; // names the handler's side goes by in the real case (from the simulator)
   replay: Msg[];
   agent: AgentState;
-  advice?: Advice[]; // what the advisers proposed before each agent turn (absent in runs made before the council)
   world: WorldTurn[];
   judge?: { output: Judgement; prompt: string; call: Call };
   answer?: Answer; // the agent's Overview and Next action at escalation
@@ -59,13 +57,14 @@ const RUNS = path.join(ROOT, "runs");
 export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
   const t0 = Date.now();
   const s = kit.settings;
-  const res: CaseResult = { key: c.key, status: "done", stop: "", start: "opening", takeover: 0, handler: [], replay: [], agent: newAgent(kit), advice: [], world: [], extract: [], cost: 0, ms: 0 };
+  const res: CaseResult = { key: c.key, status: "done", stop: "", start: "opening", takeover: 0, handler: [], replay: [], agent: newAgent(kit), world: [], extract: [], cost: 0, ms: 0 };
   const { replay, agent, world } = res;
   const ctx: Ctx = { kit, c, replay, handler: res.handler, extract: res.extract };
   try {
     // Where the agent takes over. An explicit seedEvents wins; otherwise the case's escalation point: the agent is
     // handed every real event up to it, verbatim, and nothing that came after. Without either, the simulator opens.
-    const esc = s.startAt === "escalation" ? Math.min(kit.escalation[c.key]?.after ?? 0, c.events.length) : 0;
+    // a synthetic case's history ends at its escalation point: the agent gets all of it
+    const esc = c.synthetic ? c.events.length : s.startAt === "escalation" ? Math.min(kit.escalation[c.key]?.after ?? 0, c.events.length) : 0;
     const handover = s.seedEvents > 0 ? Math.min(s.seedEvents, c.events.length) : esc;
     if (handover > 0) {
       res.start = s.seedEvents > 0 ? "seed" : "escalation";
@@ -81,21 +80,17 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       documents: visibleDocs(ctx).map((d) => `/documents/${d}`).join("\n") || "(none)",
     });
     let silent = false;
-    let latest = replay.map((m) => m.n); // the messages the agent has not responded to yet
     for (let turn = 1; ; turn++) {
-      // the council sits first: its proposals go to the agent with this turn's input, and the agent decides
-      const advice = await advise(ctx, latest, turn);
-      if (advice) res.advice!.push(advice);
       const before = replay.length;
       const docsBefore = visibleDocs(ctx);
-      await agentTurn(ctx, agent, input + (advice?.text ?? ""), turn);
+      await agentTurn(ctx, agent, input, turn);
       if (turn === 1) res.answer = await writeAnswer(ctx, agent, turn);
       if (agent.closed) { res.stop = "closed"; break; }
+      if (c.synthetic) { res.stop = "answer only"; break; } // no real future to replay: the answer is the result
       if (turn > s.maxWorldTurns) { res.stop = "turn limit"; break; }
       const w = await worldTurn(ctx, replay.slice(before), turn);
       world.push(w);
       if (w.offenses.length) { res.failure = { ...w.offenses[0], turn }; res.stop = w.offenses[0].verdict.replace("_", "-"); break; }
-      latest = w.delivered;
       if (w.delivered.length) {
         silent = false;
         const attached = new Set(w.delivered.flatMap((n) => replay[n - 1].attachments));
@@ -107,7 +102,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       } else if (silent) { res.stop = "silence"; break; }
       else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice, like claimsorted's silence signal
     }
-    if (s.runJudge) res.judge = await judge(ctx, res);
+    if (s.runJudge && !c.synthetic) res.judge = await judge(ctx, res); // the judge compares with the real future, which a synthetic case has not got
     if (s.runReviewer && res.answer) res.review = await review(ctx, res);
   } catch (e) {
     res.status = "error";
@@ -115,8 +110,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     res.stop ||= "error";
   }
   res.handler = ctx.handler; // set by the first world turn
-  const advisers = res.advice!.flatMap((a) => a.proposals.flatMap((p) => p.calls));
-  res.cost = [...agent.calls, ...advisers, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
+  res.cost = [...agent.calls, ...agent.subagents.flatMap((s) => s.calls), ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...(res.review ? [res.review.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
   res.ms = Date.now() - t0;
   return res;
 }
@@ -160,8 +154,7 @@ async function review(ctx: Ctx, res: CaseResult) {
     overview: a.overview,
     next_action: a.next_action,
     actions: res.replay.filter((m) => m.author === "agent" && m.turn === 1).map(renderReplay).join("\n\n") || "(nothing: it ended its turn without acting)",
-    reference_overview: c.answer["Overview"] ?? "(none)",
-    reference_next_action: c.answer["Next action at escalation"] ?? "(none)",
+    reference: c.reference.full || "(none)",
   });
   const r = await call(kit, "reviewer", { system: promptOf(kit, "reviewer.system.md"), messages: [{ role: "user", content: prompt }], schema: jsonPrompt(kit, "reviewer.schema.json") });
   return { output: jsonOf<Review>(r.message), prompt, call: r.call };
@@ -194,7 +187,6 @@ export function selectKeys(sel: { split?: string; tracks?: string[]; keys?: stri
 
 export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings> }, onCase?: (key: string, s: CaseSummary) => void) {
   const kit = loadKit(opts.overrides);
-  checkAdvisers(kit);
   const cases = opts.keys.map(getCase);
   if (!cases.length) throw new Error("no cases selected");
   const label = opts.label?.trim() || "run";

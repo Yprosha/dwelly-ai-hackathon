@@ -5,7 +5,7 @@ import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, type AgentState } from "./agent.ts";
 import { advise, checkAdvisers, type Advice } from "./council.ts";
 import { agentBrief, caseFile, docText, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
-import { renderEvent, renderReplay, seed, worldTurn, type WorldTurn } from "./simulator.ts";
+import { renderEvent, renderReplay, seed, worldTurn, type Offense, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
 
 export type Judgement = {
@@ -21,7 +21,8 @@ export type CaseResult = {
   key: string;
   status: "done" | "error";
   error?: string;
-  stop: string; // closed | silence | turn limit | error
+  stop: string; // closed | silence | turn limit | over-request | extra-message | error
+  failure?: Offense & { turn: number }; // the agent message that ended the run, when settings.failOn caught one
   start: "escalation" | "seed" | "opening"; // how the takeover point was chosen (absent in runs made before escalation starts)
   takeover: number; // last real event the agent had seen when it first acted
   handler: string[]; // names the handler's side goes by in the real case (from the simulator)
@@ -37,7 +38,7 @@ export type CaseResult = {
 
 export type CaseSummary = {
   status: "pending" | "running" | "done" | "error";
-  stop?: string; error?: string; cost?: number; sent?: number; closed?: boolean;
+  stop?: string; error?: string; cost?: number; sent?: number; closed?: boolean; failed?: string;
   firstAction?: string; acts?: [number, number]; violations?: number;
   e2e?: boolean; // the judge's end-to-end verdict: the whole replay is correct and follows the real case
 };
@@ -83,6 +84,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       if (turn > s.maxWorldTurns) { res.stop = "turn limit"; break; }
       const w = await worldTurn(ctx, replay.slice(before), turn);
       world.push(w);
+      if (w.offenses.length) { res.failure = { ...w.offenses[0], turn }; res.stop = w.offenses[0].verdict.replace("_", "-"); break; }
       latest = w.delivered;
       if (w.delivered.length) {
         silent = false;
@@ -134,6 +136,7 @@ const summarize = (r: CaseResult): CaseSummary => ({
   status: r.status, stop: r.stop, error: r.error, cost: r.cost,
   sent: r.replay.filter((m) => m.author === "agent" && m.kind === "message").length,
   closed: Boolean(r.agent.closed),
+  failed: r.failure?.verdict,
   firstAction: r.judge?.output.first_action.verdict,
   acts: r.judge ? [r.judge.output.acts.filter((a) => a.covered).length, r.judge.output.acts.length] : undefined,
   violations: r.judge?.output.violations.length,

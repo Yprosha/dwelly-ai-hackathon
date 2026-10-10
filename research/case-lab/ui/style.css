@@ -153,6 +153,10 @@ details.step[data-ns].lk > summary { background: var(--accent-soft); box-shadow:
 .mail .when { margin-top: 8px; color: var(--muted-fg); font-size: 13px; display: flex; gap: 12px; flex-wrap: wrap; }
 .mail .att { display: inline-flex; gap: 5px; align-items: center; color: var(--accent); }
 
+.flag { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: var(--error-soft); color: var(--error); font-size: 12px; font-weight: 600; vertical-align: 1px; white-space: nowrap; }
+.why { color: var(--error); font-size: 13px; margin-top: 2px; }
+.mail.offense { border-color: var(--error); }
+
 /* chat transcript: one column, every row = 28px icon + content, so all edges line up */
 .chat { max-width: 820px; display: grid; gap: 2px; padding-inline: 6px; }
 .chatbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }

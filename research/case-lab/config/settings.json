@@ -11,5 +11,13 @@
   "concurrency": 6,
   "advisers": [],
   "runJudge": true,
-  "hiddenDetails": ["Status", "Updated", "Completed"]
+  "failOn": [
+    "over_request",
+    "extra_message"
+  ],
+  "hiddenDetails": [
+    "Status",
+    "Updated",
+    "Completed"
+  ]
 }

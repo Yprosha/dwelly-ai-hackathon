@@ -4,13 +4,14 @@ import type { Case, Event } from "./cases.ts";
 import { caseFile, docText, eventAttachments, push, type Ctx, type Msg } from "./casefs.ts";
 import { call, jsonOf, jsonPrompt, promptOf, render, type Call } from "./llm.ts";
 
+export type Offense = { message: number; verdict: string; quotes: string[]; reason: string };
 type SimOutput = {
   handler: string[];
-  agent_message_matches: { message: number; real_events: number[] }[];
+  agent_message_matches: (Offense & { real_events: number[] })[];
   messages: { follows_events: number[]; match: string; from: string; to: string; channel: string; body: string; attachments: string[] }[];
   reasoning: string;
 };
-export type WorldTurn = { turn: number; pending: number[]; delivered: number[]; output: SimOutput; prompt: string; call: Call };
+export type WorldTurn = { turn: number; pending: number[]; delivered: number[]; offenses: Offense[]; output: SimOutput; prompt: string; call: Call };
 
 export function renderEvent(c: Case, e: Event): string {
   const att = eventAttachments(c, e);
@@ -77,10 +78,17 @@ export async function worldTurn(ctx: Ctx, pending: Msg[], turn: number): Promise
   if (!ctx.handler.length) ctx.handler = out.handler.filter((h) => c.events.some((e) => e.from === h || e.to === h));
   const real = (ns: number[]) => ns.filter((n) => c.events.some((e) => e.n === n));
 
+  const offenses: Offense[] = [];
   for (const m of out.agent_message_matches) {
     const msg = replay.find((x) => x.n === m.message && x.author === "agent");
-    if (msg) msg.follows = real(m.real_events);
+    if (!msg) continue;
+    msg.follows = real(m.real_events);
+    if (msg.kind === "note") continue; // internal notes reach nobody
+    Object.assign(msg, { verdict: m.verdict, reason: m.reason, quotes: m.quotes });
+    if (kit.settings.failOn?.includes(m.verdict)) offenses.push({ message: m.message, verdict: m.verdict, quotes: m.quotes, reason: m.reason });
   }
+  // asked for or sent something the real case does not support: the run fails here, nobody answers
+  if (offenses.length) return { turn, pending: pending.map((m) => m.n), delivered: [], offenses, output: out, prompt, call: r.call };
 
   const delivered: number[] = [];
   for (const o of out.messages) {
@@ -101,5 +109,5 @@ export async function worldTurn(ctx: Ctx, pending: Msg[], turn: number): Promise
     }
     delivered.push(push(replay, { ...msg, turn }).n);
   }
-  return { turn, pending: pending.map((m) => m.n), delivered, output: out, prompt, call: r.call };
+  return { turn, pending: pending.map((m) => m.n), delivered, offenses, output: out, prompt, call: r.call };
 }

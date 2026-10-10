@@ -10,6 +10,7 @@ const kfmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 const pct = (a, b) => (b ? Math.round((100 * a) / b) : null);
 const tone = (r) => (r == null ? "" : r >= 90 ? "ok" : r >= 50 ? "meh" : "bad");
 const caseNo = (key) => key.split("-").pop();
+const OFF = { over_request: "Over-request", extra_message: "Extra email" }; // simulator verdicts that fail a run
 const isNote = (channel) => /note|update|hold/i.test(channel);
 
 const ICON = {
@@ -122,7 +123,7 @@ function scoreSimple(run) {
     stat(`Solved end to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Broker actions covered", cov, tot),
     stat("No red flags", judged.filter((c) => !c.violations).length, judged.length),
-    stat("Closed", fin.filter((c) => c.closed).length, fin.length),
+    run.kit.settings.failOn ? stat("Stayed on script", fin.filter((c) => c.status === "done" && !c.failed).length, fin.length) : stat("Closed", fin.filter((c) => c.closed).length, fin.length),
     fin.length < cs.length ? `<span>Finished<b>${fin.length}</b><span class="n">/${cs.length}</span></span>` : "",
   ].join("");
 }
@@ -158,6 +159,8 @@ async function renderSimple(runs, run, key, tab) {
     j && { label: "Broker actions", tone: covered === j.acts.length ? "match" : covered ? "partial" : "miss", agent: `${covered} of ${j.acts.length}${j.acts.some((a) => !a.covered) ? `<div class="muted">Missed: ${esc(j.acts.filter((a) => !a.covered).map((a) => a.act).join("; "))}</div>` : ""}`, real: String(j.acts.length), diff: covered < j.acts.length && "actions" },
     { label: "Emails sent", tone: agentSent === realSent ? "match" : "partial", agent: String(agentSent), real: String(realSent), diff: agentSent !== realSent && "emails sent" },
     j && { label: "Red flags", tone: j.violations.length ? "miss" : "match", agent: j.violations.length ? j.violations.map((v) => `<div><span class="quote">“${esc(v.quote)}”</span> <span class="muted">${esc(v.explanation)}</span></div>`).join("") : "None", real: "—", diff: j.violations.length > 0 && "red flags" },
+    run.kit.settings.failOn && { label: "On script", tone: r.failure ? "miss" : "match", real: "—", diff: r.failure && (OFF[r.failure.verdict] ?? r.failure.verdict).toLowerCase(),
+      agent: r.failure ? `<b class="bad">${esc(OFF[r.failure.verdict] ?? r.failure.verdict)}</b>, so the run stopped. ${r.failure.quotes.map((q) => `<span class="quote">“${esc(q)}”</span>`).join(" ")} <span class="muted">${esc(r.failure.reason)}</span>` : "Asked only for what the real claim had" },
     { label: "Outcome", tone: "", agent: r.agent.closed ? esc(r.agent.closed.outcome) : `<span class="muted">Left open</span>`, real: esc(c.answer.Outcome ?? "—") },
   ].filter(Boolean);
   const diffs = rows.map((x) => x.diff).filter(Boolean);
@@ -238,8 +241,8 @@ function startLine(run, r, c) {
 function claimRows(run, current, tab) {
   return `<div class="top">${Object.keys(run.cases).length} claims<span class="legend">escalation · end to end</span></div>` + Object.entries(run.cases).map(([key, s]) => {
     const dot = s.status === "pending" || s.status === "running" ? "wait" : s.status === "error" ? "error" : s.firstAction ?? "";
-    const e = e2eOf(s);
-    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
+    const e = s.failed ? false : e2eOf(s); // a run that failed its script check was not solved end to end
+    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${s.failed ? `failed: ${OFF[s.failed] ?? s.failed}` : e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
   }).join("");
 }
 
@@ -252,14 +255,15 @@ async function load(runId, key) {
 // The mailbox: this run (agent + simulated parties) or the real claim, like Sophie Lab's email timeline.
 function drawMailbox(box, r, c, handler, onDraw) {
   const first = (s) => s.split(/(?<=[.!?])\s+|\n/)[0].slice(0, 110);
-  const item = (kind, { from, to, subject, body, attachments, time }, ref) => {
+  const item = (kind, { from, to, subject, body, attachments, time, flag }, ref) => {
     const title = subject || first(body);
     const rest = subject ? body : body.slice(first(body).length).trim();
-    return { kind, html: `<article class="mail ${kind}" tabindex="0" ${ref.n ? `data-n="${ref.n}"` : `data-e="${ref.e}"`}>
+    return { kind, html: `<article class="mail ${kind}${flag ? " offense" : ""}" tabindex="0" ${ref.n ? `data-n="${ref.n}"` : `data-e="${ref.e}"`}>
       <div class="ic">${ICON[kind]}</div>
       <div>
         <span class="mid">${ref.n ? "#" + pad3(ref.n) : "event " + ref.e}</span>
-        <div class="t1"><b>${kind === "sent" ? "Sent" : kind === "note" ? "Note" : "Inbox"}</b>${esc(title)}</div>
+        <div class="t1"><b>${kind === "sent" ? "Sent" : kind === "note" ? "Note" : "Inbox"}</b>${esc(title)}${flag ? `<span class="flag">${esc(flag.label)}</span>` : ""}</div>
+        ${flag ? `<div class="why">${esc(flag.reason)}</div>` : ""}
         <div class="ft">From: <span>${esc(from)}</span></div>
         <div class="ft">To: <span>${esc(to)}</span></div>
         ${rest ? `<div class="pv">${esc(rest)}</div>` : ""}
@@ -269,6 +273,7 @@ function drawMailbox(box, r, c, handler, onDraw) {
   const runItems = r.replay.map((m) => ({ after: m.turn > 0, ...item(m.kind === "note" ? "note" : m.author === "agent" || m.author === "handler" ? "sent" : "inbox", {
     from: m.author === "agent" ? `Agent (as ${handler[0] ?? "the broker"})` : m.from, to: m.to, subject: m.subject, body: m.body, attachments: m.attachments,
     time: m.ts ? day(m.ts) : m.author === "world" && m.match !== "verbatim" ? "Simulated reply" : "",
+    flag: OFF[m.verdict] && { label: OFF[m.verdict], reason: m.reason },
   }, { n: m.n }) }));
   const realItems = c.events.map((e) => ({ after: e.n > r.takeover, ...item(isNote(e.channel) ? "note" : handler.includes(e.from) ? "sent" : "inbox", {
     from: e.from, to: e.to, body: e.body, attachments: c.attachments.filter((a) => a.firstEvent === e.n).map((a) => a.name), time: day(e.ts),
@@ -348,10 +353,12 @@ function step(b, res, r) {
     : b.name !== "read_case" || failed ? []
     : /^\/messages\/\d+$/.test(path) ? [Number(path.slice(10))]
     : r.replay.filter((m) => m.attachments.includes(path.replace(/^\/documents\//, ""))).slice(0, 1).map((m) => m.n);
-  const row = (kind, icon, label, preview, body) => `<details class="step ${kind}"${linkAttr(ns, origin)}><summary><span class="si">${icon}</span><span class="sl">${label}${refChips(ns)}${failed ? '<span class="fail">failed</span>' : ""}</span><span class="sx">${esc(preview)}</span><span class="chev">›</span></summary><div class="sb">${failed ? `<pre class="plain bad">${esc(result)}</pre>` : body}</div></details>`;
+  const msg = b.name === "send_message" && origin ? r.replay[Number(saved[1]) - 1] : undefined; // the email this call sent
+  const off = OFF[msg?.verdict];
+  const row = (kind, icon, label, preview, body) => `<details class="step ${kind}"${linkAttr(ns, origin)}><summary><span class="si">${icon}</span><span class="sl">${label}${refChips(ns)}${failed ? '<span class="fail">failed</span>' : ""}${off ? `<span class="flag">${off}</span>` : ""}</span><span class="sx">${esc(preview)}</span><span class="chev">›</span></summary><div class="sb">${failed ? `<pre class="plain bad">${esc(result)}</pre>` : body}</div></details>`;
   const attached = (x.attachments ?? []).length ? `<div class="meta">Attached: ${x.attachments.map(esc).join(", ")}</div>` : "";
   if (b.name === "send_message") return row("email", ICON.sent, `<b>Sent ${esc((x.channel || "email").toLowerCase())}</b> to ${esc(x.to)}`, x.subject || firstLine(x.body),
-    `<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
+    `${off ? `<div class="why">${esc(off)}: ${esc(msg.reason)}</div>` : ""}<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
   if (b.name === "add_note") return row("note", ICON.note, "<b>Added a note</b>", firstLine(x.body), `<div class="md">${md(x.body)}</div>`);
   if (b.name === "close_case") return row("close", ICON.done, "<b>Closed the case</b>", firstLine(x.outcome), `<div class="md">${md(x.outcome)}</div>`);
   if (b.name === "read_case") return row("read", ICON.file, `Read <code>${esc(x.path)}</code>`, "", /^\/messages\//.test(x.path) ? `<pre class="plain">${esc(result)}</pre>` : `<div class="md">${md(result)}</div>`);
@@ -381,6 +388,7 @@ function scoreFull(run) {
     stat(`End to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Acts covered", cov, tot),
     `<span>Violations<b class="${judged.some((c) => c.violations) ? "bad" : "ok"}">${judged.reduce((t, c) => t + (c.violations || 0), 0)}</b></span>`,
+    run.kit.settings.failOn ? stat("On script", fin.filter((c) => c.status === "done" && !c.failed).length, fin.length) : "",
     cs.some((c) => c.status === "error") ? `<span>Errors<b class="bad">${cs.filter((c) => c.status === "error").length}</b></span>` : "",
     `<span>Cost<b>${money(cs.reduce((t, c) => t + (c.cost || 0), 0))}</b></span>`,
   ].join("");
@@ -399,7 +407,7 @@ function subnav(active, run) {
 function keyRows(run, current, tab) {
   return Object.entries(run.cases).map(([key, s]) => {
     const right = s.status === "pending" ? "queued" : s.status === "running" ? "running…" : s.status === "error" ? '<span class="bad">error</span>'
-      : `<span class="${s.firstAction === "match" ? "ok" : s.firstAction === "partial" ? "meh" : "bad"}">${s.firstAction ?? "–"}</span>${e2eOf(s) === undefined ? "" : ` <span class="${e2eOf(s) ? "ok" : "bad"}">e2e</span>`} ${s.acts ? s.acts.join("/") : ""}${s.violations ? ` <span class="bad">!${s.violations}</span>` : ""} <span class="muted">${money(s.cost)}</span>`;
+      : `<span class="${s.firstAction === "match" ? "ok" : s.firstAction === "partial" ? "meh" : "bad"}">${s.firstAction ?? "–"}</span>${e2eOf(s) === undefined ? "" : ` <span class="${e2eOf(s) ? "ok" : "bad"}">e2e</span>`} ${s.acts ? s.acts.join("/") : ""}${s.violations ? ` <span class="bad">!${s.violations}</span>` : ""}${s.failed ? ` <span class="bad">${s.failed === "over_request" ? "OR" : "XE"}</span>` : ""} <span class="muted">${money(s.cost)}</span>`;
     return `<a href="#/full/${run.id}/${key}/${tab}" class="${key === current ? "on" : ""}" title="${esc(titles[key] ?? "")}"><span>${esc(caseNo(key))}</span><span>${right}</span></a>`;
   }).join("");
 }
@@ -469,7 +477,8 @@ function simTab(r) {
     const o = w.output;
     return `<div class="turn"><span class="lbl">${w.turn === 0 ? "Opening" : `After agent turn ${w.turn}`}</span><span class="muted">answering ${w.pending.map((n) => "#" + n).join(", ") || "nothing new"} · delivered ${w.delivered.map((n) => "#" + n).join(", ") || "nothing"} · ${usage(w.call.usage)} · ${money(w.call.cost)} · ${dur(w.call.ms)}</span></div>
       <div class="say">${esc(o.reasoning)}</div>
-      ${o.agent_message_matches?.length ? `<div class="muted">agent ↔ real: ${o.agent_message_matches.map((x) => `#${x.message} → ${x.real_events.join(", ") || "none"}`).join(" · ")}</div>` : ""}
+      ${o.agent_message_matches?.length ? `<div>${o.agent_message_matches.map((x) => `<div><span class="muted">#${x.message} → events ${x.real_events.join(", ") || "none"}</span>${x.verdict ? ` <span class="chip ${x.verdict === "on_track" ? "match" : "bad"}">${esc(x.verdict.replace(/_/g, " "))}</span>` : ""}${x.verdict && x.verdict !== "on_track" ? ` <span class="muted">${esc(x.reason)}</span>` : ""}</div>`).join("")}</div>` : ""}
+      ${w.offenses?.length ? `<div class="bad">Run failed here: ${esc(w.offenses.map((x) => x.verdict.replace(/_/g, " ")).join(", "))}</div>` : ""}
       ${o.messages.length ? `<div>${o.messages.map((x) => `<div><span class="chip ${x.match}">${esc(x.match.replace(/_/g, " "))}</span> ${esc(x.from)} → ${esc(x.to)} <span class="muted">events ${x.follows_events.join(", ") || "none"}</span></div>`).join("")}</div>` : ""}
       <details class="box"><summary>Prompt sent to the simulator</summary><div class="io"><pre>${esc(w.prompt)}</pre></div></details>`;
   }).join("")}</div>`;
@@ -575,6 +584,8 @@ async function renderNew() {
           <label>Max tool rounds per agent turn<input id="maxToolRounds" type="number" min="1" value="${settings.maxToolRounds}"></label>
           <label>Claims in parallel<input id="concurrency" type="number" min="1" value="${settings.concurrency}"></label>
           <label><span><input id="runJudge" type="checkbox" ${settings.runJudge ? "checked" : ""}> Run the judge</span></label>
+          <label><span><input id="failOR" type="checkbox" ${settings.failOn?.includes("over_request") ? "checked" : ""}> Fail on an over-request</span></label>
+          <label><span><input id="failXE" type="checkbox" ${settings.failOn?.includes("extra_message") ? "checked" : ""}> Fail on an extra email</span></label>
         </div>
       </fieldset>
       <div class="row"><button class="btn primary" type="submit">Start run</button><span id="err" class="bad"></span></div>
@@ -600,7 +611,8 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
-          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, advisers: [...f.querySelectorAll("input[name=adviser]:checked")].map((x) => x.value) },
+          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, advisers: [...f.querySelectorAll("input[name=adviser]:checked")].map((x) => x.value),
+            failOn: [$("failOR").checked && "over_request", $("failXE").checked && "extra_message"].filter(Boolean) },
         }),
       });
       location.hash = `#/simple/${id}`;
@@ -611,7 +623,7 @@ async function renderNew() {
 }
 
 const HINTS = {
-  "settings.json": "Defaults for new runs: the model preset for each role, loop limits, judge on or off.",
+  "settings.json": "Defaults for new runs: the model preset for each role, loop limits, judge on or off, and failOn: the simulator verdicts (over_request, extra_message) that end a run as failed.",
   "models.json": "Model presets, sent to the Messages API as-is: model, max_tokens, thinking, effort, betas.",
   "pricing.json": "Dollars per million tokens [input, output], for cost figures.",
   "splits.json": "Dev and holdout claim lists.",

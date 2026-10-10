@@ -10,7 +10,7 @@
     },
     "agent_message_matches": {
       "type": "array",
-      "description": "One entry per message the agent just sent: the real events that message corresponds to. Leave real_events empty when the real handler never did anything like it.",
+      "description": "One entry per message the agent just sent: the real events it corresponds to (empty when the real broker never did anything like it) and its verdict.",
       "items": {
         "type": "object",
         "properties": {
@@ -23,11 +23,33 @@
             "items": {
               "type": "integer"
             }
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "on_track",
+              "over_request",
+              "extra_message"
+            ]
+          },
+          "quotes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Verbatim sentences that make it an over_request or extra_message; empty when on_track."
+          },
+          "reason": {
+            "type": "string",
+            "description": "One sentence."
           }
         },
         "required": [
           "message",
-          "real_events"
+          "real_events",
+          "verdict",
+          "quotes",
+          "reason"
         ],
         "additionalProperties": false
       }

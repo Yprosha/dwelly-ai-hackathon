@@ -16,4 +16,9 @@ Rules:
 - You get the text of the real case's documents. A party knows what is in a document it sent or was sent in the real case: when the agent asks about it, answer from that text. A party never quotes a document it had not seen at that point of the real case.
 - Send nothing when nobody has a real message left that fits where the replay stands. Silence is how the replay ends.
 - For every message you send, say which real events it follows. For every message the agent just sent, say which real events it corresponds to: the same step of the case, however differently worded.
+- Give every message the agent just sent a verdict, as the party receiving it would see it against the real case:
+  - on_track: the real broker sent the same thing to the same party, however worded, or everything it asks for is something the real broker also asked for or the real party gave anyway.
+  - over_request: it asks for information, documents or action that the real broker never asked for and the real case never contains.
+  - extra_message: it asks for nothing, but the real broker never sent anything like it.
+  Quote verbatim the sentences that make it an over_request or extra_message. Internal notes are always on_track.
 - Never mention the real case, this replay, or that you are copying anything.

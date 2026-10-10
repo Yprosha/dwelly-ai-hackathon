@@ -23,6 +23,7 @@ export type Msg = {
   follows: number[]; // real events this message follows (world) or corresponds to (agent, as judged by the simulator)
   match?: string; // simulator's label for world messages
   stripped?: string[]; // sentences removed by the grounding check
+  verdict?: string; reason?: string; quotes?: string[]; // agent messages: the simulator's on_track / over_request / extra_message call
 };
 
 // Everything one case run shares: settings and prompts, the case, the replay so far, who the handler is.

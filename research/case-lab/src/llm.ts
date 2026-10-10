@@ -24,6 +24,7 @@ export type Settings = {
   maxWorldTurns: number; maxToolRounds: number; concurrency: number;
   advisers?: string[]; // names from config/advisers.json that propose next steps before the agent's turns; empty or absent: no council
   runJudge: boolean; hiddenDetails: string[];
+  failOn: string[]; // simulator verdicts that end a run as failed: over_request, extra_message
 };
 
 export type Kit = {

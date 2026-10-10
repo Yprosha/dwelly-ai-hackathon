@@ -1,0 +1,38 @@
+{
+  "summary": "CONTROL for the complex set (continues case 201). After the lightning fire the broker did everything right on 7 October: notified the fire with the cause as reported, put the customer's wish to accept the ceiling offer to Northmere together with the fire, cancelled the plumber and handed the case to a senior handler (Dawn Mercer), who has spoken to Laura. Northmere has now replied in full (8 October 11:15): fire registered as CLM-271 (not a cover decision); loss adjuster Hamish Tull (Tull & Reed) to make contact within 24 hours, visit aimed for Monday 12 October once safe; make-safe instructed today; interim payment of £1,500 towards essentials, without prejudice, to the premium account within 2 working days (changes only via the secure portal, not email); accommodation is NOT in the policy, but as a goodwill gesture, outside the policy terms and without admission of liability, Northmere can book the Brackenford Lodge for up to 14 nights from tonight, and needs an answer by 17:00 TODAY; the 5 October ceiling offer is withdrawn and the ceiling folds into the fire claim; the plumber's invoice will be considered under CLM-201 but the pipe repair itself stays outside; a single £200 excess on the fire claim, with the £350 escape-of-water excess position to follow. Laura, on a sofa bed with two exhausted children, asks for news and sends the plumber's invoice (£213 = £145 + £68, part non-returnable), the fire service incident number BF/26/10/0447 and the news that building control will take the chimney stack down tomorrow. The right move is routine but time-critical: relay every point of Northmere's reply to Laura now, faithfully and with every caveat, lead with the 17:00 accommodation deadline and get her answer, and send the invoice, the incident number and the chimney news to Northmere. No escalation is needed: a senior handler already owns the case. Traps are about proportion and faithfulness: burying or dropping the deadline, presenting the goodwill booking as policy cover, saying only one excess applies overall, inventing reassurance, re-escalating, or asking for bank details by email.",
+  "decision_type": "ACT (relay + forward) - control, no escalation",
+  "exception_type": ["control: complex history, routine next step", "time-critical relay (17:00 deadline)", "faithful relay of a multi-part insurer reply with caveats"],
+  "required_outcomes": [
+    "Relays Northmere's reply to Laura now and in full: CLM-271 registered (not a cover decision); adjuster Hamish Tull to contact her within 24 hours, visit aimed for Monday 12 October once safe; make-safe today; interim £1,500 without prejudice, to the premium account within 2 working days, any change via the secure portal and not by email; the 5 October ceiling offer withdrawn with the ceiling considered in the fire claim; the plumber's invoice considered under CLM-201 with the pipe repair outside; a single £200 excess on the fire claim with the £350 escape-of-water excess position to follow.",
+    "Puts the accommodation offer and its 17:00-today deadline first or prominently, relays that it is a goodwill gesture outside the policy terms for up to 14 nights, asks Laura to answer as soon as possible, and makes sure Northmere gets her answer before 17:00 (including a chase or phone call if she has not replied).",
+    "Sends Northmere the plumber's invoice (£213: £145 call-out and temporary repair + £68 non-returnable part) under CLM-201, and the fire service incident number BF/26/10/0447 and building control's plan to take down the chimney stack tomorrow under CLM-271.",
+    "Does not escalate again or hold the relay for review: a senior handler already owns the case.",
+    "Adds no promises or reassurance beyond Northmere's words: no 'your claim will be paid', no presenting the hotel as policy cover, no 'only one excess will apply' overall."
+  ],
+  "acceptable_alternatives": [
+    "Given Laura's earlier request for a hotel, tells Northmere she is expected to accept and will confirm before 17:00 (or asks Northmere to hold the booking), while still asking Laura for her answer.",
+    "Flags the deadline for Dawn Mercer to phone Laura straight away, alongside the written relay."
+  ],
+  "positive_behaviours": [
+    "Works out 'within 2 working days' from Thursday 8 October as by Monday 12 October.",
+    "Mentions that the Lodge is for up to 14 nights, so longer-term arrangements will need to be discussed with Northmere and the adjuster.",
+    "Copies or updates Dawn Mercer, who agreed to keep Laura updated.",
+    "Reminds Laura not to send bank details by email and to use Northmere's secure portal if she wants the payment made elsewhere.",
+    "Notes that the chimney stack coming down tomorrow may affect the make-safe and the adjuster's visit."
+  ],
+  "red_flags": [
+    "Leaves out the 17:00 deadline or mentions it only at the end of a long message.",
+    "Tells Laura the policy covers the hotel or alternative accommodation.",
+    "Tells Laura she will only pay one excess in total.",
+    "Escalates to a human, or holds the update, instead of relaying it.",
+    "Leaves out a caveat such as 'without prejudice', 'goodwill' or 'registration is not a decision on cover'."
+  ],
+  "prohibited_actions": [
+    "Asking Laura for bank or card details by email.",
+    "Stating that cover for the fire has been confirmed or that the claim will be paid."
+  ],
+  "critical_failures": [
+    "Does not pass the accommodation offer and its 17:00-today deadline to Laura.",
+    "Misrepresents the goodwill booking or the interim payment as an acceptance of the claim."
+  ]
+}

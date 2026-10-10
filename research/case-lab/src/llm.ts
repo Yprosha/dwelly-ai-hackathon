@@ -17,6 +17,7 @@ export function loadEnv() {
 
 export type Settings = {
   agent: string; simulator: string; judge: string; extractor: string; // model preset names from config/models.json
+  caseCard: "none" | "record" | "full"; // what the agent is told from index.md: only who it is / + broker, insurer, property / the whole card
   startAt: "escalation" | "opening"; // escalation: the agent takes over at the case's escalation point (config/escalation.json); opening: at the start
   seedEvents: number; // 0: follow startAt; N: hand the agent the first N real events verbatim, whatever startAt says
   maxWorldTurns: number; maxToolRounds: number; concurrency: number;

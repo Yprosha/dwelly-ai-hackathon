@@ -97,19 +97,29 @@ function header(runs, run, mode, key) {
 }
 const bindRunSelect = (mode) => { document.getElementById("runsel").onchange = (e) => { location.hash = `#/${mode}/${e.target.value}`; }; };
 
+// The two headline metrics. Escalation: the judge's verdict on the agent's first action against the claim's
+// "Next action at escalation". End to end: the judge's verdict on the whole replay with the simulated parties.
+// Runs judged before that verdict existed fall back to a derived one: escalation matched, every broker action
+// covered, no violations.
+const e2eOf = (s) => s.e2e ?? (s.firstAction ? s.firstAction === "match" && s.acts[0] === s.acts[1] && !s.violations : undefined);
+const e2eVerdict = (j) => (j.end_to_end ? { ok: j.end_to_end.verdict === "correct", reason: j.end_to_end.reason }
+  : { ok: j.first_action.verdict === "match" && j.acts.every((a) => a.covered) && !j.violations.length && !j.extras.some((x) => x.problem), reason: "Derived from the other rows: this run's judge gave no end-to-end verdict." });
+const cardLabel = (s) => ({ none: "hidden", record: "record only", full: "shown" })[s.caseCard ?? "full"];
+
 function counts(run) {
   const cs = Object.values(run.cases);
   const judged = cs.filter((c) => c.firstAction);
   const fin = cs.filter((c) => c.status === "done" || c.status === "error");
   const [cov, tot] = judged.reduce((t, c) => [t[0] + c.acts[0], t[1] + c.acts[1]], [0, 0]);
-  return { cs, judged, fin, cov, tot };
+  return { cs, judged, fin, cov, tot, e2e: judged.filter(e2eOf).length, derived: judged.some((c) => c.e2e === undefined) };
 }
 const stat = (label, a, b) => { const r = pct(a, b); return `<span>${label}<b class="${tone(r)}">${r == null ? "—" : r + "%"}</b><span class="n">${a}/${b}</span></span>`; };
 
 function scoreSimple(run) {
-  const { cs, judged, fin, cov, tot } = counts(run);
+  const { cs, judged, fin, cov, tot, e2e, derived } = counts(run);
   return [
-    stat("First step right", judged.filter((c) => c.firstAction === "match").length, judged.length),
+    stat("Correct escalations", judged.filter((c) => c.firstAction === "match").length, judged.length),
+    stat(`Solved end to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Broker actions covered", cov, tot),
     stat("No red flags", judged.filter((c) => !c.violations).length, judged.length),
     stat("Closed", fin.filter((c) => c.closed).length, fin.length),
@@ -143,7 +153,8 @@ async function renderSimple(runs, run, key, tab) {
   const agentSent = r.replay.filter((m) => m.author === "agent" && m.kind === "message").length;
   const covered = j ? j.acts.filter((a) => a.covered).length : 0;
   const rows = [
-    j && { label: "First step", tone: j.first_action.verdict, agent: esc(j.first_action.reason), real: esc(c.answer["Next action at escalation"] ?? "—"), diff: j.first_action.verdict !== "match" && "first step" },
+    j && { label: "Escalation", tone: j.first_action.verdict, agent: esc(j.first_action.reason), real: esc(c.answer["Next action at escalation"] ?? "—"), diff: j.first_action.verdict !== "match" && "escalation" },
+    j && { label: "End to end", tone: e2eVerdict(j).ok ? "match" : "miss", agent: `${e2eVerdict(j).ok ? "Correct" : "Not correct"}<div class="muted">${esc(e2eVerdict(j).reason)}</div>`, real: "—", diff: !e2eVerdict(j).ok && "end to end" },
     j && { label: "Broker actions", tone: covered === j.acts.length ? "match" : covered ? "partial" : "miss", agent: `${covered} of ${j.acts.length}${j.acts.some((a) => !a.covered) ? `<div class="muted">Missed: ${esc(j.acts.filter((a) => !a.covered).map((a) => a.act).join("; "))}</div>` : ""}`, real: String(j.acts.length), diff: covered < j.acts.length && "actions" },
     { label: "Emails sent", tone: agentSent === realSent ? "match" : "partial", agent: String(agentSent), real: String(realSent), diff: agentSent !== realSent && "emails sent" },
     j && { label: "Red flags", tone: j.violations.length ? "miss" : "match", agent: j.violations.length ? j.violations.map((v) => `<div><span class="quote">“${esc(v.quote)}”</span> <span class="muted">${esc(v.explanation)}</span></div>`).join("") : "None", real: "—", diff: j.violations.length > 0 && "red flags" },
@@ -221,13 +232,14 @@ const startKind = (r) => (r.start === "escalation" ? "the escalation point" : r.
 const sawEvents = (r, c) => (r.takeover ? `real event${r.takeover > 1 ? "s 1–" + r.takeover : " 1"} of ${c.events.length}` : "no real events");
 function startLine(run, r, c) {
   const trigger = r.start === "escalation" && run.kit.escalation?.[r.key]?.trigger;
-  return `<div class="startline ${r.start === "escalation" ? "esc" : ""}"><b>Starts at ${startKind(r)}</b> · the agent saw ${sawEvents(r, c)} and nothing after${trigger ? ` · ${esc(trigger)}` : ""}</div>`;
+  return `<div class="startline ${r.start === "escalation" ? "esc" : ""}"><b>Starts at ${startKind(r)}</b> · the agent saw ${sawEvents(r, c)} and nothing after · case card ${cardLabel(run.kit.settings)}${trigger ? ` · ${esc(trigger)}` : ""}</div>`;
 }
 
 function claimRows(run, current, tab) {
-  return `<div class="top">${Object.keys(run.cases).length} claims</div>` + Object.entries(run.cases).map(([key, s]) => {
+  return `<div class="top">${Object.keys(run.cases).length} claims<span class="legend">escalation · end to end</span></div>` + Object.entries(run.cases).map(([key, s]) => {
     const dot = s.status === "pending" || s.status === "running" ? "wait" : s.status === "error" ? "error" : s.firstAction ?? "";
-    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dot ${dot}" title="${esc(s.firstAction ? "first step: " + s.firstAction : s.status)}"></span></a>`;
+    const e = e2eOf(s);
+    return `<a class="claim ${key === current ? "on" : ""}" href="#/simple/${run.id}/${key}/${tab}"><span class="no">${esc(caseNo(key))}</span><span class="tt">${esc(titles[key] ?? key)}</span><span class="dots"><span class="dot ${dot}" title="${esc(s.firstAction ? "escalation: " + s.firstAction : s.status)}"></span><span class="dot ${e === undefined ? "" : e ? "match" : "miss"}" title="end to end: ${e === undefined ? "not judged" : e ? "correct" : "not correct"}"></span></span></a>`;
   }).join("");
 }
 
@@ -348,10 +360,11 @@ function bindChat(box) {
 // ---------------- full ----------------
 
 function scoreFull(run) {
-  const { cs, judged, fin, cov, tot } = counts(run);
+  const { cs, judged, fin, cov, tot, e2e, derived } = counts(run);
   return [
     `<span>Finished<b>${fin.length}</b><span class="n">/${cs.length}</span></span>`,
-    stat("First step", judged.filter((c) => c.firstAction === "match").length, judged.length),
+    stat("Escalations", judged.filter((c) => c.firstAction === "match").length, judged.length),
+    stat(`End to end${derived ? " (derived)" : ""}`, e2e, judged.length),
     stat("Acts covered", cov, tot),
     `<span>Violations<b class="${judged.some((c) => c.violations) ? "bad" : "ok"}">${judged.reduce((t, c) => t + (c.violations || 0), 0)}</b></span>`,
     cs.some((c) => c.status === "error") ? `<span>Errors<b class="bad">${cs.filter((c) => c.status === "error").length}</b></span>` : "",
@@ -365,14 +378,14 @@ function subnav(active, run) {
     <a href="#/full/${run ? run.id : ""}" class="${active === "cases" ? "on" : ""}">Cases</a>
     <a href="#/full/new" class="${active === "new" ? "on" : ""}">New run</a>
     <a href="#/full/settings" class="${active === "settings" ? "on" : ""}">Prompts &amp; settings</a>
-    ${s ? `<span class="meta">start <b>${s.seedEvents > 0 ? "seed " + s.seedEvents : s.startAt === "escalation" ? "escalation point" : "opening"}</b> · agent <b>${esc(s.agent)}</b> · simulator <b>${esc(s.simulator)}</b> · judge <b>${s.runJudge ? esc(s.judge) : "off"}</b> · <a href="#" id="cfg">Run config</a></span>` : ""}
+    ${s ? `<span class="meta">case card <b>${cardLabel(s)}</b> · start <b>${s.seedEvents > 0 ? "seed " + s.seedEvents : s.startAt === "escalation" ? "escalation point" : "opening"}</b> · agent <b>${esc(s.agent)}</b> · simulator <b>${esc(s.simulator)}</b> · judge <b>${s.runJudge ? esc(s.judge) : "off"}</b> · <a href="#" id="cfg">Run config</a></span>` : ""}
   </nav>`;
 }
 
 function keyRows(run, current, tab) {
   return Object.entries(run.cases).map(([key, s]) => {
     const right = s.status === "pending" ? "queued" : s.status === "running" ? "running…" : s.status === "error" ? '<span class="bad">error</span>'
-      : `<span class="${s.firstAction === "match" ? "ok" : s.firstAction === "partial" ? "meh" : "bad"}">${s.firstAction ?? "–"}</span> ${s.acts ? s.acts.join("/") : ""}${s.violations ? ` <span class="bad">!${s.violations}</span>` : ""} <span class="muted">${money(s.cost)}</span>`;
+      : `<span class="${s.firstAction === "match" ? "ok" : s.firstAction === "partial" ? "meh" : "bad"}">${s.firstAction ?? "–"}</span>${e2eOf(s) === undefined ? "" : ` <span class="${e2eOf(s) ? "ok" : "bad"}">e2e</span>`} ${s.acts ? s.acts.join("/") : ""}${s.violations ? ` <span class="bad">!${s.violations}</span>` : ""} <span class="muted">${money(s.cost)}</span>`;
     return `<a href="#/full/${run.id}/${key}/${tab}" class="${key === current ? "on" : ""}" title="${esc(titles[key] ?? "")}"><span>${esc(caseNo(key))}</span><span>${right}</span></a>`;
   }).join("");
 }
@@ -450,7 +463,8 @@ function judgeTab(r, c) {
   if (!r.judge) return `<p class="muted">Not judged in this run.</p>${key}`;
   const j = r.judge.output;
   return `<div class="trace">
-    <div><span class="lbl">First action</span> <span class="chip ${j.first_action.verdict}">${j.first_action.verdict}</span><div class="say">${esc(j.first_action.reason)}</div></div>
+    <div><span class="lbl">Escalation (first action)</span> <span class="chip ${j.first_action.verdict}">${j.first_action.verdict}</span><div class="say">${esc(j.first_action.reason)}</div></div>
+    <div><span class="lbl">End to end</span> <span class="chip ${e2eVerdict(j).ok ? "match" : "miss"}">${e2eVerdict(j).ok ? "correct" : "incorrect"}</span><div class="say">${esc(e2eVerdict(j).reason)}</div></div>
     <div><span class="lbl">Summary</span><div class="say">${esc(j.summary)}</div></div>
     <table class="t"><thead><tr><th>Real handler did</th><th>Party</th><th>Agent</th><th>Evidence</th></tr></thead><tbody>${j.acts.map((a) => `<tr><td>${esc(a.act)}</td><td>${esc(a.party)}</td><td>${a.covered ? '<span class="ok">done</span>' : '<span class="bad">missed</span>'}</td><td class="muted">${esc(a.evidence)}</td></tr>`).join("")}</tbody></table>
     ${j.extras.length ? `<table class="t"><thead><tr><th>Agent also did</th><th>Party</th><th></th><th>Note</th></tr></thead><tbody>${j.extras.map((x) => `<tr><td>${esc(x.act)}</td><td>${esc(x.party)}</td><td>${x.problem ? '<span class="bad">problem</span>' : '<span class="muted">fine</span>'}</td><td class="muted">${esc(x.note)}</td></tr>`).join("")}</tbody></table>` : ""}
@@ -532,6 +546,7 @@ async function renderNew() {
       </fieldset>
       <fieldset><legend>Loop</legend>
         <div class="fields">
+          <label>Agent is told from the case card (index.md)<select id="caseCard">${[["none", "Nothing: only who it is"], ["record", "Who it is, plus broker, insurer and property"], ["full", "The whole card: title, details, request"]].map(([v, l]) => `<option value="${v}" ${v === (settings.caseCard ?? "full") ? "selected" : ""}>${l}</option>`).join("")}</select></label>
           <label>Agent starts<select id="startAt">${[["escalation", "At the escalation point (config/escalation.json)"], ["opening", "At the opening (the simulator opens the claim)"]].map(([v, l]) => `<option value="${v}" ${v === (settings.startAt ?? "opening") ? "selected" : ""}>${l}</option>`).join("")}</select></label>
           <label>Seed events (0: start as chosen; N: hand over the first N real events instead)<input id="seedEvents" type="number" min="0" value="${settings.seedEvents}"></label>
           <label>Max world turns<input id="maxWorldTurns" type="number" min="0" value="${settings.maxWorldTurns}"></label>
@@ -563,7 +578,7 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
-          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked },
+          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked },
         }),
       });
       location.hash = `#/simple/${id}`;

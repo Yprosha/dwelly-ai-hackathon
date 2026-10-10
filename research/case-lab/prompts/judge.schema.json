@@ -4,10 +4,22 @@
     "first_action": {
       "type": "object",
       "properties": {
-        "verdict": { "type": "string", "enum": ["match", "partial", "miss"] },
-        "reason": { "type": "string" }
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "match",
+            "partial",
+            "miss"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        }
       },
-      "required": ["verdict", "reason"],
+      "required": [
+        "verdict",
+        "reason"
+      ],
       "additionalProperties": false
     },
     "acts": {
@@ -15,12 +27,26 @@
       "items": {
         "type": "object",
         "properties": {
-          "party": { "type": "string" },
-          "act": { "type": "string", "description": "Under ten words, the way a handler would name it." },
-          "covered": { "type": "boolean" },
-          "evidence": { "type": "string" }
+          "party": {
+            "type": "string"
+          },
+          "act": {
+            "type": "string",
+            "description": "Under ten words, the way a handler would name it."
+          },
+          "covered": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "type": "string"
+          }
         },
-        "required": ["party", "act", "covered", "evidence"],
+        "required": [
+          "party",
+          "act",
+          "covered",
+          "evidence"
+        ],
         "additionalProperties": false
       }
     },
@@ -29,12 +55,25 @@
       "items": {
         "type": "object",
         "properties": {
-          "party": { "type": "string" },
-          "act": { "type": "string" },
-          "problem": { "type": "boolean" },
-          "note": { "type": "string" }
+          "party": {
+            "type": "string"
+          },
+          "act": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
         },
-        "required": ["party", "act", "problem", "note"],
+        "required": [
+          "party",
+          "act",
+          "problem",
+          "note"
+        ],
         "additionalProperties": false
       }
     },
@@ -43,15 +82,53 @@
       "items": {
         "type": "object",
         "properties": {
-          "quote": { "type": "string" },
-          "explanation": { "type": "string" }
+          "quote": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          }
         },
-        "required": ["quote", "explanation"],
+        "required": [
+          "quote",
+          "explanation"
+        ],
         "additionalProperties": false
       }
     },
-    "summary": { "type": "string", "description": "Two or three sentences." }
+    "end_to_end": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "correct",
+            "incorrect"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "One sentence."
+        }
+      },
+      "required": [
+        "verdict",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "string",
+      "description": "Two or three sentences."
+    }
   },
-  "required": ["first_action", "acts", "extras", "violations", "summary"],
+  "required": [
+    "first_action",
+    "acts",
+    "extras",
+    "violations",
+    "end_to_end",
+    "summary"
+  ],
   "additionalProperties": false
 }

@@ -36,12 +36,16 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
    - Set `seedEvents` to N to hand over the first N real events, whatever `startAt` says.
 2. **Agent turn.** The agent reads the case through `list_case`, `read_case` and `search_case`, then acts with `send_message`, `add_note` or `close_case`. Ending its turn without a tool call means "wait for replies".
    - The case is exposed as files: `/case`, `/messages/NNN`, and `/documents/NAME` (attachments as text).
+   - The agent is not shown the case card (`index.md`): it was written after the case closed, and its title, request summary and details give away things the handler did not have in the history yet. `/case` only says who the agent is. `caseCard` in settings can add the broker, insurer and property on record (`record`) or the whole card (`full`); the simulator and the judge always get the whole card.
    - PDFs and images are transcribed by Claude on first read and cached in `cache/extracted/`.
 3. **World turn.** The simulator plays everyone except the handler. It follows the real history, adapts it to what the agent actually wrote, and stays silent when the real parties had nothing left to say.
    - Code drops sentences with figures that appear nowhere in the real case. Only real attachments get through.
 4. Steps 2 and 3 repeat until the agent closes the case, nobody replies twice in a row, or `maxWorldTurns` is reached.
-5. **Judge.** It compares the replay with the real case. It reports:
-   - the first action against the case's "Next action at escalation";
+5. **Judge.** It compares the replay with the real case. Two verdicts are the headline metrics of a run:
+   - **Correct escalations**: the agent's first action against the case's "Next action at escalation";
+   - **Solved end to end**: the whole replay, from the takeover until the dialogue with the simulated parties ends, is correct and follows the real case.
+
+   It also reports:
    - each act of correspondence the real handler made, and whether the agent covered it;
    - extras the agent did;
    - violations.

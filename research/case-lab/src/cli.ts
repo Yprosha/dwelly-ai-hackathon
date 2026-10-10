@@ -23,10 +23,10 @@ if (a.seed) overrides.seedEvents = Number(a.seed);
 
 const keys = selectKeys({ split: a.split, keys: a.cases?.split(",") });
 const { id, done } = startRun({ label: a.label, keys, overrides }, (key, s) =>
-  console.log(`${key.padEnd(16)} ${s.status.padEnd(6)} ${(s.stop ?? "").padEnd(10)} first=${s.firstAction ?? "-"} acts=${s.acts ? s.acts.join("/") : "-"} violations=${s.violations ?? "-"} $${(s.cost ?? 0).toFixed(3)}${s.error ? "  " + s.error : ""}`));
+  console.log(`${key.padEnd(16)} ${s.status.padEnd(6)} ${(s.stop ?? "").padEnd(10)} escalation=${s.firstAction ?? "-"} e2e=${s.e2e === undefined ? "-" : s.e2e ? "correct" : "incorrect"} acts=${s.acts ? s.acts.join("/") : "-"} violations=${s.violations ?? "-"} $${(s.cost ?? 0).toFixed(3)}${s.error ? "  " + s.error : ""}`));
 console.log(`run ${id}: ${keys.length} cases`);
 const meta = await done;
 const cs = Object.values(meta.cases);
 const judged = cs.filter((c) => c.firstAction);
 const acts = judged.reduce((t, c) => [t[0] + c.acts![0], t[1] + c.acts![1]], [0, 0]);
-console.log(`done: ${cs.filter((c) => c.status === "done").length}/${cs.length} ok · first action match ${judged.filter((c) => c.firstAction === "match").length}/${judged.length} · acts covered ${acts[0]}/${acts[1]} · violations ${judged.reduce((t, c) => t + (c.violations ?? 0), 0)} · $${cs.reduce((t, c) => t + (c.cost ?? 0), 0).toFixed(2)}`);
+console.log(`done: ${cs.filter((c) => c.status === "done").length}/${cs.length} ok · correct escalations ${judged.filter((c) => c.firstAction === "match").length}/${judged.length} · solved end to end ${judged.filter((c) => c.e2e).length}/${judged.length} · acts covered ${acts[0]}/${acts[1]} · violations ${judged.reduce((t, c) => t + (c.violations ?? 0), 0)} · $${cs.reduce((t, c) => t + (c.cost ?? 0), 0).toFixed(2)}`);

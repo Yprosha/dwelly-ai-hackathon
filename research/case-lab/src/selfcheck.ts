@@ -1,7 +1,7 @@
 // npm run check: the smallest checks that fail if the parser or the grounding guard breaks.
 import assert from "node:assert/strict";
 import { allCases, getCase, handlerNames } from "./cases.ts";
-import { visibleDocs, type Ctx, type Msg } from "./casefs.ts";
+import { agentBrief, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { ground, seed } from "./simulator.ts";
 import { loadEnv, loadKit } from "./llm.ts";
 
@@ -39,4 +39,9 @@ for (const k of cases) {
 const s9 = getCase("insurance-039"), replay9: Msg[] = [];
 seed({ kit: {} as Ctx["kit"], c: s9, replay: replay9, handler: handlerNames(s9), extract: [] }, 3);
 assert.deepEqual(replay9.map((m) => [m.follows[0], m.author, m.turn]), [[1, "world", 0], [2, "world", 0], [3, "handler", 0]]);
+// by default the agent learns who it is and nothing else from the case card: no title, no insurer, no request summary
+const kit9 = loadKit({ caseCard: "none" });
+assert.equal(agentBrief(kit9, getCase("insurance-009")), "You are handling this case as Josh, Heathmere Brokers.");
+assert.ok(cases.every((k) => { const b = agentBrief(kit9, k); return !b.includes(k.title) && !b.includes(k.details.Insurer) && !b.includes(k.request.slice(0, 40)); }));
+assert.ok(agentBrief(loadKit({ caseCard: "record" }), getCase("insurance-009")).includes("- Insurer: Alderfen Mutual"));
 console.log("selfcheck ok");

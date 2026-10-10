@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, type AgentState } from "./agent.ts";
-import { caseFile, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
+import { agentBrief, caseFile, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
 
@@ -12,6 +12,7 @@ export type Judgement = {
   acts: { party: string; act: string; covered: boolean; evidence: string }[];
   extras: { party: string; act: string; problem: boolean; note: string }[];
   violations: { quote: string; explanation: string }[];
+  end_to_end?: { verdict: "correct" | "incorrect"; reason: string }; // the whole replay; absent in runs judged before this verdict existed
   summary: string;
 };
 
@@ -36,6 +37,7 @@ export type CaseSummary = {
   status: "pending" | "running" | "done" | "error";
   stop?: string; error?: string; cost?: number; sent?: number; closed?: boolean;
   firstAction?: string; acts?: [number, number]; violations?: number;
+  e2e?: boolean; // the judge's end-to-end verdict: the whole replay is correct and follows the real case
 };
 
 export type RunMeta = { id: string; label: string; createdAt: string; finishedAt?: string; status: "running" | "done"; kit: Kit; cases: Record<string, CaseSummary> };
@@ -62,7 +64,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     res.takeover = Math.max(0, ...replay.flatMap((m) => m.follows));
 
     let input = render(promptOf(kit, "agent.kickoff.md"), {
-      case_file: caseFile(kit, c),
+      case_file: agentBrief(kit, c),
       messages: replay.map(renderMsg).join("\n\n"),
       documents: visibleDocs(ctx).map((d) => `/documents/${d}`).join("\n") || "(none)",
     });
@@ -99,8 +101,10 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
 }
 
 async function judge(kit: Kit, c: Case, res: CaseResult) {
+  const card = kit.settings.caseCard ?? "full";
+  const unseen = card === "full" ? "" : `\n\n(The agent was not shown this case card. It was told only who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}; everything else it knew came from the events before the takeover.)`;
   const prompt = render(promptOf(kit, "judge.user.md"), {
-    case_file: caseFile(kit, c),
+    case_file: caseFile(kit, c) + unseen,
     answer_key: Object.entries(c.answer).map(([h, b]) => `### ${h}\n\n${b}`).join("\n\n") || "(none)",
     context_events: c.events.filter((e) => e.n <= res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
     real_events: c.events.filter((e) => e.n > res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
@@ -118,6 +122,7 @@ const summarize = (r: CaseResult): CaseSummary => ({
   firstAction: r.judge?.output.first_action.verdict,
   acts: r.judge ? [r.judge.output.acts.filter((a) => a.covered).length, r.judge.output.acts.length] : undefined,
   violations: r.judge?.output.violations.length,
+  e2e: r.judge?.output.end_to_end ? r.judge.output.end_to_end.verdict === "correct" : undefined,
 });
 
 async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {

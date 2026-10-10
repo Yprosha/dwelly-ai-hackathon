@@ -1,5 +1,5 @@
 // Case Lab UI. Simple: what a reviewer reads, after Sophie Lab's simple view. Full: everything technical.
-// Routes: #/simple/<run>/<case>/<emails|chat> · #/full/<run>/<case>/<trace|simulator|judge|compare> · #/full/new · #/full/settings/<file>
+// Routes: #/simple/<run>/<case> · #/full/<run>/<case>/<trace|simulator|judge|compare> · #/full/new · #/full/settings/<file>
 const app = document.getElementById("app");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const money = (n) => `$${(n ?? 0).toFixed(2)}`;
@@ -153,17 +153,75 @@ async function renderSimple(runs, run, key, tab) {
   const headline = r.status === "error" ? `<span class="headline bad">the run failed: ${esc(r.error)}</span>`
     : diffs.length ? `<span class="headline ${rows.some((x) => x.diff && x.tone === "miss") ? "bad" : "meh"}">${esc(diffs.join(", "))} differ</span>`
     : `<span class="headline ok">everything matches</span>`;
+  pane.classList.add("splitpane");
   pane.innerHTML = `
-    <div class="claimhead"><h1>Case ${esc(caseNo(key))} · ${esc(c.title)}</h1><a href="#/full/${run.id}/${key}">Technical details</a></div>
-    <details class="vs"><summary>Agent vs the real claim ${headline}</summary>
-      <table class="cmp"><thead><tr><th></th><th>Agent</th><th>The real claim</th></tr></thead>
-      <tbody>${rows.map((x) => `<tr><td><span class="dot ${x.tone}"></span>${x.label}</td><td>${x.agent}</td><td>${x.real}</td></tr>`).join("")}</tbody></table>
-    </details>
-    <nav class="tabs"><a href="#/simple/${run.id}/${key}/emails" class="${tab === "emails" ? "on" : ""}">Emails</a><a href="#/simple/${run.id}/${key}/chat" class="${tab === "chat" ? "on" : ""}">Chat</a></nav>
-    <div id="tab"></div>`;
-  const box = document.getElementById("tab");
-  if (tab === "chat") { box.innerHTML = chat(run, r); bindChat(box); }
-  else drawMailbox(box, r, c, handler);
+    <div class="panetop">
+      <div class="claimhead"><h1>Case ${esc(caseNo(key))} · ${esc(c.title)}</h1><a href="#/full/${run.id}/${key}">Technical details</a></div>
+      ${startLine(run, r, c)}
+      <details class="vs"><summary>Agent vs the real claim ${headline}</summary>
+        <table class="cmp"><thead><tr><th></th><th>Agent</th><th>The real claim</th></tr></thead>
+        <tbody>${rows.map((x) => `<tr><td><span class="dot ${x.tone}"></span>${x.label}</td><td>${x.agent}</td><td>${x.real}</td></tr>`).join("")}</tbody></table>
+      </details>
+    </div>
+    <div class="split">
+      <section class="col" id="chatcol" aria-label="Agent chat">${chat(run, r)}</section>
+      <section class="col" id="mailcol" aria-label="Emails"></section>
+    </div>`;
+  const chatcol = document.getElementById("chatcol"), mailcol = document.getElementById("mailcol");
+  bindChat(chatcol);
+  const link = linkPanes(chatcol, mailcol, r, () => redraw());
+  const redraw = drawMailbox(mailcol, r, c, handler, link.remark);
+}
+
+// Chat events and mailbox items about the same message light up together, and a click on one scrolls to the other.
+// Chat side: data-ns lists the run's message numbers an event delivered, sent or read. Mailbox side: data-n (this run)
+// or data-e (the real claim); the two are joined through each replay message's `follows`.
+function linkPanes(chatcol, mailcol, r, redraw) {
+  let current = null; // message numbers of the last selection, re-marked when the mailbox redraws
+  const nums = (el) => el.dataset.ns.split(",").map(Number);
+  const mark = (root, els, cls) => { root.querySelectorAll("." + cls).forEach((x) => x.classList.remove(cls)); els.forEach((x) => x.classList.add(cls)); };
+  const mailSel = (ns) => (mailbox.side === "run" ? ns.map((n) => `.mail[data-n="${n}"]`) : [...new Set(ns.flatMap((n) => r.replay[n - 1]?.follows ?? []))].map((e) => `.mail[data-e="${e}"]`));
+  const mailsFor = (ns) => { const sel = mailSel(ns); return sel.length ? [...mailcol.querySelectorAll(sel.join(","))] : []; };
+  const nsOfMail = (m) => (m.dataset.n ? [Number(m.dataset.n)] : r.replay.filter((x) => x.follows.includes(Number(m.dataset.e))).map((x) => x.n));
+  const chatFor = (ns) => [...chatcol.querySelectorAll("[data-ns]")].filter((el) => nums(el).some((n) => ns.includes(n)));
+  const into = (el) => el?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const hover = (from, sel, root, pick) => {
+    let cur = null;
+    from.addEventListener("mouseover", (e) => { const el = e.target.closest(sel); if (el !== cur) { cur = el; mark(root, el ? pick(el) : [], "lkh"); } });
+    from.addEventListener("mouseleave", () => { cur = null; mark(root, [], "lkh"); });
+  };
+
+  chatcol.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-ns]");
+    if (!el || e.target.closest("a")) return;
+    current = nums(el);
+    if (mailbox.filter !== "all" && mailsFor(current).length < mailSel(current).length) { mailbox.filter = "all"; redraw(); } // the linked email was filtered out
+    const hits = mailsFor(current);
+    mark(chatcol, [el], "lk");
+    mark(mailcol, hits, "lk");
+    into(hits[0]);
+  });
+  mailcol.addEventListener("click", (e) => {
+    const m = e.target.closest(".mail");
+    if (!m || e.target.closest("a")) return;
+    current = nsOfMail(m);
+    const hits = chatFor(current);
+    mark(mailcol, [m], "lk");
+    mark(chatcol, hits, "lk");
+    into(hits.find((x) => x.dataset.origin) ?? hits[0]); // the event that sent or delivered it, before any later read of it
+  });
+  hover(chatcol, "[data-ns]", mailcol, (el) => mailsFor(nums(el)));
+  hover(mailcol, ".mail", chatcol, (m) => chatFor(nsOfMail(m)));
+  return { remark: () => { if (current) mark(mailcol, mailsFor(current), "lk"); } };
+}
+
+// Where the agent took over: the case's escalation point (the moment its "Next action at escalation" refers to),
+// a fixed seed, or the opening. Runs made before escalation starts carry no `start` and began at the opening.
+const startKind = (r) => (r.start === "escalation" ? "the escalation point" : r.start === "seed" ? "a fixed seed" : "the opening");
+const sawEvents = (r, c) => (r.takeover ? `real event${r.takeover > 1 ? "s 1–" + r.takeover : " 1"} of ${c.events.length}` : "no real events");
+function startLine(run, r, c) {
+  const trigger = r.start === "escalation" && run.kit.escalation?.[r.key]?.trigger;
+  return `<div class="startline ${r.start === "escalation" ? "esc" : ""}"><b>Starts at ${startKind(r)}</b> · the agent saw ${sawEvents(r, c)} and nothing after${trigger ? ` · ${esc(trigger)}` : ""}</div>`;
 }
 
 function claimRows(run, current, tab) {
@@ -180,14 +238,15 @@ async function load(runId, key) {
 }
 
 // The mailbox: this run (agent + simulated parties) or the real claim, like Sophie Lab's email timeline.
-function drawMailbox(box, r, c, handler) {
+function drawMailbox(box, r, c, handler, onDraw) {
   const first = (s) => s.split(/(?<=[.!?])\s+|\n/)[0].slice(0, 110);
-  const item = (kind, { from, to, subject, body, attachments, time }) => {
+  const item = (kind, { from, to, subject, body, attachments, time }, ref) => {
     const title = subject || first(body);
     const rest = subject ? body : body.slice(first(body).length).trim();
-    return { kind, html: `<article class="mail ${kind}" tabindex="0">
+    return { kind, html: `<article class="mail ${kind}" tabindex="0" ${ref.n ? `data-n="${ref.n}"` : `data-e="${ref.e}"`}>
       <div class="ic">${ICON[kind]}</div>
       <div>
+        <span class="mid">${ref.n ? "#" + pad3(ref.n) : "event " + ref.e}</span>
         <div class="t1"><b>${kind === "sent" ? "Sent" : kind === "note" ? "Note" : "Inbox"}</b>${esc(title)}</div>
         <div class="ft">From: <span>${esc(from)}</span></div>
         <div class="ft">To: <span>${esc(to)}</span></div>
@@ -195,16 +254,22 @@ function drawMailbox(box, r, c, handler) {
         ${time || attachments.length ? `<div class="when">${time ? `<span>${esc(time)}</span>` : ""}${attachments.map((a) => `<a class="att" href="/api/cases/${c.key}/files/${encodeURIComponent(a)}" target="_blank" rel="noopener">${ICON.clip}${esc(a)}</a>`).join("")}</div>` : ""}
       </div></article>` };
   };
-  const runItems = r.replay.map((m) => item(m.kind === "note" ? "note" : m.author === "agent" ? "sent" : "inbox", {
+  const runItems = r.replay.map((m) => ({ after: m.turn > 0, ...item(m.kind === "note" ? "note" : m.author === "agent" || m.author === "handler" ? "sent" : "inbox", {
     from: m.author === "agent" ? `Agent (as ${handler[0] ?? "the broker"})` : m.from, to: m.to, subject: m.subject, body: m.body, attachments: m.attachments,
     time: m.ts ? day(m.ts) : m.author === "world" && m.match !== "verbatim" ? "Simulated reply" : "",
-  }));
-  const realItems = c.events.map((e) => item(isNote(e.channel) ? "note" : handler.includes(e.from) ? "sent" : "inbox", {
+  }, { n: m.n }) }));
+  const realItems = c.events.map((e) => ({ after: e.n > r.takeover, ...item(isNote(e.channel) ? "note" : handler.includes(e.from) ? "sent" : "inbox", {
     from: e.from, to: e.to, body: e.body, attachments: c.attachments.filter((a) => a.firstEvent === e.n).map((a) => a.name), time: day(e.ts),
-  }));
+  }, { e: e.n }) }));
+  const expected = c.answer["Next action at escalation"];
+  const cut = (side) => `<div class="cutline" role="separator"><b>${r.start === "escalation" ? "Escalation point" : "Agent takes over"}</b>
+      <span>The agent saw ${sawEvents(r, c)}, shown above. ${side === "run" ? "Below is what it did and how the simulated parties answered." : "The real events below were hidden from it."}</span>
+      ${expected ? `<span class="exp"><i>Expected next action</i>${esc(expected)}</span>` : ""}</div>`;
   const draw = () => {
     const items = (mailbox.side === "run" ? runItems : realItems).filter((x) => mailbox.filter === "all" || (mailbox.filter === "received" ? x.kind === "inbox" : x.kind !== "inbox"));
-    box.innerHTML = `<div class="bar">
+    const at = items.findIndex((x) => x.after);
+    items.splice(at < 0 ? items.length : at, 0, { html: cut(mailbox.side) });
+    box.innerHTML = `<div class="colhead"><h2>Emails</h2>
         <div class="pills">${[["all", "All"], ["received", "Received"], ["sent", "Sent"]].map(([v, l]) => `<button data-f="${v}" class="${mailbox.filter === v ? "on" : ""}">${l}</button>`).join("")}</div>
         <div class="pills">${[["run", "This run"], ["real", "The real claim"]].map(([v, l]) => `<button data-s="${v}" class="${mailbox.side === v ? "on" : ""}">${l}</button>`).join("")}</div>
       </div>
@@ -212,12 +277,18 @@ function drawMailbox(box, r, c, handler) {
     box.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { mailbox.filter = b.dataset.f; draw(); }));
     box.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { mailbox.side = b.dataset.s; draw(); }));
     box.querySelectorAll(".mail").forEach((m) => (m.onclick = (e) => { if (!e.target.closest("a")) m.classList.add("open"); }));
+    onDraw?.();
   };
   draw();
+  return draw;
 }
 
 // The agent's transcript, like Sophie Lab's chat: a turn header per trigger, the agent's words as markdown,
 // and every tool call as one line that expands. Thinking lives in Full.
+const pad3 = (n) => String(n).padStart(3, "0");
+const linkAttr = (ns, origin) => (ns.length ? ` data-ns="${ns.join(",")}"${origin ? ' data-origin="1"' : ""}` : "");
+const refChips = (ns) => ns.slice(0, 4).map((n) => `<span class="ref">#${pad3(n)}</span>`).join("") + (ns.length > 4 ? `<span class="ref">+${ns.length - 4}</span>` : "");
+
 function chat(run, r) {
   const silence = run.kit.prompts["agent.silence.md"];
   const results = new Map();
@@ -227,23 +298,31 @@ function chat(run, r) {
   for (const m of r.agent.messages) {
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
-      const label = turn === 1 ? "New case" : m.content === silence ? "No replies" : "New messages";
-      out.push(`<details class="step turnhead"><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(m.content.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
+      const label = turn === 1 ? (r.start === "escalation" ? "Picked up at the escalation point" : "New case") : m.content === silence ? "No replies" : "New messages";
+      const ns = [...m.content.matchAll(/^\/messages\/(\d+)$/gm)].map((x) => Number(x[1])); // the messages this turn handed to the agent
+      out.push(`<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(m.content.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "text" && b.text.trim()) out.push(`<div class="row"><span class="ai">AI</span><div class="md">${md(b.text)}</div></div>`);
-        else if (b.type === "tool_use") out.push(step(b, results.get(b.id)));
+        else if (b.type === "tool_use") out.push(step(b, results.get(b.id), r));
       }
     }
   }
-  return `<div class="chat"><div class="chatbar"><button class="linkbtn" id="toggleAll">Expand all</button></div>${out.join("")}</div>`;
+  return `<div class="colhead"><h2>Agent chat</h2><span class="hint">Click an event or an email to find its counterpart</span><button class="linkbtn" id="toggleAll">Expand all</button></div><div class="chat">${out.join("")}</div>`;
 }
 
-function step(b, res) {
+function step(b, res, r) {
   const x = b.input || {};
   const result = typeof res?.content === "string" ? res.content : JSON.stringify(res?.content ?? "");
   const failed = Boolean(res?.is_error);
-  const row = (kind, icon, label, preview, body) => `<details class="step ${kind}"><summary><span class="si">${icon}</span><span class="sl">${label}${failed ? '<span class="fail">failed</span>' : ""}</span><span class="sx">${esc(preview)}</span><span class="chev">›</span></summary><div class="sb">${failed ? `<pre class="plain bad">${esc(result)}</pre>` : body}</div></details>`;
+  // what this call is about: the message it saved, the message it read, or the email that carried the document it read
+  const saved = /\/messages\/(\d+)/.exec(result), path = String(x.path ?? "");
+  const origin = !failed && (b.name === "send_message" || b.name === "add_note") && saved;
+  const ns = origin ? [Number(saved[1])]
+    : b.name !== "read_case" || failed ? []
+    : /^\/messages\/\d+$/.test(path) ? [Number(path.slice(10))]
+    : r.replay.filter((m) => m.attachments.includes(path.replace(/^\/documents\//, ""))).slice(0, 1).map((m) => m.n);
+  const row = (kind, icon, label, preview, body) => `<details class="step ${kind}"${linkAttr(ns, origin)}><summary><span class="si">${icon}</span><span class="sl">${label}${refChips(ns)}${failed ? '<span class="fail">failed</span>' : ""}</span><span class="sx">${esc(preview)}</span><span class="chev">›</span></summary><div class="sb">${failed ? `<pre class="plain bad">${esc(result)}</pre>` : body}</div></details>`;
   const attached = (x.attachments ?? []).length ? `<div class="meta">Attached: ${x.attachments.map(esc).join(", ")}</div>` : "";
   if (b.name === "send_message") return row("email", ICON.sent, `<b>Sent ${esc((x.channel || "email").toLowerCase())}</b> to ${esc(x.to)}`, x.subject || firstLine(x.body),
     `<div class="meta">To <b>${esc(x.to)}</b>${x.subject ? ` · ${esc(x.subject)}` : ""}</div><div class="md">${md(x.body)}</div>${attached}`);
@@ -286,7 +365,7 @@ function subnav(active, run) {
     <a href="#/full/${run ? run.id : ""}" class="${active === "cases" ? "on" : ""}">Cases</a>
     <a href="#/full/new" class="${active === "new" ? "on" : ""}">New run</a>
     <a href="#/full/settings" class="${active === "settings" ? "on" : ""}">Prompts &amp; settings</a>
-    ${s ? `<span class="meta">agent <b>${esc(s.agent)}</b> · simulator <b>${esc(s.simulator)}</b> · judge <b>${s.runJudge ? esc(s.judge) : "off"}</b> · <a href="#" id="cfg">Run config</a></span>` : ""}
+    ${s ? `<span class="meta">start <b>${s.seedEvents > 0 ? "seed " + s.seedEvents : s.startAt === "escalation" ? "escalation point" : "opening"}</b> · agent <b>${esc(s.agent)}</b> · simulator <b>${esc(s.simulator)}</b> · judge <b>${s.runJudge ? esc(s.judge) : "off"}</b> · <a href="#" id="cfg">Run config</a></span>` : ""}
   </nav>`;
 }
 
@@ -316,7 +395,7 @@ async function renderFull(runs, run, key, tab) {
   const turns = Math.max(0, ...r.agent.calls.map((x) => x.turn));
   const tabs = [["trace", "Agent trace"], ["simulator", "Simulator"], ["judge", "Judge"], ["compare", "Side by side"]];
   pane.innerHTML = `
-    <div class="round">${esc(key)} · ended: ${esc(r.stop)} · handler: ${esc((r.handler ?? []).join(", ") || "?")} · took over after event ${r.takeover}/${c.events.length} · ${turns} agent turns · ${money(r.cost)} · ${dur(r.ms)}${r.error ? ` · <span class="bad">${esc(r.error)}</span>` : ""}</div>
+    <div class="round">${esc(key)} · ended: ${esc(r.stop)} · handler: ${esc((r.handler ?? []).join(", ") || "?")} · took over after event ${r.takeover}/${c.events.length} (${startKind(r)}) · ${turns} agent turns · ${money(r.cost)} · ${dur(r.ms)}${r.error ? ` · <span class="bad">${esc(r.error)}</span>` : ""}</div>
     <nav class="tabs">${tabs.map(([t, l]) => `<a href="#/full/${run.id}/${key}/${t}" class="${t === tab ? "on" : ""}">${l}</a>`).join("")}</nav>
     <div>${tab === "simulator" ? simTab(r) : tab === "judge" ? judgeTab(r, c) : tab === "compare" ? compareTab(r, c) : traceTab(run, r)}</div>`;
   pane.querySelectorAll(".raw pre").forEach((p) => (p.onclick = () => p.classList.add("open")));
@@ -404,7 +483,7 @@ function compareTab(r, c) {
   return `<div class="grid2">
     <span class="lbl">Replay</span><span class="lbl">Real claim</span>
     ${ctx.length ? `<div class="divider">before takeover</div>${ctx.map((e) => `<div class="span">${ev(e)}</div>`).join("")}` : ""}
-    <div class="divider">agent takes over</div>
+    <div class="divider">agent takes over${r.start === "escalation" ? " · escalation point" : ""}</div>
     ${rows.map(({ m, e }) => (m ? msg(m, Boolean(e)) : `<div class="hole2">nothing in the replay</div>`) + (e ? ev(e) : `<div class="hole2">not in the real claim</div>`)).join("")}
   </div>
   <p class="muted">${rows.filter((x) => x.m && x.e).length} matched · ${rows.filter((x) => x.m && !x.e).length} only in the replay · ${rows.filter((x) => x.e && !x.m).length} only in the real claim. Click a message to expand.</p>`;
@@ -453,7 +532,8 @@ async function renderNew() {
       </fieldset>
       <fieldset><legend>Loop</legend>
         <div class="fields">
-          <label>Seed events (0: the simulator opens the claim)<input id="seedEvents" type="number" min="0" value="${settings.seedEvents}"></label>
+          <label>Agent starts<select id="startAt">${[["escalation", "At the escalation point (config/escalation.json)"], ["opening", "At the opening (the simulator opens the claim)"]].map(([v, l]) => `<option value="${v}" ${v === (settings.startAt ?? "opening") ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          <label>Seed events (0: start as chosen; N: hand over the first N real events instead)<input id="seedEvents" type="number" min="0" value="${settings.seedEvents}"></label>
           <label>Max world turns<input id="maxWorldTurns" type="number" min="0" value="${settings.maxWorldTurns}"></label>
           <label>Max tool rounds per agent turn<input id="maxToolRounds" type="number" min="1" value="${settings.maxToolRounds}"></label>
           <label>Claims in parallel<input id="concurrency" type="number" min="1" value="${settings.concurrency}"></label>
@@ -483,7 +563,7 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
-          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked },
+          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked },
         }),
       });
       location.hash = `#/simple/${id}`;
@@ -498,6 +578,7 @@ const HINTS = {
   "models.json": "Model presets, sent to the Messages API as-is: model, max_tokens, thinking, effort, betas.",
   "pricing.json": "Dollars per million tokens [input, output], for cost figures.",
   "splits.json": "Dev and holdout claim lists.",
+  "escalation.json": "Each claim's escalation point: the agent is handed real events 1..after and nothing later. From eval/public_escalation_points.json.",
   "agent.system.md": "The agent's system prompt.",
   "agent.kickoff.md": "First message to the agent. Variables: {{case_file}} {{messages}} {{documents}}",
   "agent.update.md": "Sent when new messages arrive. Variables: {{messages}} {{documents}}",

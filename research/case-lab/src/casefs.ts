@@ -11,7 +11,7 @@ import { ROOT, call, promptOf, render, textOf, type Call, type Kit } from "./llm
 export type Msg = {
   n: number;
   turn: number;
-  author: "agent" | "world";
+  author: "agent" | "world" | "handler"; // handler: the real handler's own message, handed over as history
   kind: "message" | "note";
   channel: string;
   from: string;
@@ -62,7 +62,7 @@ export function renderMsg(m: Msg): string {
 // handler's own side at real event N once the world has delivered every outside event before N (it had them by then).
 export function visibleDocs({ c, replay, handler }: Ctx): string[] {
   const delivered = new Set(replay.flatMap((m) => m.attachments));
-  const progress = Math.max(0, ...replay.filter((m) => m.author === "world").flatMap((m) => m.follows));
+  const progress = Math.max(0, ...replay.filter((m) => m.author !== "agent").flatMap((m) => m.follows));
   const ours = (n: number) => handler.includes(c.events.find((e) => e.n === n)?.from ?? "");
   const due = (n: number) => c.events.every((e) => e.n >= n || handler.includes(e.from) || e.n <= progress);
   return c.attachments.filter((a) => a.firstEvent === null || delivered.has(a.name) || (ours(a.firstEvent) && due(a.firstEvent))).map((a) => a.name);

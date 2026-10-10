@@ -73,6 +73,25 @@ function parse(root: string, id: string): Case {
   };
 }
 
+// The names the handler signs with in the real case: the person at the brokerage, not its records or teams
+// (the simulator plays those). Found from the Broker field and from "Name, Brokerage" / "Name at Brokerage" parties;
+// when the brokerage never appears next to a name, event 1 decides: a bare first name is the handler's own note,
+// otherwise the handler is whoever event 1 was addressed to.
+export function handlerNames(c: Case): string[] {
+  const broker = c.details.Broker ?? "";
+  const org = broker.match(/[A-Z][a-z]+ (?:Cover|Risk|Brokers|Insurance)/)?.[0] ?? "";
+  const orgWords = new Set(org.split(" "));
+  const first = (party: string) => party.split(",")[0].trim().split(/\s+/)[0] ?? "";
+  const names = new Set((broker.match(/\b[A-Z][a-z]+\b/g) ?? []).filter((w) => !orgWords.has(w)));
+  for (const e of c.events) for (const party of [e.from, e.to]) if (org && party.includes(org) && !orgWords.has(first(party))) names.add(first(party));
+  const ours = (from: string) => names.has(first(from));
+  if (c.events.length && !c.events.some((e) => ours(e.from))) {
+    const e = c.events[0];
+    names.add(e.from.split(",")[0].trim().split(/\s+/).length === 1 ? first(e.from) : first(e.to));
+  }
+  return [...new Set(c.events.filter((e) => ours(e.from)).map((e) => e.from))];
+}
+
 let cache: Case[] | undefined;
 export function allCases(): Case[] {
   const root = casesDir();

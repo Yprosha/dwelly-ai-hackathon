@@ -18,7 +18,9 @@ export function renderEvent(c: Case, e: Event): string {
 }
 
 export function renderReplay(m: Msg): string {
-  const who = m.author === "agent" ? "AGENT (handler)" : m.match === "verbatim" ? `OTHER SIDE · real event ${m.follows[0]} verbatim` : "OTHER SIDE";
+  const who = m.author === "agent" ? "AGENT (handler)"
+    : m.author === "handler" ? `REAL HANDLER, before the agent took over · real event ${m.follows[0]} verbatim`
+    : m.match === "verbatim" ? `OTHER SIDE · real event ${m.follows[0]} verbatim` : "OTHER SIDE";
   return [`--- #${m.n} · ${who} · ${m.channel} ---`, `from: ${m.from}`, `to: ${m.to}`, m.subject && `subject: ${m.subject}`, m.attachments.length > 0 && `attachments: ${m.attachments.join(", ")}`, "", m.body]
     .filter((x) => x !== false && x !== undefined).join("\n");
 }
@@ -40,9 +42,10 @@ function verbatim(c: Case, e: Event): Omit<Msg, "n" | "turn"> {
   return { author: "world", kind: /note/i.test(e.channel) ? "note" : "message", channel: e.channel, from: e.from, to: e.to, body: e.body, ts: e.ts, attachments: eventAttachments(c, e), follows: [e.n], match: "verbatim" };
 }
 
-// Hand the agent the first N real events as they happened (settings.seedEvents > 0).
-export function seed({ c, replay }: Ctx, n: number) {
-  for (const e of c.events.slice(0, n)) push(replay, { ...verbatim(c, e), turn: 0 });
+// Hand the agent the first N real events as they happened: the history up to its takeover point. The real handler's
+// own messages and notes among them are marked as such; ctx.handler must be set first.
+export function seed({ c, replay, handler }: Ctx, n: number) {
+  for (const e of c.events.slice(0, n)) push(replay, { ...verbatim(c, e), author: handler.includes(e.from) ? "handler" : "world", turn: 0 });
 }
 
 export async function worldTurn(ctx: Ctx, pending: Msg[], turn: number): Promise<WorldTurn> {

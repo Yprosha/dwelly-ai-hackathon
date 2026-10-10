@@ -12,7 +12,7 @@ Then open http://localhost:5177.
 
 - **API key:** read from the repo's root `.env` or `research/case-lab/.env` as `ANTHROPIC_API_KEY`. Both are gitignored.
 - **Cases:** read from `data/public-cases/Insurance Claims Processing`, the same place `research/insurance-sim` uses. Set `CASES_DIR` to read them from somewhere else.
-- **Baseline:** `runs/` ships with the holdout baseline, so the UI has something to show straight away. New runs stay local.
+- **Baseline:** `runs/` ships with the holdout baseline, so the UI has something to show straight away. New runs stay local. That baseline was made before escalation starts and began at the opening; the UI says where each run started.
 
 The UI has two modes, like Sophie Lab:
 
@@ -31,7 +31,9 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 
 ## How a case runs
 
-1. **Opening.** The simulator delivers, word for word, every real event before the broker first writes to anyone: the request plus any notes already on the case. Set `seedEvents` to N to hand over the first N real events instead.
+1. **Handover at the escalation point.** Every public case has a "Next action at escalation" note that refers to one moment in its history. The agent starts there: it is handed, word for word, every real event up to that point, the real handler's own earlier messages among them, and nothing that came after. The points live in `config/escalation.json` (`after` = the last real event the agent sees), taken from `eval/public_escalation_points.json`.
+   - Set `startAt` to `opening` to start from the beginning instead: the simulator then delivers every real event before the broker first writes to anyone.
+   - Set `seedEvents` to N to hand over the first N real events, whatever `startAt` says.
 2. **Agent turn.** The agent reads the case through `list_case`, `read_case` and `search_case`, then acts with `send_message`, `add_note` or `close_case`. Ending its turn without a tool call means "wait for replies".
    - The case is exposed as files: `/case`, `/messages/NNN`, and `/documents/NAME` (attachments as text).
    - PDFs and images are transcribed by Claude on first read and cached in `cache/extracted/`.
@@ -52,6 +54,7 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 | `config/models.json` | Model presets, sent to the Messages API as-is (model, max_tokens, thinking, effort, betas). |
 | `config/settings.json` | Defaults for new runs: the preset per role, loop limits, judge on or off. |
 | `config/splits.json` | Insurance dev split (40 claims) and holdout split (10, every 5th claim). |
+| `config/escalation.json` | Each claim's escalation point: the agent sees real events 1..`after`. Editable in the UI like the other config. |
 | `runs/<id>/` | `run.json` (summary, plus a snapshot of the settings, presets and prompts used) and `cases/<key>.json` (replay, agent transcript, simulator turns, judge). Only the holdout baseline is committed. |
 | `src/` | `cases.ts` parser, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
 | `ui/` | One page, plain JS, no build step. |

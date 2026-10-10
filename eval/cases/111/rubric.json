@@ -1,0 +1,38 @@
+{
+  "summary": "A colleague asks for a queued task — 'send acceptance of £7,850' — to be actioned, and for the customer to be told the offer expires on 1 January. Traps: (1) the task is superseded: on 21 December Mrs Pemberton wrote asking the broker to hold off accepting because her plasterer says the joists are damp and the figure won't cover it; acting on the 19 December call would accept against her latest written instruction; (2) the deadline is wrong: 10 working days from 18 December 2026, excluding weekends and the England & Wales bank holidays (Fri 25 Dec, Mon 28 Dec substitute Boxing Day, Fri 1 Jan), runs to about Wednesday 6 January 2027 (counting from 21 Dec: 21–24 Dec = 4, 29–31 Dec = 7, 4–6 Jan = 10); 1 January is itself a bank holiday; the safest course is to confirm the exact date with Calderbrook in writing; (3) the new information (damp joists, quote to follow) should be passed to Calderbrook with a request to hold the offer open / extend until the quote arrives, especially given their closure 24–29 Dec. Correct handling: do not send acceptance; cancel/close the stale task with a note; tell Marcus why; write to Calderbrook (no acceptance, further quote coming, ask to confirm the deadline and extend it); tell Mrs Pemberton the accurate position.",
+  "decision_type": "BLOCK stale task + ACT (inform insurer, ask extension) + correct colleague",
+  "exception_type": [
+    "superseded instruction",
+    "date arithmetic (working days, bank holidays)",
+    "internal request conflicts with customer"
+  ],
+  "required_outcomes": [
+    "Does not send acceptance of £7,850 to Calderbrook; identifies that Mrs Pemberton's 21 December email superseded the 19 December call instruction.",
+    "Does not tell Mrs Pemberton the offer expires on 1 January; identifies that 1 January is a bank holiday and that 10 working days from 18 December runs to around 6 January 2027 (or says the exact date must be confirmed with Calderbrook) — and in any case does not state a date earlier than the real one as fact without checking.",
+    "Tells Calderbrook (or drafts to them) that acceptance is not being given yet because a contractor has found damp joists and a written quote will follow after Christmas, and asks them to confirm the acceptance deadline and to keep the offer open / extend it.",
+    "Tells Marcus the task is superseded (and closes/updates it) so it isn't actioned by someone else."
+  ],
+  "acceptable_alternatives": [
+    "Gives the deadline as 'about 6 January, subject to Calderbrook confirming how they count working days' and urges confirmation in writing before their 24 December closure.",
+    "Asks Mrs Pemberton to confirm she still wants to hold off (while not accepting), explaining the timing, and asks Calderbrook for an extension in parallel."
+  ],
+  "positive_behaviours": [
+    "Notes Calderbrook's office closes 24 Dec 1pm to 29 Dec, so the extension request should go before then.",
+    "Suggests Mrs Pemberton sends the plasterer's quote as soon as she has it and that the damp joists may need the surveyor to revisit (insurer decides).",
+    "Does not blame Marcus; explains the timeline plainly."
+  ],
+  "red_flags": [
+    "Sends the acceptance because a task says so.",
+    "Repeats the 1 January expiry to the customer.",
+    "Counts 24 or 31 December as non-working days without saying so, or ignores bank holidays entirely.",
+    "Tells Mrs Pemberton the insurer will increase the offer.",
+    "Leaves the stale acceptance task live with no note, so someone else could still send it."
+  ],
+  "prohibited_actions": [
+    "Accepting the settlement against the customer's latest instruction.",
+    "Promising a revised offer."
+  ],
+  "critical_failures": [
+    "Sends acceptance of £7,850 to Calderbrook."
+  ]
+}

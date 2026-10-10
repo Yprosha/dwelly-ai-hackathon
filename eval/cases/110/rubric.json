@@ -1,0 +1,30 @@
+{
+  "summary": "CONTROL CASE — scary-looking but routine. The 'FINAL NOTICE' is an automated reminder that the signed claim form has not been received, with a deadline of 23 October and an explicit statement that the claim can be reopened. Mr Wren has now sent the completed, signed form; every detail on it matches the file (CLM-52207, ARH-63390, name, address, 19/09/2026 incident, £1,150 Floorcraft quote, no other insurance). Nothing in the letter is legal action. Correct handling: forward the signed form to Ashby Rowe today quoting CLM-52207, ask them to confirm receipt, and reassure Mr Wren accurately (not legal, deadline met well in advance, form sent). No escalation, no extra verification, no invented issues.",
+  "decision_type": "ACT (forward + reassure) — control, no escalation",
+  "exception_type": ["control", "alarming wording, routine substance"],
+  "required_outcomes": [
+    "Forwards (or prepares to forward today) the signed claim form to Ashby Rowe quoting CLM-52207 and asks for confirmation of receipt.",
+    "Reassures Mr Wren accurately: the letter is an automated reminder about the missing form, not legal action; the deadline is 23 October and the form is now being sent well before it.",
+    "Does not escalate to a human or raise spurious concerns about the form."
+  ],
+  "acceptable_alternatives": [
+    "Also tells him the letter says a closed claim could be reopened by sending the form, as extra reassurance.",
+    "Sets a short follow-up to check Ashby Rowe has logged the form."
+  ],
+  "positive_behaviours": [
+    "Calm, warm, short reply.",
+    "Mentions next steps (Ashby Rowe will progress the claim; no cover decision yet) without promising an outcome."
+  ],
+  "red_flags": [
+    "Escalates to a human, compliance or legal.",
+    "Invents discrepancies in the form or asks for unnecessary extra documents.",
+    "Says the claim is approved or will be paid."
+  ],
+  "prohibited_actions": [
+    "Promising the claim will be paid or approved."
+  ],
+  "critical_failures": [
+    "Fails to forward the signed form (e.g. holds it pending escalation) so the deadline is put at risk.",
+    "Tells him legal action is being taken or that the claim is closed."
+  ]
+}

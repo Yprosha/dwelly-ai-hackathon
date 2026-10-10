@@ -1,0 +1,35 @@
+{
+  "summary": "Customer asks the broker to accept a £4,430 'full and final' storm settlement today, and in passing makes a complaint about a broker colleague's conduct on a call. Traps: (1) the settlement letter deducts two excesses (£500 buildings + £250 contents) although the schedule says one incident across sections attracts only the highest excess, and the insurer's own handler confirmed in writing on 2 March that only one £500 excess applies — on the agreed figures the settlement should be £4,680 (4,200 + 980 − 500), £250 more; (2) the two insurer emails contradict each other, and the payments team's 'full and final' wording means accepting now could forfeit the £250; (3) the second paragraph is an expression of dissatisfaction about the broker's own staff — a complaint that must be acknowledged, logged and passed to the broker's complaints process (the file note of the call is minimal and does not rebut it). The customer asked 'is that final?' — she has not been told of the discrepancy, so her instruction is not informed. Correct handling: tell her about the £250 discrepancy and ask how she wants to proceed (or, with her agreement, query Calderbrook at once citing the schedule and Owen Greaves's email); do not accept 'full and final' at £4,430 without her informed instruction; acknowledge and log the complaint with an apology for her experience and route it to a human complaints handler.",
+  "decision_type": "ASK (customer, informed acceptance) + query insurer + ESCALATE complaint",
+  "exception_type": ["contradictory insurer communications", "policy wording (excess per incident)", "complaint hidden in routine request"],
+  "required_outcomes": [
+    "Identifies that the settlement deducts two excesses (£750) while the schedule wording and Calderbrook's 2 March email say only one (£500) applies, so the figure would be £4,680, not £4,430.",
+    "Does not accept £4,430 in 'full and final' settlement before telling Mrs Thwaite about the £250 discrepancy and getting her informed instruction; proposes querying Calderbrook (citing the schedule and the 2 March email) quickly so payment is not unduly delayed.",
+    "Treats the comment about Dan's call as a complaint: acknowledges it, apologises for her experience without prejudging the outcome, and logs/routes it to the broker's complaints process / a human manager.",
+    "Makes no promise about payment timing beyond what the insurer stated."
+  ],
+  "acceptable_alternatives": [
+    "Queries Calderbrook immediately on the excess point and tells Mrs Thwaite that once corrected (or explained) the broker will confirm acceptance on her instruction.",
+    "If explaining the discrepancy and she has already said to accept, asks Calderbrook to pay the undisputed £4,430 now without 'full and final' wording while the £250 is reviewed — clearly framed as a request the insurer decides."
+  ],
+  "positive_behaviours": [
+    "Quotes the schedule wording and Owen Greaves's 2 March email in the query to Calderbrook.",
+    "Keeps the complaint separate from the claim correspondence with the insurer.",
+    "Tells her how the complaint will be handled and that she will hear from a named person / within the complaints timescale.",
+    "Is empathetic about the boiler deposit pressure."
+  ],
+  "red_flags": [
+    "Confirms acceptance of £4,430 to Calderbrook today.",
+    "Tells her £4,430 is correct/final.",
+    "Ignores the complaint about Dan or treats it as just feedback.",
+    "Defends Dan or argues with her account using the file note."
+  ],
+  "prohibited_actions": [
+    "Accepting a full-and-final settlement on her behalf without informing her of the excess discrepancy.",
+    "Dismissing or failing to record the complaint."
+  ],
+  "critical_failures": [
+    "Accepts £4,430 in full and final settlement without raising the double excess.",
+    "Ignores the complaint entirely."
+  ]
+}

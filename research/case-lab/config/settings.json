@@ -9,6 +9,7 @@
   "maxWorldTurns": 8,
   "maxToolRounds": 20,
   "concurrency": 6,
+  "advisers": [],
   "runJudge": true,
   "hiddenDetails": ["Status", "Updated", "Completed"]
 }

@@ -301,6 +301,18 @@ const pad3 = (n) => String(n).padStart(3, "0");
 const linkAttr = (ns, origin) => (ns.length ? ` data-ns="${ns.join(",")}"${origin ? ' data-origin="1"' : ""}` : "");
 const refChips = (ns) => ns.slice(0, 4).map((n) => `<span class="ref">#${pad3(n)}</span>`).join("") + (ns.length > 4 ? `<span class="ref">+${ns.length - 4}</span>` : "");
 
+// The council's sitting before an agent turn (absent in runs without advisers), and that turn's input without the
+// proposals that were appended to it.
+const adviceOf = (r, turn) => (r.advice ?? []).find((a) => a.turn === turn);
+const ownInput = (r, turn, content) => { const a = adviceOf(r, turn); return a && content.endsWith(a.text) ? content.slice(0, -a.text.length) : content; };
+const toolCount = (p) => Object.entries(p.steps.reduce((t, s) => ({ ...t, [s.name]: (t[s.name] ?? 0) + 1 }), {})).map(([n, k]) => `${n} ×${k}`).join(", ");
+
+function council(a) {
+  const ok = a.proposals.filter((p) => p.status === "ok").length;
+  const rows = a.proposals.map((p) => `<details class="step read"><summary><span class="si">${ICON.search}</span><span class="sl"><b>${esc(p.title)}</b>${p.status === "ok" ? "" : '<span class="fail">no proposal</span>'}</span><span class="sx">${esc(p.status === "ok" ? firstLine(p.proposal.replace(/^PROPOSAL\s*/, "")) : p.note)}</span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(p.status === "ok" ? p.proposal : p.note)}</div><div class="meta">${esc(p.preset)}${p.steps.length ? ` · ${esc(toolCount(p))}` : ""} · ${money(p.cost)} · ${dur(p.ms)}</div></div></details>`).join("");
+  return `<details class="step turnhead"><summary><span class="si">${ICON.folder}</span><span class="sl">Advisers · ${ok} of ${a.proposals.length} proposals</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb">${rows}</div></details>`;
+}
+
 function chat(run, r) {
   const silence = run.kit.prompts["agent.silence.md"];
   const results = new Map();
@@ -310,9 +322,11 @@ function chat(run, r) {
   for (const m of r.agent.messages) {
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
-      const label = turn === 1 ? (r.start === "escalation" ? "Picked up at the escalation point" : "New case") : m.content === silence ? "No replies" : "New messages";
-      const ns = [...m.content.matchAll(/^\/messages\/(\d+)$/gm)].map((x) => Number(x[1])); // the messages this turn handed to the agent
-      out.push(`<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(m.content.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
+      const own = ownInput(r, turn, m.content), adv = adviceOf(r, turn);
+      const label = turn === 1 ? (r.start === "escalation" ? "Picked up at the escalation point" : "New case") : own === silence ? "No replies" : "New messages";
+      const ns = [...own.matchAll(/^\/messages\/(\d+)$/gm)].map((x) => Number(x[1])); // the messages this turn handed to the agent
+      out.push(`<details class="step turnhead"${linkAttr(ns, true)}><summary><span class="si">${ICON.bolt}</span><span class="sl">${label}${refChips(ns)}</span><span class="rule"></span><span class="chev">›</span></summary><div class="sb"><div class="md">${md(own.replace(/\n---\n/g, "\n\n---\n\n"))}</div></div></details>`); // header/body separators are rules, not setext headings
+      if (adv) out.push(council(adv));
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "text" && b.text.trim()) out.push(`<div class="row"><span class="ai">AI</span><div class="md">${md(b.text)}</div></div>`);
@@ -426,7 +440,10 @@ function traceTab(run, r) {
   for (const m of r.agent.messages) {
     if (m.role === "user" && typeof m.content === "string") {
       turn++;
-      out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : m.content === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
+      out.push(`<div class="turn"><span class="lbl">Turn ${turn}</span><span class="muted">${turn === 1 ? "kickoff" : ownInput(r, turn, m.content) === silence ? "nobody replied" : "new messages"}</span></div><details class="box"><summary><span class="x">${esc(m.content.split("\n").find((l) => l.trim()))}</span></summary><div class="io"><pre>${esc(m.content)}</pre></div></details>`);
+      const adv = adviceOf(r, turn);
+      if (adv) out.push(`<div class="round">advisers before this turn · ${adv.proposals.filter((p) => p.status === "ok").length}/${adv.proposals.length} proposals · ${money(adv.proposals.reduce((t, p) => t + p.cost, 0))} · their proposals are appended to the input above</div>`,
+        ...adv.proposals.map((p) => `<details class="box"><summary><b>${esc(p.title)}</b><span class="x">${esc(p.name)} · ${esc(p.preset)} · ${p.calls.length} calls${p.steps.length ? ` · ${esc(toolCount(p))}` : ""} · ${money(p.cost)} · ${dur(p.ms)}</span>${p.status === "ok" ? "" : `<span class="chip bad">no proposal</span>`}</summary><div class="io"><pre>${esc(p.status === "ok" ? p.proposal : p.note)}</pre></div>${p.steps.length ? `<div class="io"><span class="lbl">Tool calls</span><pre>${esc(p.steps.map((s) => `${s.name} ${JSON.stringify(s.input)}${s.result ? `\n  → ${s.result.replace(/\s+/g, " ").slice(0, 160)}` : ""}`).join("\n"))}</pre></div>` : ""}</details>`));
     } else if (m.role === "assistant") {
       for (const b of m.content) {
         if (b.type === "thinking" && b.thinking) out.push(`<div class="thinking">${esc(b.thinking)}</div>`);
@@ -510,7 +527,8 @@ function showConfig(run) {
     <div class="db">
       <p class="muted">Snapshot taken when this run started. Edit the live files under Prompts &amp; settings.</p>
       <details class="box" open><summary>config/settings.json</summary><div class="io"><pre>${esc(JSON.stringify(s, null, 2))}</pre></div></details>
-      ${[...new Set([s.agent, s.simulator, s.judge, s.extractor])].map((p) => `<details class="box"><summary>model preset · ${esc(p)}</summary><div class="io"><pre>${esc(JSON.stringify(kit.models[p], null, 2))}</pre></div></details>`).join("")}
+      ${(s.advisers ?? []).length ? `<details class="box"><summary>config/advisers.json</summary><div class="io"><pre>${esc(JSON.stringify(Object.fromEntries(s.advisers.map((n) => [n, kit.advisers?.[n]])), null, 2))}</pre></div></details>` : ""}
+      ${[...new Set([s.agent, s.simulator, s.judge, s.extractor, ...(s.advisers ?? []).map((n) => kit.advisers?.[n]?.preset).filter(Boolean)])].map((p) => `<details class="box"><summary>model preset · ${esc(p)}</summary><div class="io"><pre>${esc(JSON.stringify(kit.models[p], null, 2))}</pre></div></details>`).join("")}
       ${Object.entries(kit.prompts).map(([n, t]) => `<details class="box"><summary>prompts/${esc(n)}</summary><div class="io"><pre>${esc(t)}</pre></div></details>`).join("")}
     </div>`;
   document.body.append(d);
@@ -527,10 +545,11 @@ function plainHeader(title) {
 const presetLine = (p) => (p ? [p.model, `max_tokens ${p.max_tokens}`, p.thinking ? `thinking ${p.thinking.type}` : "no thinking", p.output_config?.effort && `effort ${p.output_config.effort}`].filter(Boolean).join(" · ") : "");
 
 async function renderNew() {
-  const [{ cases, splits }, models, settings] = await Promise.all([
+  const [{ cases, splits }, models, settings, advisers] = await Promise.all([
     api("/api/cases"),
     api("/api/files?path=config/models.json").then(JSON.parse),
     api("/api/files?path=config/settings.json").then(JSON.parse),
+    api("/api/files?path=config/advisers.json").then(JSON.parse).catch(() => ({})),
   ]);
   const roles = ["agent", "simulator", "judge", "extractor"];
   app.innerHTML = `${plainHeader("New run")}<div class="full">${subnav("new")}
@@ -543,6 +562,9 @@ async function renderNew() {
       </fieldset>
       <fieldset><legend>Models · presets from config/models.json</legend>
         <div class="fields">${roles.map((r) => `<label>${r}<select id="p-${r}">${Object.keys(models).map((m) => `<option ${m === settings[r] ? "selected" : ""}>${esc(m)}</option>`).join("")}</select><span class="n" id="d-${r}"></span></label>`).join("")}</div>
+      </fieldset>
+      <fieldset><legend>Advisers · sub-agents that each propose next steps before the agent decides (config/advisers.json)</legend>
+        <div class="row">${Object.entries(advisers).map(([n, a]) => `<label title="${esc(presetLine(models[a.preset]))} · tools: ${esc(a.tools.join(", "))} · ${a.when === "first" ? "only when the agent picks the case up" : "before every agent turn"}"><input type="checkbox" name="adviser" value="${esc(n)}" ${(settings.advisers ?? []).includes(n) ? "checked" : ""}> ${esc(a.title)}</label>`).join("") || '<span class="muted">none configured</span>'}</div>
       </fieldset>
       <fieldset><legend>Loop</legend>
         <div class="fields">
@@ -578,7 +600,7 @@ async function renderNew() {
         body: JSON.stringify({
           label: $("label").value,
           keys: selected(),
-          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked },
+          overrides: { ...Object.fromEntries(roles.map((r) => [r, $(`p-${r}`).value])), caseCard: $("caseCard").value, startAt: $("startAt").value, seedEvents: num("seedEvents"), maxWorldTurns: num("maxWorldTurns"), maxToolRounds: num("maxToolRounds"), concurrency: num("concurrency"), runJudge: $("runJudge").checked, advisers: [...f.querySelectorAll("input[name=adviser]:checked")].map((x) => x.value) },
         }),
       });
       location.hash = `#/simple/${id}`;
@@ -594,6 +616,17 @@ const HINTS = {
   "pricing.json": "Dollars per million tokens [input, output], for cost figures.",
   "splits.json": "Dev and holdout claim lists.",
   "escalation.json": "Each claim's escalation point: the agent is handed real events 1..after and nothing later. From eval/public_escalation_points.json.",
+  "advisers.json": "The council: sub-agents that each propose next steps before the agent's turn. Per adviser: title, model preset, prompt file, tool groups (case, web, claims) and when it sits (first: when the agent picks the case up; every: before each turn). settings.json → advisers picks who sits.",
+  "adviser.system.md": "System prompt shared by every adviser. Variables: {{lens}} (the adviser's own prompt file)",
+  "adviser.user.md": "What an adviser is shown. Variables: {{case_file}} {{messages}} {{documents}} {{latest}}",
+  "adviser.claims.md": "Appended for advisers with the claims tools. Variables: {{catalogue}}",
+  "adviser.tools.json": "Tool groups for advisers: case (names from tools.json), web (server-side web search and fetch), claims (the other claims in the database).",
+  "adviser.creative.md": "Angle of the creative adviser.",
+  "adviser.risk.md": "Angle of the conservative risk assessor.",
+  "adviser.web.md": "Angle of the web researcher (UK guidance).",
+  "adviser.wordings.md": "Angle of the policy-wording researcher (UK insurers' wordings).",
+  "adviser.precedent.md": "Angle of the precedent analyst (other claims in the database).",
+  "agent.advice.md": "Appended to the agent's input when advisers sat before the turn. Variables: {{proposals}}",
   "agent.system.md": "The agent's system prompt.",
   "agent.kickoff.md": "First message to the agent. Variables: {{case_file}} {{messages}} {{documents}}",
   "agent.update.md": "Sent when new messages arrive. Variables: {{messages}} {{documents}}",

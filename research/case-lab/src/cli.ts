@@ -1,7 +1,8 @@
 // npm run run -- --split holdout|dev|all [--cases insurance-032,...] [--label baseline]
 //                 [--agent opus-5.5] [--simulator opus-5.5] [--judge opus-5.5] [--no-judge] [--concurrency 6] [--seed 0]
+//                 [--advisers all|none|creative,risk,web,wordings,precedent]   (names from config/advisers.json)
 import { parseArgs } from "node:util";
-import { loadEnv, type Settings } from "./llm.ts";
+import { loadEnv, readJson, type Settings } from "./llm.ts";
 import { selectKeys, startRun } from "./run.ts";
 
 loadEnv();
@@ -10,7 +11,7 @@ const { values: a } = parseArgs({
   options: {
     split: { type: "string" }, cases: { type: "string" }, label: { type: "string" },
     agent: { type: "string" }, simulator: { type: "string" }, judge: { type: "string" },
-    "no-judge": { type: "boolean" }, concurrency: { type: "string" }, seed: { type: "string" },
+    "no-judge": { type: "boolean" }, concurrency: { type: "string" }, seed: { type: "string" }, advisers: { type: "string" },
   },
 });
 const overrides: Partial<Settings> = {};
@@ -20,6 +21,7 @@ if (a.judge) overrides.judge = a.judge;
 if (a["no-judge"]) overrides.runJudge = false;
 if (a.concurrency) overrides.concurrency = Number(a.concurrency);
 if (a.seed) overrides.seedEvents = Number(a.seed);
+if (a.advisers) overrides.advisers = a.advisers === "none" ? [] : a.advisers === "all" ? Object.keys(readJson("config/advisers.json")) : a.advisers.split(",").map((s) => s.trim()).filter(Boolean);
 
 const keys = selectKeys({ split: a.split, keys: a.cases?.split(",") });
 const { id, done } = startRun({ label: a.label, keys, overrides }, (key, s) =>

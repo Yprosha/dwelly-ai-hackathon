@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, type AgentState } from "./agent.ts";
+import { advise, checkAdvisers, type Advice } from "./council.ts";
 import { agentBrief, caseFile, extract, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
@@ -26,6 +27,7 @@ export type CaseResult = {
   handler: string[]; // names the handler's side goes by in the real case (from the simulator)
   replay: Msg[];
   agent: AgentState;
+  advice?: Advice[]; // what the advisers proposed before each agent turn (absent in runs made before the council)
   world: WorldTurn[];
   judge?: { output: Judgement; prompt: string; call: Call };
   extract: Call[];
@@ -47,7 +49,7 @@ const RUNS = path.join(ROOT, "runs");
 export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
   const t0 = Date.now();
   const s = kit.settings;
-  const res: CaseResult = { key: c.key, status: "done", stop: "", start: "opening", takeover: 0, handler: [], replay: [], agent: newAgent(kit), world: [], extract: [], cost: 0, ms: 0 };
+  const res: CaseResult = { key: c.key, status: "done", stop: "", start: "opening", takeover: 0, handler: [], replay: [], agent: newAgent(kit), advice: [], world: [], extract: [], cost: 0, ms: 0 };
   const { replay, agent, world } = res;
   const ctx: Ctx = { kit, c, replay, handler: res.handler, extract: res.extract };
   try {
@@ -69,14 +71,19 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       documents: visibleDocs(ctx).map((d) => `/documents/${d}`).join("\n") || "(none)",
     });
     let silent = false;
+    let latest = replay.map((m) => m.n); // the messages the agent has not responded to yet
     for (let turn = 1; ; turn++) {
+      // the council sits first: its proposals go to the agent with this turn's input, and the agent decides
+      const advice = await advise(ctx, latest, turn);
+      if (advice) res.advice!.push(advice);
       const before = replay.length;
       const docsBefore = visibleDocs(ctx);
-      await agentTurn(ctx, agent, input, turn);
+      await agentTurn(ctx, agent, input + (advice?.text ?? ""), turn);
       if (agent.closed) { res.stop = "closed"; break; }
       if (turn > s.maxWorldTurns) { res.stop = "turn limit"; break; }
       const w = await worldTurn(ctx, replay.slice(before), turn);
       world.push(w);
+      latest = w.delivered;
       if (w.delivered.length) {
         silent = false;
         const attached = new Set(w.delivered.flatMap((n) => replay[n - 1].attachments));
@@ -95,7 +102,8 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
     res.stop ||= "error";
   }
   res.handler = ctx.handler; // set by the first world turn
-  res.cost = [...agent.calls, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
+  const advisers = res.advice!.flatMap((a) => a.proposals.flatMap((p) => p.calls));
+  res.cost = [...agent.calls, ...advisers, ...world.map((w) => w.call), ...(res.judge ? [res.judge.call] : []), ...res.extract].reduce((a, x) => a + x.cost, 0);
   res.ms = Date.now() - t0;
   return res;
 }
@@ -152,6 +160,7 @@ export function selectKeys(sel: { split?: string; tracks?: string[]; keys?: stri
 
 export function startRun(opts: { label?: string; keys: string[]; overrides?: Partial<Settings> }, onCase?: (key: string, s: CaseSummary) => void) {
   const kit = loadKit(opts.overrides);
+  checkAdvisers(kit);
   const cases = opts.keys.map(getCase);
   if (!cases.length) throw new Error("no cases selected");
   const label = opts.label?.trim() || "run";

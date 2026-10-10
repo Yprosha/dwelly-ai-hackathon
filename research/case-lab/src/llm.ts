@@ -4,6 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";
 import path from "node:path";
+import type { AdviserSpec } from "./council.ts";
 
 export const ROOT = path.resolve(import.meta.dirname, "..");
 export const readJson = <T = any>(rel: string): T => JSON.parse(fs.readFileSync(path.join(ROOT, rel), "utf8"));
@@ -21,6 +22,7 @@ export type Settings = {
   startAt: "escalation" | "opening"; // escalation: the agent takes over at the case's escalation point (config/escalation.json); opening: at the start
   seedEvents: number; // 0: follow startAt; N: hand the agent the first N real events verbatim, whatever startAt says
   maxWorldTurns: number; maxToolRounds: number; concurrency: number;
+  advisers?: string[]; // names from config/advisers.json that propose next steps before the agent's turns; empty or absent: no council
   runJudge: boolean; hiddenDetails: string[];
 };
 
@@ -28,6 +30,7 @@ export type Kit = {
   settings: Settings;
   models: Record<string, Record<string, unknown>>;
   pricing: Record<string, [number, number]>;
+  advisers: Record<string, AdviserSpec>; // config/advisers.json: who can sit on the council (absent in kits saved before it existed)
   prompts: Record<string, string>; // file name -> contents, every file in prompts/
   escalation: Record<string, { after: number; trigger?: string }>; // case key -> last real event before its escalation point
 };
@@ -38,6 +41,7 @@ export function loadKit(overrides: Partial<Settings> = {}): Kit {
     settings: { ...readJson<Settings>("config/settings.json"), ...overrides },
     models: readJson("config/models.json"),
     pricing: readJson("config/pricing.json"),
+    advisers: fs.existsSync(path.join(ROOT, "config/advisers.json")) ? readJson("config/advisers.json") : {},
     prompts: Object.fromEntries(fs.readdirSync(dir).sort().map((f) => [f, fs.readFileSync(path.join(dir, f), "utf8")])),
     escalation: fs.existsSync(path.join(ROOT, "config/escalation.json")) ? readJson("config/escalation.json") : {},
   };
@@ -63,10 +67,10 @@ let client: Anthropic | undefined; // lazy: entrypoints load .env first
 
 export async function call(
   kit: Kit,
-  role: "agent" | "simulator" | "judge" | "extractor",
-  req: { system: string; messages: Anthropic.Beta.BetaMessageParam[]; tools?: unknown[]; toolChoiceNone?: boolean; schema?: object },
+  role: "agent" | "simulator" | "judge" | "extractor" | "adviser",
+  req: { system: string; messages: Anthropic.Beta.BetaMessageParam[]; tools?: unknown[]; toolChoiceNone?: boolean; schema?: object; preset?: string },
 ): Promise<{ message: Anthropic.Beta.BetaMessage; call: Call }> {
-  const preset = kit.settings[role];
+  const preset = req.preset ?? kit.settings[role as "agent"]; // advisers bring their own preset (config/advisers.json)
   const params = kit.models[preset];
   if (!params) throw new Error(`model preset "${preset}" (${role}) is not in config/models.json`);
   const body: any = { ...params, system: req.system, messages: req.messages };
@@ -79,7 +83,8 @@ export async function call(
   const u = message.usage;
   const [inp, out] = kit.pricing[message.model] ?? [0, 0];
   // cache writes cost 1.25x input, cache reads 0.1x
-  const cost = ((u.input_tokens + 1.25 * (u.cache_creation_input_tokens ?? 0) + 0.1 * (u.cache_read_input_tokens ?? 0)) * inp + u.output_tokens * out) / 1e6;
+  const cost = ((u.input_tokens + 1.25 * (u.cache_creation_input_tokens ?? 0) + 0.1 * (u.cache_read_input_tokens ?? 0)) * inp + u.output_tokens * out) / 1e6
+    + 0.01 * (u.server_tool_use?.web_search_requests ?? 0); // server-side web search: $10 per 1,000 searches
   return { message, call: { role, preset, model: message.model, ms: Date.now() - t, usage: u, stop_reason: message.stop_reason, cost } };
 }
 

@@ -50,6 +50,29 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
    - extras the agent did;
    - violations.
 
+## Advisers
+
+Before the agent takes a turn, a council of sub-agents can each propose the next steps from their own angle. The proposals are appended to the agent's input for that turn (`prompts/agent.advice.md`); the agent decides and only the agent acts. Off by default: tick the advisers in **Full → New run**, set `advisers` in `config/settings.json`, or pass `--advisers` on the command line.
+
+```bash
+npm run run -- --cases insurance-017,insurance-030 --advisers all --label council
+```
+
+| Adviser | Angle | Preset | Tools | Sits |
+|---|---|---|---|---|
+| `creative` | the move a routine handler would miss | `opus-5.5` | case | every turn |
+| `risk` | what could go wrong, the smallest safe set of steps | `opus-5.5-high` | case | every turn |
+| `web` | UK rules and guidance (FCA, Financial Ombudsman, ABI, gov.uk) | `opus-5.5` | case, web search and fetch | first turn |
+| `wordings` | what UK insurers' policy wordings for this kind of policy say | `opus-5.5` | case, web search and fetch | first turn |
+| `precedent` | how the other claims in the database were handled | `opus-5.5-low` | case, `search_claims`, `read_claim` | every turn |
+
+- Advisers differ in prompt, model preset (so in effort) and tools. Current Claude models do not accept a sampling temperature, so that is not one of the settings.
+- Everything is config: `config/advisers.json` says who can sit, with which preset, prompt file, tool groups and when; `prompts/adviser.*.md` hold the prompts and `prompts/adviser.tools.json` the tool groups.
+- The two web advisers sit only when the agent picks the case up, because reading policy booklets is the expensive part and their findings stay in the agent's conversation. Set `"when": "every"` to have them sit before every turn.
+- The precedent analyst reads the other 49 public cases in full, recorded overview and outcome included, and never the case being worked on.
+- An adviser that fails or is still working after five minutes is shown as "no proposal" and the turn goes on without it.
+- In the UI, Simple shows an **Advisers** fold under each turn header in the agent chat; Full → Agent trace shows each adviser's proposal, tool calls, cost and time.
+
 ## Where things live
 
 | Path | What |
@@ -58,9 +81,10 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 | `config/models.json` | Model presets, sent to the Messages API as-is (model, max_tokens, thinking, effort, betas). |
 | `config/settings.json` | Defaults for new runs: the preset per role, loop limits, judge on or off. |
 | `config/splits.json` | Insurance dev split (40 claims) and holdout split (10, every 5th claim). |
+| `config/advisers.json` | The council: per adviser its title, model preset, prompt file, tool groups and when it sits. `settings.json` → `advisers` picks who sits on a run. |
 | `config/escalation.json` | Each claim's escalation point: the agent sees real events 1..`after`. Editable in the UI like the other config. |
 | `runs/<id>/` | `run.json` (summary, plus a snapshot of the settings, presets and prompts used) and `cases/<key>.json` (replay, agent transcript, simulator turns, judge). Only the holdout baseline is committed. |
-| `src/` | `cases.ts` parser, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
+| `src/` | `cases.ts` parser, `casefs.ts` file system and extraction, `agent.ts` loop and tools, `council.ts` advisers, `simulator.ts`, `run.ts` orchestration and judge, `server.ts`, `cli.ts`. |
 | `ui/` | One page, plain JS, no build step. |
 
 You can edit prompts and config in the UI under **Full → Prompts & settings**. Changes apply to the next run, with no restart needed. `npm run check` runs the self-check, and `npm run typecheck` runs the TypeScript compiler.

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { allCases, getCase, handlerNames } from "./cases.ts";
 import { agentBrief, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { ground, seed } from "./simulator.ts";
-import { loadEnv, loadKit } from "./llm.ts";
+import { loadEnv, loadKit, promptOf } from "./llm.ts";
+import { checkAdvisers, readClaim, searchClaims } from "./council.ts";
 
 loadEnv();
 
@@ -44,4 +45,17 @@ const kit9 = loadKit({ caseCard: "none" });
 assert.equal(agentBrief(kit9, getCase("insurance-009")), "You are handling this case as Josh, Heathmere Brokers.");
 assert.ok(cases.every((k) => { const b = agentBrief(kit9, k); return !b.includes(k.title) && !b.includes(k.details.Insurer) && !b.includes(k.request.slice(0, 40)); }));
 assert.ok(agentBrief(loadKit({ caseCard: "record" }), getCase("insurance-009")).includes("- Insurer: Alderfen Mutual"));
+// the council: every configured adviser has a preset and a prompt; the claims search finds the obvious precedent and
+// never the case being worked on (the caller hands it every claim but that one)
+const kitA = loadKit({ advisers: Object.keys(loadKit().advisers) });
+assert.equal(kitA.settings.advisers!.length, 5);
+checkAdvisers(kitA);
+assert.throws(() => checkAdvisers(loadKit({ advisers: ["nobody"] })), /unknown adviser/);
+for (const f of ["adviser.system.md", "adviser.user.md", "adviser.claims.md", "agent.advice.md", "adviser.tools.json"]) promptOf(kitA, f);
+const others = cases.filter((k) => k.key !== "insurance-017");
+assert.match(searchClaims(kitA, cases, "unoccupied between tenancies"), /^\[insurance-017 · /);
+assert.ok(!searchClaims(kitA, others, "unoccupied between tenancies").includes("insurance-017"));
+assert.match(searchClaims(kitA, others, "zzzqqq"), /^No claim found/);
+assert.ok(readClaim(kitA, others, "016").includes("## Outcome") && readClaim(kitA, others, "insurance-016").includes("--- event 1 "));
+assert.throws(() => readClaim(kitA, others, "insurance-017"), /NOT_FOUND/);
 console.log("selfcheck ok");

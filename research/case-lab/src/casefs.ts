@@ -47,10 +47,12 @@ export function caseFile(kit: Kit, c: Case): string {
 // none/record briefs; record adds the broker, insurer and property. Graders get the full card (caseFile).
 export function agentBrief(kit: Kit, c: Case): string {
   const mode = kit.settings.caseCard ?? "full"; // kits saved before this setting showed the whole card
-  if (mode === "full") return caseFile(kit, c);
   const me = [...handlerNames(c)].sort((a, b) => b.length - a.length)[0] ?? c.details.Broker ?? "the broker";
+  const identity = `You are handling this case as ${me}.`;
+  if (mode === "full") return `${identity}\n\n${caseFile(kit, c)}`;
+  const source = c.details["Source role"] ? `Requester role: ${c.details["Source role"]}\n\n` : "";
   // a handed case may bring sections of its own (a question, an instruction): they are task input too
-  const who = [`You are handling this case as ${me}.\n\n## Initial request\n\n${c.request || "(not provided)"}`, c.handed?.extra].filter(Boolean).join("\n\n");
+  const who = [`${identity}\n\n## Initial request\n\n${source}${c.request || "(not provided)"}`, c.handed?.extra].filter(Boolean).join("\n\n");
   if (mode !== "record") return who;
   const record = ["Broker", "Insurer", "Property"].filter((k) => c.details[k]).map((k) => `- ${k}: ${c.details[k]}`).join("\n");
   return record ? `${who}\n\nOn record:\n${record}` : who;
@@ -150,7 +152,7 @@ export async function fsTool(ctx: Ctx, name: string, input: any): Promise<string
     const p = norm(input?.path);
     if (p === "/") return "/case\n/messages/\n/documents/";
     if (p === "/messages") return replay.map((x) => `/messages/${pad(x.n)}  ${x.channel} · ${x.from} → ${x.to}`).join("\n") || "(empty)";
-    if (p === "/documents") return docs.map((x) => `/documents/${x}`).join("\n") || "No documents are available here. Other brokerage records may exist; ask the relevant internal team through send_message if needed.";
+    if (p === "/documents") return docs.map((x) => `/documents/${x}`).join("\n") || "No documents are available here. Other brokerage records may exist; this listing does not establish whether they are needed for the next action.";
     throw new Error(`NOT_FOUND: ${p} is not a directory. Directories: /, /messages, /documents.`);
   }
   if (name === "read_case") {

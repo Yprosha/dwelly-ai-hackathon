@@ -90,6 +90,13 @@ function parse(root: string, id: string): Case {
 // otherwise the handler is whoever event 1 was addressed to.
 export function handlerNames(c: Case): string[] {
   const broker = c.details.Broker ?? "";
+  // An explicitly assigned broker owns the case; a colleague or requester is a separate participant.
+  const assigned = broker.match(/\(([^;)]+)/)?.[1].trim();
+  if (assigned) {
+    const aliases = c.events.flatMap((e) => [e.from, e.to]).filter((party) =>
+      party === assigned || party.startsWith(`${assigned},`) || party.startsWith(`${assigned} at `));
+    return aliases.length ? [...new Set(aliases)] : [assigned];
+  }
   const org = broker.match(/[A-Z][a-z]+ (?:Cover|Risk|Brokers|Insurance)/)?.[0] ?? "";
   const orgWords = new Set(org.split(" "));
   const first = (party: string) => party.split(",")[0].trim().split(/\s+/)[0] ?? "";

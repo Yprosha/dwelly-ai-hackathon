@@ -37,6 +37,19 @@ assert.deepEqual(docsAfter([1, 3]), ["policy-copy.pdf"]);
 assert.deepEqual(handlerNames(getCase("insurance-007")), ["Max, Fieldstone Cover"]);
 assert.deepEqual(handlerNames(getCase("insurance-022")), ["Jen Vale"]);
 assert.deepEqual(handlerNames(getCase("insurance-037")).sort(), ["Toby Reed", "Toby Reed, Holloway Cover"]);
+// The named broker, not a colleague, customer or spoofed service desk, owns the case.
+for (const id of ["eval-013", "eval-105", "eval-110", "eval-111"]) {
+  const claim = getCase(id);
+  assert.deepEqual(handlerNames(claim), ["Priya Nair, Kestrel Lane Brokers"], id);
+  for (const caseCard of ["none", "record", "full"] as const) {
+    const brief = agentBrief(loadKit({ caseCard }), claim);
+    assert.ok(brief.startsWith("You are handling this case as Priya Nair, Kestrel Lane Brokers."), `${id}: ${caseCard}`);
+    assert.ok(brief.includes(claim.details["Source role"]));
+  }
+}
+const c111 = getCase("eval-111"), replay111: Msg[] = [];
+seed({ kit: {} as Ctx["kit"], c: c111, replay: replay111, handler: handlerNames(c111), extract: [] }, c111.events.length);
+assert.equal(replay111.find((m) => m.from.startsWith("Marcus Bell"))?.author, "world");
 // every case has an escalation point inside its history, and the first hidden event is the handler's own move
 const points = loadKit().escalation;
 for (const k of cases) {

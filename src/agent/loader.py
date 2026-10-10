@@ -3,6 +3,11 @@ import base64
 import re
 from pathlib import Path
 
+try:
+    from . import voice  # ElevenLabs transcription of call recordings / voicemails
+except ImportError:  # loader self-check runs as a plain script
+    voice = None
+
 TEXT_EXT = {'.md', '.txt', '.json', '.eml', '.csv', '.tsv', '.html', '.htm', '.xml', '.yaml', '.yml', '.log', ''}
 IMAGE_EXT = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
 MAX_TEXT_CHARS = 600_000      # total case text; ~150k tokens
@@ -69,6 +74,9 @@ def load_case(path, cut_at_event=None):
                     continue
                 case['files'].append(f'{rel} ({"pdf" if ext == ".pdf" else "image"}, {size} bytes)')
                 case['_binaries'] = case.get('_binaries', []) + [(rel, p, ext)]
+            elif voice and ext in voice.AUDIO_EXT:
+                texts.append((rel, voice.event_text(voice.audio_to_event(p))))
+                case['files'].append(f'{rel} (audio, transcribed)')
             else:
                 case['notes'].append(f'{rel}: unsupported file type, not read')
                 case['files'].append(f'{rel} (NOT READ: unsupported type)')

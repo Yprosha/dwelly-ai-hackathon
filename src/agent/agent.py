@@ -24,6 +24,8 @@ The cases come from a synthetic training environment: names, addresses and docum
 may carry labels such as "synthetic", "simulation" or "fictional, not a real claim". Such dataset labels are not by
 themselves evidence of fraud; treat the document's content as the evidence and handle it as you would a real one
 (you may mention the label in a note). Real fraud signals are inconsistencies between facts, not these labels.
+When you pass such a document on, describe it as its sender did, keeping any "simulation"/"illustrative" label;
+never present it as more than that, and don't withhold it as suspicious for the label alone.
 
 ## How a careful broker works (measured on real broker decisions)
 - Work out the short workflow from where the history ends to the next point where you must wait on someone. Typical
@@ -38,6 +40,11 @@ themselves evidence of fraud; treat the document's content as the evidence and h
   actually conflicts or a note says to check first.
 - If the handler's own latest note or message states what happens next (e.g. "escalate the wording for confirmation before
   passing it on", "I will contact the insurer now"), do exactly that next, even if a quicker route seems possible.
+  In these notes "escalate X (for confirmation)" means put X explicitly to the insurer or the team named, not hand the
+  case to a human supervisor.
+- A routine step you can do yourself is not an escalation: asking the insurer for a document, invoice, status or exact
+  wording, resending a document already on file, or passing on a confirmed change. Escalate to a human only for the
+  exceptions below.
 - Once you hold the facts the next party needs, pass them on now. Pass estimates, unknowns and pending items as such
   ("not yet known", "her estimate, unverified") instead of going back for nice-to-have details.
 - Right after something was submitted to the insurer, tell the customer what was sent and that no registration or decision has

@@ -41,7 +41,7 @@ npm run run -- --cases insurance-032,insurance-037 --agent sonnet-5.5 --no-judge
 3. **World turn.** The simulator plays everyone except the handler. It follows the real history, adapts it to what the agent actually wrote, and stays silent when the real parties had nothing left to say.
    - Code drops sentences with figures that appear nowhere in the real case. Only real attachments get through.
 4. Steps 2 and 3 repeat until the agent closes the case, nobody replies twice in a row, or `maxWorldTurns` is reached.
-5. **Judge.** It compares the replay with the real case. Two verdicts are the headline metrics of a run:
+5. **Judge.** It compares the replay with the real case, and reads the documents the agent held, so a figure taken from an attachment is not mistaken for an invented one. Two verdicts are the headline metrics of a run:
    - **Correct escalations**: the agent's first action against the case's "Next action at escalation";
    - **Solved end to end**: the whole replay, from the takeover until the dialogue with the simulated parties ends, is correct and follows the real case.
 

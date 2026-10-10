@@ -18,6 +18,10 @@
 
 {{replay}}
 
+## DOCUMENTS THE AGENT HELD (attachments it had by the end, as text)
+
+{{documents}}
+
 ## HOW THE AGENT CLOSED THE CASE
 
 {{agent_outcome}}

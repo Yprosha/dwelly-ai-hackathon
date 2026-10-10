@@ -603,7 +603,7 @@ const HINTS = {
   "simulator.user.md": "Variables: {{case_file}} {{real_events}} {{replay}} {{pending}}",
   "simulator.schema.json": "Structured output the simulator returns.",
   "judge.system.md": "System prompt for the judge.",
-  "judge.user.md": "Variables: {{case_file}} {{answer_key}} {{context_events}} {{real_events}} {{replay}} {{agent_outcome}}",
+  "judge.user.md": "Variables: {{case_file}} {{answer_key}} {{context_events}} {{real_events}} {{replay}} {{documents}} {{agent_outcome}}",
   "judge.schema.json": "Structured output the judge returns.",
   "extract.system.md": "How PDF and image attachments become text (cached after the first read).",
   "extract.user.md": "Variables: {{filename}}",

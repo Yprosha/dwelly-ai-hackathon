@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { allCases, getCase, handlerNames, type Case } from "./cases.ts";
 import { agentTurn, newAgent, type AgentState } from "./agent.ts";
-import { agentBrief, caseFile, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
+import { agentBrief, caseFile, extract, renderMsg, visibleDocs, type Ctx, type Msg } from "./casefs.ts";
 import { renderEvent, renderReplay, seed, worldTurn, type WorldTurn } from "./simulator.ts";
 import { ROOT, call, jsonOf, jsonPrompt, loadKit, promptOf, readJson, render, type Call, type Kit, type Settings } from "./llm.ts";
 
@@ -88,7 +88,7 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
       } else if (silent) { res.stop = "silence"; break; }
       else { silent = true; input = promptOf(kit, "agent.silence.md"); } // one notice, like claimsorted's silence signal
     }
-    if (s.runJudge) res.judge = await judge(kit, c, res);
+    if (s.runJudge) res.judge = await judge(ctx, res);
   } catch (e) {
     res.status = "error";
     res.error = e instanceof Error ? e.message : String(e);
@@ -100,7 +100,18 @@ export async function runCase(kit: Kit, c: Case): Promise<CaseResult> {
   return res;
 }
 
-async function judge(kit: Kit, c: Case, res: CaseResult) {
+const MAX_DOC = 12_000; // per document, in the judge's prompt
+
+// The judge sees what the agent could rely on: the events before the takeover, the replay, and the text of every
+// document the agent held by the end (as extracted for the agent). Without the documents it takes a figure or a
+// name the agent read in an attachment for an invented one.
+export async function judge(ctx: Ctx, res: CaseResult) {
+  const { kit, c } = ctx;
+  const docs: string[] = [];
+  for (const name of visibleDocs(ctx)) {
+    const text = await extract(ctx, name);
+    docs.push(`### /documents/${name}\n\n${text.length > MAX_DOC ? text.slice(0, MAX_DOC) + "\n... [truncated]" : text}`);
+  }
   const card = kit.settings.caseCard ?? "full";
   const unseen = card === "full" ? "" : `\n\n(The agent was not shown this case card. It was told only who it is${card === "record" ? ", plus the broker, insurer and property on record" : ""}; everything else it knew came from the events before the takeover.)`;
   const prompt = render(promptOf(kit, "judge.user.md"), {
@@ -109,6 +120,7 @@ async function judge(kit: Kit, c: Case, res: CaseResult) {
     context_events: c.events.filter((e) => e.n <= res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
     real_events: c.events.filter((e) => e.n > res.takeover).map((e) => renderEvent(c, e)).join("\n\n") || "(none)",
     replay: res.replay.filter((m) => m.turn > 0).map(renderReplay).join("\n\n") || "(the agent did nothing)",
+    documents: docs.join("\n\n") || "(none)",
     agent_outcome: res.agent.closed?.outcome ?? `(not closed; the run ended by ${res.stop})`,
   });
   const r = await call(kit, "judge", { system: promptOf(kit, "judge.system.md"), messages: [{ role: "user", content: prompt }], schema: jsonPrompt(kit, "judge.schema.json") });

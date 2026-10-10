@@ -2,7 +2,8 @@
 
 Submission for the **Real-World Agents Hackathon** (10 October 2026).
 
-- **Team:** TODO
+- **Team:** sorted
+- **Team members:** Prohor Yakuba, Daniil Maksimov, Mikhail Primakov
 - **Track:** Insurance Claims Processing
 - **Demo video:** [`demo/Sorted-demo.mp4`](demo/Sorted-demo.mp4)
 - **Reality Test results:** [`ANSWERS/`](ANSWERS/), produced by Case Lab ([`research/case-lab`](research/case-lab/README.md)); traces in [`logs/`](logs/)
